@@ -1,0 +1,13 @@
+{
+  "name": "CreatorBoost",
+  "short_name": "CreatorBoost",
+  "description": "Grow Your Audience. Earn From Every Valid View.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#05030d",
+  "theme_color": "#8b5cf6",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "/apple-touch-icon.svg", "sizes": "180x180", "type": "image/svg+xml" }
+  ]
+}

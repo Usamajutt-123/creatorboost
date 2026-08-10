@@ -1,0 +1,8 @@
+{
+  "/c/[slug]/page": "app/c/[slug]/page.js",
+  "/destination/[campaign]/page": "app/destination/[campaign]/page.js",
+  "/dashboard/create-campaign/page": "app/dashboard/create-campaign/page.js",
+  "/dashboard/campaigns/page": "app/dashboard/campaigns/page.js",
+  "/dashboard/campaigns/[id]/page": "app/dashboard/campaigns/[id]/page.js",
+  "/dashboard/analytics/page": "app/dashboard/analytics/page.js"
+}

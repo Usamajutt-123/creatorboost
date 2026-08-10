@@ -1,0 +1,2370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#05030d" />
+<meta name="description" content="CreatorBoost – The premium creator monetization platform. Earn from every valid view with AI fraud detection, smart unlock campaigns, and dynamic CPM management." />
+<meta name="keywords" content="CreatorBoost, CPM, creator monetization, earn money, YouTube subscribers, Instagram followers, SaaS platform" />
+<meta property="og:title" content="CreatorBoost – Grow Your Audience. Earn From Every Valid View." />
+<meta property="og:description" content="A premium creator monetization platform. Earn money for every 1000 valid views." />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="canonical" href="https://creatorboost.io/" />
+<title>CreatorBoost – Grow Your Audience. Earn From Every Valid View.</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'], display: ['Space Grotesk', 'Inter', 'sans-serif'] },
+      animation: {
+        'gradient-x': 'gradient-x 8s ease infinite',
+        'float': 'float 6s ease-in-out infinite',
+        'pulse-glow': 'pulse-glow 3s ease-in-out infinite',
+        'fade-in-up': 'fadeInUp 0.6s ease-out',
+        'shimmer': 'shimmer 2.5s linear infinite',
+        'marquee': 'marquee 30s linear infinite',
+        'spin-slow': 'spin 8s linear infinite',
+      },
+      keyframes: {
+        'gradient-x': { '0%, 100%': { 'background-position': '0% 50%' }, '50%': { 'background-position': '100% 50%' } },
+        'float': { '0%, 100%': { transform: 'translateY(0px)' }, '50%': { transform: 'translateY(-20px)' } },
+        'pulse-glow': { '0%, 100%': { 'box-shadow': '0 0 20px rgba(139, 92, 246, 0.3)' }, '50%': { 'box-shadow': '0 0 40px rgba(139, 92, 246, 0.6)' } },
+        'fadeInUp': { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+        'shimmer': { '0%': { 'background-position': '-200% 0' }, '100%': { 'background-position': '200% 0' } },
+        'marquee': { '0%': { transform: 'translateX(0)' }, '100%': { transform: 'translateX(-50%)' } },
+      },
+    },
+  },
+};
+</script>
+<style>
+* { scroll-behavior: smooth; box-sizing: border-box; }
+html, body { overflow-x: hidden; max-width: 100vw; }
+body { font-family: 'Inter', sans-serif; background: #05030d; color: #e5e7eb; -webkit-font-smoothing: antialiased; }
+.gradient-text { background: linear-gradient(135deg, #a78bfa 0%, #818cf8 35%, #60a5fa 70%, #22d3ee 100%); -webkit-background-clip: text; background-clip: text; color: transparent; background-size: 200% 200%; animation: gradient-x 8s ease infinite; }
+.hero-gradient { background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(139, 92, 246, 0.35), transparent 60%), radial-gradient(ellipse 60% 50% at 80% 50%, rgba(59, 130, 246, 0.25), transparent 60%), radial-gradient(ellipse 60% 50% at 20% 80%, rgba(236, 72, 153, 0.2), transparent 60%), #05030d; }
+.glass { background: rgba(15, 10, 31, 0.55); backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%); border: 1px solid rgba(255, 255, 255, 0.08); }
+.glass-strong { background: rgba(15, 10, 31, 0.78); backdrop-filter: blur(24px) saturate(150%); -webkit-backdrop-filter: blur(24px) saturate(150%); border: 1px solid rgba(255, 255, 255, 0.1); }
+.card-glow { position: relative; transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease; }
+.card-glow:hover { transform: translateY(-4px); border-color: rgba(139, 92, 246, 0.45); box-shadow: 0 20px 50px -15px rgba(139, 92, 246, 0.35); }
+.btn-primary { background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 50%, #3b82f6 100%); background-size: 200% 200%; transition: all .35s ease; box-shadow: 0 8px 24px -6px rgba(139, 92, 246, 0.5); }
+.btn-primary:hover { background-position: 100% 0; box-shadow: 0 12px 32px -6px rgba(139, 92, 246, 0.7); transform: translateY(-1px); }
+.btn-ghost { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); transition: all .3s ease; }
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(139, 92, 246, 0.5); }
+.grid-bg { background-image: linear-gradient(rgba(139, 92, 246, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(139, 92, 246, 0.08) 1px, transparent 1px); background-size: 60px 60px; -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 80%); mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 80%); }
+.blob { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.4; pointer-events: none; z-index: 0; }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+.badge-bronze { background: rgba(205,127,50,.15); color: #f4a460; border:1px solid rgba(205,127,50,.3);}
+.badge-silver { background: rgba(192,192,192,.12); color: #d1d5db; border:1px solid rgba(192,192,192,.3);}
+.badge-gold { background: rgba(255,215,0,.12);  color: #fde68a; border:1px solid rgba(255,215,0,.3);}
+.badge-platinum { background: rgba(139,92,246,.15); color: #c4b5fd; border:1px solid rgba(139,92,246,.4);}
+.badge-diamond { background: linear-gradient(135deg, rgba(59,130,246,.2), rgba(139,92,246,.2)); color: #e0e7ff; border:1px solid rgba(99,102,241,.4);}
+.status-active { background: rgba(34,197,94,.12); color: #4ade80; }
+.status-paused { background: rgba(234,179,8,.12); color: #fde047; }
+.status-draft { background: rgba(148,163,184,.15); color: #cbd5e1; }
+.status-pending { background: rgba(234,179,8,.12); color: #fde047; }
+.status-approved { background: rgba(59,130,246,.15); color: #93c5fd; }
+.status-paid { background: rgba(34,197,94,.12); color: #4ade80; }
+.status-rejected { background: rgba(239,68,68,.12); color: #fca5a5; }
+.sidebar-link { transition: all .25s ease; border-left: 2px solid transparent; }
+.sidebar-link:hover, .sidebar-link.active { background: linear-gradient(90deg, rgba(139, 92, 246, 0.15), transparent); border-left-color: #8b5cf6; color: #fff; }
+.stat-card { position: relative; overflow: hidden; }
+.stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #8b5cf6, #3b82f6, transparent); opacity: 0; transition: opacity .35s ease; }
+.stat-card:hover::before { opacity: 1; }
+.table-row { transition: background .2s ease; }
+.table-row:hover { background: rgba(139, 92, 246, 0.05); }
+.marquee { display: flex; overflow: hidden; gap: 60px; -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
+.marquee-track { display: flex; gap: 60px; flex-shrink: 0; animation: marquee 30s linear infinite; }
+.notification-dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; background: #ec4899; border-radius: 50%; box-shadow: 0 0 10px #ec4899; }
+.toggle { position: relative; width: 40px; height: 22px; background: rgba(255,255,255,.1); border-radius: 11px; cursor: pointer; transition: background .25s ease; flex-shrink: 0; }
+.toggle.on { background: linear-gradient(135deg, #8b5cf6, #3b82f6); }
+.toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: #fff; border-radius: 50%; transition: transform .25s ease; }
+.toggle.on::after { transform: translateX(18px); }
+.input-field { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); transition: all .25s ease; }
+.input-field:focus { outline: none; border-color: #8b5cf6; background: rgba(139, 92, 246, 0.05); box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15); }
+.floating-orb { position: absolute; border-radius: 50%; pointer-events: none; filter: blur(60px); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0a0716; }
+::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #8b5cf6, #3b82f6); border-radius: 4px; }
+.tab-btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; transition: all .25s ease; color: #94a3b8; background: transparent; }
+.tab-btn.active { background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.2)); color: #fff; }
+.menu-link { position: relative; padding: 8px 0; transition: color .25s ease; }
+.menu-link::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, #8b5cf6, #3b82f6); transform: scaleX(0); transform-origin: left; transition: transform .3s ease; }
+.menu-link:hover::after { transform: scaleX(1); }
+.menu-link:hover { color: white; }
+.glow-text { text-shadow: 0 0 20px rgba(139, 92, 246, 0.4); }
+.dot-pulse { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 12px #4ade80; animation: pulse-glow 2s ease-in-out infinite; }
+.counter { font-variant-numeric: tabular-nums; }
+
+/* Mobile menu (slide-in) */
+.mobile-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); z-index: 60; opacity: 0; pointer-events: none; transition: opacity .3s ease; }
+.mobile-overlay.open { opacity: 1; pointer-events: auto; }
+.mobile-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 80%; max-width: 320px; background: rgba(15, 10, 31, 0.96); backdrop-filter: blur(24px); border-left: 1px solid rgba(255,255,255,.1); z-index: 70; transform: translateX(100%); transition: transform .35s cubic-bezier(.4,0,.2,1); display: flex; flex-direction: column; }
+.mobile-drawer.open { transform: translateX(0); }
+.mobile-drawer .drawer-link { display: block; padding: 14px 20px; font-size: 15px; font-weight: 500; color: #cbd5e1; border-radius: 12px; transition: all .2s ease; }
+.mobile-drawer .drawer-link:hover { background: rgba(139,92,246,.1); color: white; padding-left: 28px; }
+
+section { position: relative; }
+</style>
+</head>
+<body>
+
+<!-- ============== PUBLIC LAYOUT ============== -->
+<div id="publicLayout">
+  <!-- Navbar (fixed) -->
+  <nav class="fixed top-0 left-0 right-0 z-50 glass-strong">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <a href="#" onclick="navigate('landing')" class="flex items-center gap-2 group flex-shrink-0">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-lg shadow-purple-500/30 group-hover:scale-110 transition">
+            <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          <span class="font-display text-lg sm:text-xl font-bold whitespace-nowrap">Creator<span class="gradient-text">Boost</span></span>
+        </a>
+        <div class="hidden lg:flex items-center gap-6 xl:gap-8 text-sm font-medium text-gray-300">
+          <a href="#hero" onclick="scrollToSection('hero')" class="menu-link">Home</a>
+          <a href="#features" onclick="scrollToSection('features')" class="menu-link">Features</a>
+          <a href="#how" onclick="scrollToSection('how')" class="menu-link">How it Works</a>
+          <a href="#calculator" onclick="scrollToSection('calculator')" class="menu-link">Calculator</a>
+          <a href="#pricing" onclick="scrollToSection('pricing')" class="menu-link">Pricing</a>
+          <a href="#blog" onclick="scrollToSection('blog')" class="menu-link">Blog</a>
+          <a href="#contact" onclick="scrollToSection('contact')" class="menu-link">Contact</a>
+        </div>
+        <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <button onclick="navigate('login')" class="hidden sm:block text-sm font-medium text-gray-300 hover:text-white transition">Sign in</button>
+          <button onclick="navigate('signup')" class="btn-primary text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg text-white whitespace-nowrap">Get Started</button>
+          <button id="mobileMenuBtn" class="lg:hidden p-2 text-gray-300 hover:text-white" aria-label="Open menu">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile menu -->
+  <div id="mobileOverlay" class="mobile-overlay" onclick="closeMobile()"></div>
+  <aside id="mobileDrawer" class="mobile-drawer">
+    <div class="flex items-center justify-between p-4 border-b border-white/10">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+          <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+        <span class="font-display font-bold">Creator<span class="gradient-text">Boost</span></span>
+      </div>
+      <button onclick="closeMobile()" class="p-2 text-gray-300 hover:text-white" aria-label="Close menu">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="flex-1 overflow-y-auto p-4 space-y-1">
+      <a href="#hero" onclick="closeMobile(); scrollToSection('hero')" class="drawer-link">Home</a>
+      <a href="#features" onclick="closeMobile(); scrollToSection('features')" class="drawer-link">Features</a>
+      <a href="#calculator" onclick="closeMobile(); scrollToSection('calculator')" class="drawer-link">Calculator</a>
+      <a href="#how" onclick="closeMobile(); scrollToSection('how')" class="drawer-link">How it Works</a>
+      <a href="#pricing" onclick="closeMobile(); scrollToSection('pricing')" class="drawer-link">Pricing</a>
+      <a href="#blog" onclick="closeMobile(); scrollToSection('blog')" class="drawer-link">Blog</a>
+      <a href="#contact" onclick="closeMobile(); scrollToSection('contact')" class="drawer-link">Contact</a>
+      <a href="#" onclick="closeMobile(); navigate('support')" class="drawer-link">Support</a>
+      <a href="#" onclick="closeMobile(); navigate('about')" class="drawer-link">About</a>
+    </div>
+    <div class="p-4 border-t border-white/10 space-y-2">
+      <button onclick="closeMobile(); navigate('login')" class="btn-ghost w-full py-2.5 rounded-xl text-sm font-medium">Sign in</button>
+      <button onclick="closeMobile(); navigate('signup')" class="btn-primary w-full py-2.5 rounded-xl text-sm font-semibold text-white">Get Started Free</button>
+    </div>
+  </aside>
+
+  <!-- LANDING (all sections live here, ordered) -->
+  <main id="page-landing" class="page active">
+
+    <!-- ============== 1. HERO ============== -->
+    <section id="hero" class="hero-gradient relative min-h-[100svh] flex items-center pt-20 sm:pt-24 pb-12 sm:pb-16 overflow-hidden">
+      <div class="grid-bg absolute inset-0"></div>
+      <div class="floating-orb w-[28rem] h-[28rem] bg-purple-600/30 -top-32 -left-32 animate-float"></div>
+      <div class="floating-orb w-[32rem] h-[32rem] bg-blue-600/30 -bottom-40 -right-40 animate-float" style="animation-delay: -2s"></div>
+      <div class="floating-orb w-72 h-72 bg-pink-500/20 top-1/3 left-1/2 animate-float" style="animation-delay: -4s"></div>
+      <div class="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-[#05030d] to-transparent pointer-events-none"></div>
+
+      <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full grid lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+        <div class="lg:col-span-7">
+          <div class="flex flex-wrap items-center gap-2 sm:gap-3 mb-5 sm:mb-6">
+            <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass text-[11px] sm:text-xs font-medium text-purple-300">
+              <span class="relative flex h-2 w-2"><span class="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-green-400"></span></span>
+              Trusted by 12,000+ creators
+            </span>
+            <span class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-[11px] sm:text-xs font-medium text-yellow-300">★ 4.9 / 5.0 rating</span>
+            <span class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-[11px] sm:text-xs font-medium text-blue-300">🛡 AI fraud protection</span>
+          </div>
+          <h1 class="font-display text-[2.4rem] leading-[1.05] sm:text-5xl md:text-6xl lg:text-[3.75rem] xl:text-[4.25rem] font-bold tracking-tight mb-5 sm:mb-6 glow-text">
+            Grow Your <span class="relative inline-block"><span class="gradient-text">Audience.</span><svg class="absolute -bottom-1.5 left-0 w-full" viewBox="0 0 200 8" fill="none"><path d="M2 5 Q 50 1, 100 4 T 198 4" stroke="url(#hug)" stroke-width="3" stroke-linecap="round"/><defs><linearGradient id="hug" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#60a5fa"/></linearGradient></defs></svg></span><br/>
+            Earn From Every <span class="gradient-text">Valid View.</span>
+          </h1>
+          <p class="text-base sm:text-lg text-gray-400 max-w-xl mb-7 sm:mb-8 leading-relaxed">CreatorBoost helps creators monetize their audience through smart unlock campaigns. Create campaigns, share your link, and earn money for every <strong class="text-white font-semibold">1000 valid views</strong>. Powered by AI fraud detection and dynamic CPM rates.</p>
+          <div class="flex flex-wrap items-center gap-3 mb-8 sm:mb-10">
+            <button onclick="navigate('signup')" class="btn-primary text-white font-semibold px-6 sm:px-7 py-3 sm:py-3.5 rounded-xl flex items-center gap-2 text-sm group">Get Started Free <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg></button>
+            <a href="#how" onclick="scrollToSection('how')" class="btn-ghost text-white font-semibold px-5 sm:px-6 py-3 sm:py-3.5 rounded-xl flex items-center gap-2 text-sm cursor-pointer"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Watch Demo</a>
+            <span class="hidden sm:inline-flex items-center gap-1.5 text-xs text-gray-500 ml-1">✨ No credit card required</span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 max-w-2xl">
+            <div class="glass rounded-xl p-3 text-center stat-card group"><div class="text-base sm:text-lg mb-0.5 group-hover:scale-110 transition-transform">💰</div><div class="text-lg sm:text-xl font-bold text-white leading-tight">$2.4M+</div><div class="text-[10px] sm:text-[11px] text-gray-500 mt-0.5">Revenue Paid</div></div>
+            <div class="glass rounded-xl p-3 text-center stat-card group"><div class="text-base sm:text-lg mb-0.5 group-hover:scale-110 transition-transform">🌍</div><div class="text-lg sm:text-xl font-bold text-white leading-tight">180+</div><div class="text-[10px] sm:text-[11px] text-gray-500 mt-0.5">Countries</div></div>
+            <div class="glass rounded-xl p-3 text-center stat-card group"><div class="text-base sm:text-lg mb-0.5 group-hover:scale-110 transition-transform">⚡</div><div class="text-lg sm:text-xl font-bold text-white leading-tight">12K+</div><div class="text-[10px] sm:text-[11px] text-gray-500 mt-0.5">Active Creators</div></div>
+            <div class="glass rounded-xl p-3 text-center stat-card group"><div class="text-base sm:text-lg mb-0.5 group-hover:scale-110 transition-transform">🛡️</div><div class="text-lg sm:text-xl font-bold text-white leading-tight">$6</div><div class="text-[10px] sm:text-[11px] text-gray-500 mt-0.5">Avg CPM (T1)</div></div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-5 relative w-full">
+          <div class="absolute -inset-4 bg-gradient-to-tr from-purple-600/30 via-blue-600/20 to-pink-500/20 rounded-3xl blur-2xl"></div>
+          <div class="relative glass-strong rounded-2xl p-4 sm:p-5 card-glow shadow-2xl shadow-purple-900/20">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-1.5">
+                <div class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-red-400/80"></div>
+                <div class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-yellow-400/80"></div>
+                <div class="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-green-400/80"></div>
+              </div>
+              <div class="hidden sm:flex items-center gap-1.5 text-[10px] text-gray-500 font-mono bg-black/30 px-2 py-0.5 rounded"><span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> creatorboost.io/dashboard</div>
+            </div>
+            <div class="grid grid-cols-2 gap-2.5 sm:gap-3 mb-3 sm:mb-4">
+              <div class="glass rounded-xl p-3 sm:p-4 stat-card">
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="text-[10px] sm:text-xs text-gray-400">Total Earnings</div>
+                  <div class="w-3.5 h-3.5 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 text-[10px]">$</div>
+                </div>
+                <div class="text-base sm:text-xl font-bold text-white">$12,847.32</div>
+                <div class="text-[10px] sm:text-xs text-green-400 mt-0.5 flex items-center gap-1">↑ 23.5% this month</div>
+              </div>
+              <div class="glass rounded-xl p-3 sm:p-4 stat-card">
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="text-[10px] sm:text-xs text-gray-400">Valid Views</div>
+                  <div class="w-3.5 h-3.5 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 text-[10px]">👁</div>
+                </div>
+                <div class="text-base sm:text-xl font-bold text-white">2.4M</div>
+                <div class="text-[10px] sm:text-xs text-green-400 mt-0.5 flex items-center gap-1">↑ 18.2%</div>
+              </div>
+            </div>
+            <div class="glass rounded-xl p-3 sm:p-4 h-32 sm:h-40 relative">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] sm:text-xs font-semibold text-gray-300">Revenue</span>
+                <span class="text-[10px] text-green-400 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Live</span>
+              </div>
+              <canvas id="heroChart"></canvas>
+            </div>
+            <div class="grid grid-cols-3 gap-2 sm:gap-3 mt-3 sm:mt-4">
+              <div class="glass rounded-lg p-2.5 sm:p-3"><div class="text-[9px] sm:text-[10px] text-gray-500">CPM</div><div class="text-sm sm:text-base font-bold gradient-text">$5.00</div></div>
+              <div class="glass rounded-lg p-2.5 sm:p-3"><div class="text-[9px] sm:text-[10px] text-gray-500">Level</div><div class="text-sm sm:text-base font-bold text-yellow-300 flex items-center gap-1">★ Gold</div></div>
+              <div class="glass rounded-lg p-2.5 sm:p-3"><div class="text-[9px] sm:text-[10px] text-gray-500">Balance</div><div class="text-sm sm:text-base font-bold text-white">$847</div></div>
+            </div>
+            <div class="hidden md:flex absolute -left-6 top-12 glass-strong rounded-full pl-2 pr-4 py-1.5 items-center gap-2 shadow-xl shadow-purple-900/30 animate-float">
+              <div class="w-7 h-7 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center text-white text-[10px]">⚡</div>
+              <div class="leading-tight"><div class="text-[10px] text-gray-400">+ $24.50 just earned</div><div class="text-[10px] font-semibold text-white">YT Subscribe Boost</div></div>
+            </div>
+            <div class="hidden md:flex absolute -right-4 bottom-10 glass-strong rounded-full pl-2 pr-3 py-1.5 items-center gap-2 shadow-xl shadow-purple-900/30 animate-float" style="animation-delay: -3s">
+              <div class="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-[10px] font-bold">★</div>
+              <div class="leading-tight"><div class="text-[10px] text-gray-400">Level Up</div><div class="text-[10px] font-semibold text-white">Gold Tier unlocked</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[#05030d] to-transparent pointer-events-none"></div>
+    </section>
+
+    <!-- ============== 2. LIVE STATS ============== -->
+    <section class="relative py-14 sm:py-20">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div class="glass rounded-2xl p-5 sm:p-6 text-center stat-card">
+            <div class="text-3xl sm:text-4xl mb-2">💰</div>
+            <div class="text-xl sm:text-2xl font-bold gradient-text">$2.4M+</div>
+            <div class="text-[10px] sm:text-xs text-gray-500 mt-1">Revenue paid to creators</div>
+          </div>
+          <div class="glass rounded-2xl p-5 sm:p-6 text-center stat-card">
+            <div class="text-3xl sm:text-4xl mb-2">🌍</div>
+            <div class="text-xl sm:text-2xl font-bold gradient-text">180+</div>
+            <div class="text-[10px] sm:text-xs text-gray-500 mt-1">Countries supported</div>
+          </div>
+          <div class="glass rounded-2xl p-5 sm:p-6 text-center stat-card">
+            <div class="text-3xl sm:text-4xl mb-2">⚡</div>
+            <div class="text-xl sm:text-2xl font-bold gradient-text">$6</div>
+            <div class="text-[10px] sm:text-xs text-gray-500 mt-1">Maximum CPM (Tier 1)</div>
+          </div>
+          <div class="glass rounded-2xl p-5 sm:p-6 text-center stat-card">
+            <div class="text-3xl sm:text-4xl mb-2">🛡️</div>
+            <div class="text-xl sm:text-2xl font-bold gradient-text">99.7%</div>
+            <div class="text-[10px] sm:text-xs text-gray-500 mt-1">Fraud detection accuracy</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== 3. CPM CALCULATOR ============== -->
+    <section id="calculator" class="relative py-16 sm:py-24 bg-gradient-to-b from-transparent via-purple-950/20 to-transparent">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10 sm:mb-12">
+          <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3">CPM Calculator</div>
+          <h2 class="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">Estimate Your <span class="gradient-text">Earnings</span></h2>
+          <p class="text-sm sm:text-base text-gray-400 max-w-2xl mx-auto">See how much you can earn based on your traffic, country mix, and creator level. All rates are dynamic.</p>
+        </div>
+        <div class="grid lg:grid-cols-2 gap-5 sm:gap-6">
+          <div class="glass-strong rounded-2xl p-5 sm:p-8 space-y-4 sm:space-y-5">
+            <div>
+              <label class="text-xs font-medium text-gray-300 block mb-2">Visitors per month</label>
+              <input id="calcVisitors" type="number" value="10000" min="0" class="input-field w-full px-4 py-3 rounded-xl text-sm" oninput="updateCalculator()" />
+              <div class="grid grid-cols-5 gap-2 mt-2">
+                <button onclick="setVisitors(1000)" class="tab-btn">1K</button>
+                <button onclick="setVisitors(5000)" class="tab-btn">5K</button>
+                <button onclick="setVisitors(10000)" class="tab-btn active">10K</button>
+                <button onclick="setVisitors(50000)" class="tab-btn">50K</button>
+                <button onclick="setVisitors(100000)" class="tab-btn">100K</button>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-300 block mb-2">Country Tier</label>
+              <select id="calcTier" class="input-field w-full px-4 py-3 rounded-xl text-sm" onchange="updateCalculator()">
+                <option value="tier_1">Tier 1 — USA, UK, Germany, Canada ($5/1K)</option>
+                <option value="tier_2">Tier 2 — France, Italy, Spain, UAE ($2.75/1K)</option>
+                <option value="tier_3">Tier 3 — India, Pakistan, Brazil ($1/1K)</option>
+                <option value="mixed">Mixed (40% T1, 35% T2, 25% T3)</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-300 block mb-2">Creator Level</label>
+              <select id="calcLevel" class="input-field w-full px-4 py-3 rounded-xl text-sm" onchange="updateCalculator()">
+                <option value="1.0">Bronze (1.0× multiplier)</option>
+                <option value="1.1">Silver (1.1× multiplier)</option>
+                <option value="1.25" selected>Gold (1.25× multiplier)</option>
+                <option value="1.5">Platinum (1.5× multiplier)</option>
+                <option value="2.0">Diamond (2.0× multiplier)</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-300 block mb-2">Traffic Quality</label>
+              <div class="grid grid-cols-4 gap-2">
+                <button onclick="setQuality(0.6)" class="tab-btn quality-btn" data-q="0.6">60%</button>
+                <button onclick="setQuality(0.75)" class="tab-btn quality-btn active" data-q="0.75">75%</button>
+                <button onclick="setQuality(0.9)" class="tab-btn quality-btn" data-q="0.9">90%</button>
+                <button onclick="setQuality(0.98)" class="tab-btn quality-btn" data-q="0.98">98%</button>
+              </div>
+              <p class="text-[10px] sm:text-xs text-gray-500 mt-2">Higher = fewer bot/VPN/blocked views</p>
+            </div>
+          </div>
+          <div class="space-y-3 sm:space-y-4">
+            <div class="glass-strong rounded-2xl p-5 sm:p-6 bg-gradient-to-br from-purple-500/10 to-blue-500/10">
+              <div class="text-xs text-gray-400 mb-1">Estimated Monthly Revenue</div>
+              <div class="text-4xl sm:text-5xl font-bold gradient-text mb-2" id="calcRevenue">$0</div>
+              <div class="text-xs text-gray-500">After traffic quality filter</div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="glass rounded-2xl p-3 sm:p-4">
+                <div class="text-[10px] sm:text-xs text-gray-400 mb-1">Your Earnings</div>
+                <div class="text-lg sm:text-2xl font-bold text-green-400" id="calcCreator">$0</div>
+                <div class="text-[10px] sm:text-xs text-gray-500 mt-1">70% payout share</div>
+              </div>
+              <div class="glass rounded-2xl p-3 sm:p-4">
+                <div class="text-[10px] sm:text-xs text-gray-400 mb-1">Platform Profit</div>
+                <div class="text-lg sm:text-2xl font-bold text-blue-400" id="calcPlatform">$0</div>
+                <div class="text-[10px] sm:text-xs text-gray-500 mt-1">30% platform cut</div>
+              </div>
+              <div class="glass rounded-2xl p-3 sm:p-4">
+                <div class="text-[10px] sm:text-xs text-gray-400 mb-1">Effective CPM</div>
+                <div class="text-lg sm:text-2xl font-bold text-purple-300" id="calcCPM">$0</div>
+                <div class="text-[10px] sm:text-xs text-gray-500 mt-1">Per 1,000 valid views</div>
+              </div>
+              <div class="glass rounded-2xl p-3 sm:p-4">
+                <div class="text-[10px] sm:text-xs text-gray-400 mb-1">Valid Views</div>
+                <div class="text-lg sm:text-2xl font-bold text-white" id="calcValid">0</div>
+                <div class="text-[10px] sm:text-xs text-gray-500 mt-1" id="calcValidPct">75% of total</div>
+              </div>
+            </div>
+            <div class="glass rounded-2xl p-4 sm:p-5">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="text-xs sm:text-sm font-semibold">Earnings breakdown</h4>
+                <span class="text-[10px] sm:text-xs text-gray-500">Per month</span>
+              </div>
+              <div class="h-28 sm:h-32"><canvas id="calcChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <!-- Earnings examples -->
+        <div class="mt-8 sm:mt-10 glass-strong rounded-2xl p-5 sm:p-8">
+          <h3 class="font-semibold text-sm sm:text-base mb-1">Real-world examples</h3>
+          <p class="text-[10px] sm:text-xs text-gray-500 mb-4 sm:mb-5">Gold creator, Tier 1 traffic, 85% quality — projected monthly revenue</p>
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div class="glass rounded-xl p-3 sm:p-4 text-center card-glow"><div class="text-[10px] sm:text-xs text-gray-500 mb-1">1,000 visitors</div><div class="text-lg sm:text-xl font-bold gradient-text">$5.31</div></div>
+            <div class="glass rounded-xl p-3 sm:p-4 text-center card-glow"><div class="text-[10px] sm:text-xs text-gray-500 mb-1">5,000 visitors</div><div class="text-lg sm:text-xl font-bold gradient-text">$26.56</div></div>
+            <div class="glass rounded-xl p-3 sm:p-4 text-center card-glow"><div class="text-[10px] sm:text-xs text-gray-500 mb-1">10,000 visitors</div><div class="text-lg sm:text-xl font-bold gradient-text">$53.13</div></div>
+            <div class="glass rounded-xl p-3 sm:p-4 text-center card-glow"><div class="text-[10px] sm:text-xs text-gray-500 mb-1">50,000 visitors</div><div class="text-lg sm:text-xl font-bold gradient-text">$265.63</div></div>
+            <div class="glass rounded-xl p-3 sm:p-4 text-center card-glow col-span-2 sm:col-span-1"><div class="text-[10px] sm:text-xs text-gray-500 mb-1">100,000 visitors</div><div class="text-lg sm:text-xl font-bold gradient-text">$531.25</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== 4. EARNINGS CALCULATOR (multi-tier) ============== -->
+    <section id="earnings" class="relative py-16 sm:py-24">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10 sm:mb-12">
+          <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3">Earnings Calculator</div>
+          <h2 class="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">Project Your <span class="gradient-text">Annual Revenue</span></h2>
+          <p class="text-sm sm:text-base text-gray-400 max-w-2xl mx-auto">Compare earnings across tiers, plan your growth, and see where each level takes you.</p>
+        </div>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div class="glass-strong rounded-2xl p-5 sm:p-6 card-glow bg-gradient-to-br from-green-500/10 to-emerald-500/10">
+            <div class="text-xs text-gray-400 mb-1">Tier 1 Country (USA)</div>
+            <div class="text-2xl sm:text-3xl font-bold text-white mb-1">$1,500</div>
+            <div class="text-[10px] sm:text-xs text-gray-500 mb-3">per 100K valid views</div>
+            <div class="text-[10px] sm:text-xs text-gray-400">Gold level: <span class="text-green-400 font-semibold">$1,875</span></div>
+            <div class="text-[10px] sm:text-xs text-gray-400">Platinum: <span class="text-green-400 font-semibold">$2,250</span></div>
+            <div class="text-[10px] sm:text-xs text-gray-400">Diamond: <span class="text-green-400 font-semibold">$3,000</span></div>
+          </div>
+          <div class="glass-strong rounded-2xl p-5 sm:p-6 card-glow bg-gradient-to-br from-blue-500/10 to-cyan-500/10">
+            <div class="text-xs text-gray-400 mb-1">Tier 2 Country (France)</div>
+            <div class="text-2xl sm:text-3xl font-bold text-white mb-1">$825</div>
+            <div class="text-[10px] sm:text-xs text-gray-500 mb-3">per 100K valid views</div>
+            <div class="text-[10px] sm:text-xs text-gray-400">Gold level: <span class="text-blue-400 font-semibold">$1,031</span></div>
+            <div class="text-[10px] sm:text-xs text-gray-400">Platinum: <span class="text-blue-400 font-semibold">$1,237</span></div>
+            <div class="text-[10px] sm:text-xs text-gray-400">Diamond: <span class="text-blue-400 font-semibold">$1,650</span></div>
+          </div>
+          <div class="glass-strong rounded-2xl p-5 sm:p-6 card-glow bg-gradient-to-br from-purple-500/10 to-pink-500/10">
+            <div class="text-xs text-gray-400 mb-1">Tier 3 Country (India)</div>
+            <div class="text-2xl sm:text-3xl font-bold text-white mb-1">$300</div>
+            <div class="text-[10px] sm:text-xs text-gray-500 mb-3">per 100K valid views</div>
+            <div class="text-[10px] sm:text-xs text-gray-400">Gold level: <span class="text-purple-400 font-semibold">$375</span></div>
+            <div class="text-[10px] sm:text-xs text-gray-400">Platinum: <span class="text-purple-400 font-semibold">$450</span></div>
+            <div class="text-[10px] sm:text-xs text-gray-400">Diamond: <span class="text-purple-400 font-semibold">$600</span></div>
+          </div>
+          <div class="glass-strong rounded-2xl p-5 sm:p-6 card-glow bg-gradient-to-br from-yellow-500/10 to-orange-500/10">
+            <div class="text-xs text-gray-400 mb-1">Mixed Global Traffic</div>
+            <div class="text-2xl sm:text-3xl font-bold text-white mb-1">$850</div>
+            <div class="text-[10px] sm:text-xs text-gray-500 mb-3">per 100K valid views (avg)</div>
+            <div class="text-[10px] sm:text-xs text-gray-400">Gold level: <span class="text-yellow-300 font-semibold">$1,063</span></div>
+            <div class="text-[10px] sm:text-xs text-gray-400">Platinum: <span class="text-yellow-300 font-semibold">$1,275</span></div>
+            <div class="text-[10px] sm:text-xs text-gray-400">Diamond: <span class="text-yellow-300 font-semibold">$1,700</span></div>
+          </div>
+        </div>
+        <!-- Annual projection -->
+        <div class="mt-8 sm:mt-10 glass-strong rounded-2xl p-5 sm:p-8">
+          <h3 class="font-semibold text-sm sm:text-base mb-2">Annual projection</h3>
+          <p class="text-[10px] sm:text-xs text-gray-500 mb-5">Monthly visitors: 100,000 mixed traffic • Gold creator</p>
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div class="glass rounded-xl p-4 text-center"><div class="text-[10px] sm:text-xs text-gray-500 mb-1">Monthly</div><div class="text-lg sm:text-xl font-bold gradient-text">$1,063</div></div>
+            <div class="glass rounded-xl p-4 text-center"><div class="text-[10px] sm:text-xs text-gray-500 mb-1">Quarterly</div><div class="text-lg sm:text-xl font-bold gradient-text">$3,189</div></div>
+            <div class="glass rounded-xl p-4 text-center"><div class="text-[10px] sm:text-xs text-gray-500 mb-1">Yearly</div><div class="text-lg sm:text-xl font-bold gradient-text">$12,756</div></div>
+            <div class="glass rounded-xl p-4 text-center"><div class="text-[10px] sm:text-xs text-gray-500 mb-1">5 Years</div><div class="text-lg sm:text-xl font-bold gradient-text">$63,780</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== 5. FEATURES ============== -->
+    <section id="features" class="relative py-16 sm:py-24 bg-gradient-to-b from-transparent via-blue-950/20 to-transparent">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10 sm:mb-16">
+          <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3">Features</div>
+          <h2 class="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">Everything you need to <span class="gradient-text">monetize</span></h2>
+          <p class="text-sm sm:text-base text-gray-400 max-w-2xl mx-auto">Powerful tools designed for modern creators. From unlock campaigns to AI fraud detection, we've got you covered.</p>
+        </div>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" id="featuresGrid"></div>
+      </div>
+    </section>
+
+    <!-- ============== 6. CREATOR DASHBOARD PREVIEW ============== -->
+    <section class="relative py-16 sm:py-24">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10 sm:mb-16">
+          <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3">Creator Dashboard</div>
+          <h2 class="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">A dashboard that <span class="gradient-text">just works</span></h2>
+          <p class="text-sm sm:text-base text-gray-400 max-w-2xl mx-auto">Track every view, click, and earning in real-time. Beautiful, intuitive, and built for scale.</p>
+        </div>
+        <div class="relative">
+          <div class="absolute -inset-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-3xl opacity-20 blur-2xl"></div>
+          <div class="relative glass-strong rounded-2xl p-4 sm:p-6">
+            <div class="flex items-center gap-2 mb-4">
+              <div class="w-3 h-3 rounded-full bg-red-400"></div>
+              <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
+              <div class="w-3 h-3 rounded-full bg-green-400"></div>
+              <div class="ml-2 text-[10px] sm:text-xs text-gray-500 font-mono hidden sm:block">creatorboost.io/dashboard</div>
+            </div>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+              <div class="glass rounded-xl p-3 sm:p-4 stat-card"><div class="text-[10px] sm:text-xs text-gray-400 mb-1">Total Earnings</div><div class="text-base sm:text-2xl font-bold text-white">$12,847.32</div><div class="text-[10px] sm:text-xs text-green-400 mt-1">↑ 23.5%</div></div>
+              <div class="glass rounded-xl p-3 sm:p-4 stat-card"><div class="text-[10px] sm:text-xs text-gray-400 mb-1">Valid Views</div><div class="text-base sm:text-2xl font-bold text-white">2.4M</div><div class="text-[10px] sm:text-xs text-green-400 mt-1">↑ 18.2%</div></div>
+              <div class="glass rounded-xl p-3 sm:p-4 stat-card"><div class="text-[10px] sm:text-xs text-gray-400 mb-1">CPM Rate</div><div class="text-base sm:text-2xl font-bold gradient-text">$5.00</div><div class="text-[10px] sm:text-xs text-purple-300 mt-1">Gold tier</div></div>
+              <div class="glass rounded-xl p-3 sm:p-4 stat-card"><div class="text-[10px] sm:text-xs text-gray-400 mb-1">Balance</div><div class="text-base sm:text-2xl font-bold text-white">$847.32</div><div class="text-[10px] sm:text-xs text-green-400 mt-1">Available</div></div>
+            </div>
+            <div class="grid lg:grid-cols-3 gap-3">
+              <div class="lg:col-span-2 glass rounded-xl p-3 sm:p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <h4 class="text-xs sm:text-sm font-semibold">Earnings Overview</h4>
+                  <span class="text-[10px] sm:text-xs text-gray-500">Last 30 days</span>
+                </div>
+                <div class="h-48 sm:h-56"><canvas id="dashRevenueChart"></canvas></div>
+              </div>
+              <div class="glass rounded-xl p-3 sm:p-4">
+                <h4 class="text-xs sm:text-sm font-semibold mb-3">Top Countries</h4>
+                <div class="h-48 sm:h-56"><canvas id="dashCountryChart"></canvas></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== 7. ADMIN DASHBOARD PREVIEW ============== -->
+    <section class="relative py-16 sm:py-24 bg-gradient-to-b from-transparent via-purple-950/20 to-transparent">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10 sm:mb-16">
+          <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-red-300 mb-3">Admin Panel</div>
+          <h2 class="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">Powerful tools for <span class="gradient-text">platform owners</span></h2>
+          <p class="text-sm sm:text-base text-gray-400 max-w-2xl mx-auto">Manage users, campaigns, CPM rates, ad networks, and more — all from a single dashboard.</p>
+        </div>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+          <div class="glass rounded-2xl p-4 sm:p-5 stat-card">
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-[10px] sm:text-xs text-gray-400">Total Revenue</div>
+              <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-green-500/15 flex items-center justify-center text-green-400 text-xs sm:text-sm">$</div>
+            </div>
+            <div class="text-lg sm:text-2xl font-bold">$847,290</div>
+            <div class="text-[10px] sm:text-xs text-green-400 mt-1">↑ 18.4%</div>
+          </div>
+          <div class="glass rounded-2xl p-4 sm:p-5 stat-card">
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-[10px] sm:text-xs text-gray-400">Platform Profit</div>
+              <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-purple-500/15 flex items-center justify-center text-purple-400 text-xs sm:text-sm">📈</div>
+            </div>
+            <div class="text-lg sm:text-2xl font-bold">$214,580</div>
+            <div class="text-[10px] sm:text-xs text-green-400 mt-1">↑ 22.1%</div>
+          </div>
+          <div class="glass rounded-2xl p-4 sm:p-5 stat-card">
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-[10px] sm:text-xs text-gray-400">Total Creators</div>
+              <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-500/15 flex items-center justify-center text-blue-400 text-xs sm:text-sm">👥</div>
+            </div>
+            <div class="text-lg sm:text-2xl font-bold">12,847</div>
+            <div class="text-[10px] sm:text-xs text-green-400 mt-1">↑ 432 this week</div>
+          </div>
+          <div class="glass rounded-2xl p-4 sm:p-5 stat-card">
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-[10px] sm:text-xs text-gray-400">Active Campaigns</div>
+              <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-pink-500/15 flex items-center justify-center text-pink-400 text-xs sm:text-sm">📢</div>
+            </div>
+            <div class="text-lg sm:text-2xl font-bold">3,429</div>
+            <div class="text-[10px] sm:text-xs text-green-400 mt-1">↑ 8.7%</div>
+          </div>
+        </div>
+        <div class="grid lg:grid-cols-3 gap-3">
+          <div class="lg:col-span-2 glass-strong rounded-2xl p-4 sm:p-5">
+            <h4 class="text-xs sm:text-sm font-semibold mb-3 sm:mb-4">Platform Revenue &amp; Profit</h4>
+            <div class="h-56 sm:h-64"><canvas id="adminRevChart"></canvas></div>
+          </div>
+          <div class="glass-strong rounded-2xl p-4 sm:p-5">
+            <h4 class="text-xs sm:text-sm font-semibold mb-3 sm:mb-4">Ad Network Distribution</h4>
+            <div class="h-56 sm:h-64"><canvas id="adminAdChart"></canvas></div>
+          </div>
+        </div>
+        <!-- Pending withdraws preview -->
+        <div class="grid lg:grid-cols-2 gap-3 mt-3">
+          <div class="glass-strong rounded-2xl p-4 sm:p-5">
+            <h4 class="text-xs sm:text-sm font-semibold mb-3">Pending Withdrawals</h4>
+            <div class="space-y-2">
+              <div class="p-3 glass rounded-xl flex items-center justify-between"><div><div class="font-medium text-xs sm:text-sm">Alex Morgan</div><div class="text-[10px] sm:text-xs text-gray-500">USDT • 2h ago</div></div><div class="text-right"><div class="text-xs sm:text-sm font-semibold text-green-400">$250.00</div><div class="flex gap-2 mt-1"><button class="text-[10px] sm:text-xs text-green-400">Approve</button><button class="text-[10px] sm:text-xs text-red-400">Reject</button></div></div></div>
+              <div class="p-3 glass rounded-xl flex items-center justify-between"><div><div class="font-medium text-xs sm:text-sm">Sarah Khan</div><div class="text-[10px] sm:text-xs text-gray-500">PayPal • 5h ago</div></div><div class="text-right"><div class="text-xs sm:text-sm font-semibold text-green-400">$1,500.00</div><div class="flex gap-2 mt-1"><button class="text-[10px] sm:text-xs text-green-400">Approve</button><button class="text-[10px] sm:text-xs text-red-400">Reject</button></div></div></div>
+              <div class="p-3 glass rounded-xl flex items-center justify-between"><div><div class="font-medium text-xs sm:text-sm">James Wilson</div><div class="text-[10px] sm:text-xs text-gray-500">Binance • 1d ago</div></div><div class="text-right"><div class="text-xs sm:text-sm font-semibold text-green-400">$500.00</div><div class="flex gap-2 mt-1"><button class="text-[10px] sm:text-xs text-green-400">Approve</button><button class="text-[10px] sm:text-xs text-red-400">Reject</button></div></div></div>
+            </div>
+          </div>
+          <div class="glass-strong rounded-2xl p-4 sm:p-5">
+            <h4 class="text-xs sm:text-sm font-semibold mb-3">Recent Activity</h4>
+            <div class="space-y-2">
+              <div class="p-3 glass rounded-xl flex items-center gap-3"><div class="w-8 h-8 rounded-lg bg-green-500/15 flex items-center justify-center text-green-400 text-sm flex-shrink-0">✓</div><div class="flex-1 min-w-0"><div class="text-xs sm:text-sm font-medium truncate">Withdrawal approved</div><div class="text-[10px] sm:text-xs text-gray-500">$1,500 to Sarah Khan</div></div><div class="text-[10px] sm:text-xs text-gray-500 flex-shrink-0">5m</div></div>
+              <div class="p-3 glass rounded-xl flex items-center gap-3"><div class="w-8 h-8 rounded-lg bg-purple-500/15 flex items-center justify-center text-purple-400 text-sm flex-shrink-0">U</div><div class="flex-1 min-w-0"><div class="text-xs sm:text-sm font-medium truncate">New creator</div><div class="text-[10px] sm:text-xs text-gray-500">mike.chen@example.com</div></div><div class="text-[10px] sm:text-xs text-gray-500 flex-shrink-0">12m</div></div>
+              <div class="p-3 glass rounded-xl flex items-center gap-3"><div class="w-8 h-8 rounded-lg bg-red-500/15 flex items-center justify-center text-red-400 text-sm flex-shrink-0">!</div><div class="flex-1 min-w-0"><div class="text-xs sm:text-sm font-medium truncate">Fraud alert</div><div class="text-[10px] sm:text-xs text-gray-500">892 bot views blocked</div></div><div class="text-[10px] sm:text-xs text-gray-500 flex-shrink-0">1h</div></div>
+              <div class="p-3 glass rounded-xl flex items-center gap-3"><div class="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center text-blue-400 text-sm flex-shrink-0">A</div><div class="flex-1 min-w-0"><div class="text-xs sm:text-sm font-medium truncate">CPM updated</div><div class="text-[10px] sm:text-xs text-gray-500">USA: $4.50 → $5.00</div></div><div class="text-[10px] sm:text-xs text-gray-500 flex-shrink-0">3h</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== 8. COUNTRY CPM TABLE ============== -->
+    <section class="relative py-16 sm:py-24">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10 sm:mb-12">
+          <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3">Country CPM</div>
+          <h2 class="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">Dynamic rates for <span class="gradient-text">every market</span></h2>
+          <p class="text-sm sm:text-base text-gray-400 max-w-2xl mx-auto">All CPM values are configurable by the admin. Edit any country from <code class="text-purple-300">/admin/cpm</code>.</p>
+        </div>
+        <div class="glass-strong rounded-2xl p-4 sm:p-5 overflow-x-auto">
+          <table class="w-full text-xs sm:text-sm min-w-[640px]">
+            <thead>
+              <tr class="text-[10px] sm:text-xs text-gray-500 border-b border-white/10">
+                <th class="text-left py-2 font-medium">Country</th>
+                <th class="text-left py-2 font-medium">Tier</th>
+                <th class="text-left py-2 font-medium">Min CPM</th>
+                <th class="text-left py-2 font-medium">Default CPM</th>
+                <th class="text-left py-2 font-medium">Max CPM</th>
+                <th class="text-left py-2 font-medium">Payout %</th>
+                <th class="text-left py-2 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-white/5 table-row"><td class="py-3">🇺🇸 United States</td><td class="py-3"><span class="badge badge-gold">Tier 1</span></td><td class="py-3">$4.00</td><td class="py-3 font-semibold">$5.00</td><td class="py-3">$6.00</td><td class="py-3">70%</td><td class="py-3"><span class="badge status-active">active</span></td></tr>
+              <tr class="border-b border-white/5 table-row"><td class="py-3">🇬🇧 United Kingdom</td><td class="py-3"><span class="badge badge-gold">Tier 1</span></td><td class="py-3">$4.00</td><td class="py-3 font-semibold">$5.00</td><td class="py-3">$6.00</td><td class="py-3">70%</td><td class="py-3"><span class="badge status-active">active</span></td></tr>
+              <tr class="border-b border-white/5 table-row"><td class="py-3">🇩🇪 Germany</td><td class="py-3"><span class="badge badge-gold">Tier 1</span></td><td class="py-3">$4.00</td><td class="py-3 font-semibold">$5.00</td><td class="py-3">$6.00</td><td class="py-3">70%</td><td class="py-3"><span class="badge status-active">active</span></td></tr>
+              <tr class="border-b border-white/5 table-row"><td class="py-3">🇨🇦 Canada</td><td class="py-3"><span class="badge badge-gold">Tier 1</span></td><td class="py-3">$4.00</td><td class="py-3 font-semibold">$5.00</td><td class="py-3">$6.00</td><td class="py-3">70%</td><td class="py-3"><span class="badge status-active">active</span></td></tr>
+              <tr class="border-b border-white/5 table-row"><td class="py-3">🇦🇺 Australia</td><td class="py-3"><span class="badge badge-gold">Tier 1</span></td><td class="py-3">$4.00</td><td class="py-3 font-semibold">$5.00</td><td class="py-3">$6.00</td><td class="py-3">70%</td><td class="py-3"><span class="badge status-active">active</span></td></tr>
+              <tr class="border-b border-white/5 table-row"><td class="py-3">🇫🇷 France</td><td class="py-3"><span class="badge badge-silver">Tier 2</span></td><td class="py-3">$2.00</td><td class="py-3 font-semibold">$2.75</td><td class="py-3">$3.50</td><td class="py-3">65%</td><td class="py-3"><span class="badge status-active">active</span></td></tr>
+              <tr class="border-b border-white/5 table-row"><td class="py-3">🇮🇹 Italy</td><td class="py-3"><span class="badge badge-silver">Tier 2</span></td><td class="py-3">$2.00</td><td class="py-3 font-semibold">$2.75</td><td class="py-3">$3.50</td><td class="py-3">65%</td><td class="py-3"><span class="badge status-active">active</span></td></tr>
+              <tr class="border-b border-white/5 table-row"><td class="py-3">🇦🇪 UAE</td><td class="py-3"><span class="badge badge-silver">Tier 2</span></td><td class="py-3">$2.50</td><td class="py-3 font-semibold">$3.25</td><td class="py-3">$4.00</td><td class="py-3">65%</td><td class="py-3"><span class="badge status-active">active</span></td></tr>
+              <tr class="border-b border-white/5 table-row"><td class="py-3">🇮🇳 India</td><td class="py-3"><span class="badge badge-bronze">Tier 3</span></td><td class="py-3">$0.50</td><td class="py-3 font-semibold">$1.00</td><td class="py-3">$1.50</td><td class="py-3">60%</td><td class="py-3"><span class="badge status-active">active</span></td></tr>
+              <tr class="border-b border-white/5 table-row"><td class="py-3">🇵🇰 Pakistan</td><td class="py-3"><span class="badge badge-bronze">Tier 3</span></td><td class="py-3">$0.50</td><td class="py-3 font-semibold">$1.00</td><td class="py-3">$1.50</td><td class="py-3">60%</td><td class="py-3"><span class="badge status-active">active</span></td></tr>
+              <tr class="border-b border-white/5 table-row"><td class="py-3">🇧🇷 Brazil</td><td class="py-3"><span class="badge badge-bronze">Tier 3</span></td><td class="py-3">$0.50</td><td class="py-3 font-semibold">$1.00</td><td class="py-3">$1.50</td><td class="py-3">60%</td><td class="py-3"><span class="badge status-active">active</span></td></tr>
+              <tr class="table-row"><td class="py-3">🇲🇽 Mexico</td><td class="py-3"><span class="badge badge-bronze">Tier 3</span></td><td class="py-3">$0.50</td><td class="py-3 font-semibold">$1.00</td><td class="py-3">$1.50</td><td class="py-3">60%</td><td class="py-3"><span class="badge status-active">active</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== 9. CREATOR LEVELS ============== -->
+    <section class="relative py-16 sm:py-24 bg-gradient-to-b from-transparent via-blue-950/20 to-transparent">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10 sm:mb-16">
+          <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3">Creator Levels</div>
+          <h2 class="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">Level up to unlock <span class="gradient-text">higher CPM</span></h2>
+          <p class="text-sm sm:text-base text-gray-400 max-w-2xl mx-auto">The more valid views you generate, the higher your tier. Each level unlocks better rates and exclusive benefits.</p>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-10 sm:mb-12" id="levelsGrid"></div>
+        <!-- Feature comparison -->
+        <div class="text-center mb-6 sm:mb-8">
+          <h3 class="font-display text-xl sm:text-2xl font-bold mb-1">Compare features</h3>
+          <p class="text-xs sm:text-sm text-gray-500">All plans include core features. Higher tiers unlock more.</p>
+        </div>
+        <div class="glass-strong rounded-2xl p-4 sm:p-6 overflow-x-auto">
+          <table class="w-full text-xs sm:text-sm min-w-[640px]">
+            <thead>
+              <tr class="text-[10px] sm:text-xs text-gray-500 border-b border-white/10">
+                <th class="text-left py-3 font-medium">Feature</th>
+                <th class="py-3 font-medium">Bronze</th>
+                <th class="py-3 font-medium">Silver</th>
+                <th class="py-3 font-medium text-yellow-300">Gold</th>
+                <th class="py-3 font-medium">Platinum</th>
+                <th class="py-3 font-medium">Diamond</th>
+              </tr>
+            </thead>
+            <tbody class="text-center">
+              <tr class="border-b border-white/5"><td class="text-left py-3 text-gray-400">CPM Multiplier</td><td class="py-3">1.0×</td><td class="py-3">1.1×</td><td class="py-3 text-yellow-300 font-semibold">1.25×</td><td class="py-3">1.5×</td><td class="py-3">2.0×</td></tr>
+              <tr class="border-b border-white/5"><td class="text-left py-3 text-gray-400">Min Views Required</td><td class="py-3">0</td><td class="py-3">100K</td><td class="py-3 text-yellow-300">1M</td><td class="py-3">5M</td><td class="py-3">10M</td></tr>
+              <tr class="border-b border-white/5"><td class="text-left py-3 text-gray-400">Verified Badge</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-green-400">✓</td><td class="py-3 text-green-400">✓</td><td class="py-3 text-green-400">✓</td></tr>
+              <tr class="border-b border-white/5"><td class="text-left py-3 text-gray-400">Priority Support</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-green-400">✓</td><td class="py-3 text-green-400">✓</td><td class="py-3 text-green-400">VIP</td></tr>
+              <tr class="border-b border-white/5"><td class="text-left py-3 text-gray-400">Fast Withdrawals</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-green-400">✓</td><td class="py-3 text-green-400">Instant</td></tr>
+              <tr class="border-b border-white/5"><td class="text-left py-3 text-gray-400">Premium Analytics</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-green-400">✓</td><td class="py-3 text-green-400">✓</td></tr>
+              <tr class="border-b border-white/5"><td class="text-left py-3 text-gray-400">Account Manager</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-green-400">✓</td></tr>
+              <tr><td class="text-left py-3 text-gray-400">Custom Features</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-gray-600">—</td><td class="py-3 text-green-400">✓</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== 10. HOW IT WORKS ============== -->
+    <section id="how" class="relative py-16 sm:py-24">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10 sm:mb-16">
+          <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3">How it Works</div>
+          <h2 class="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">Start earning in <span class="gradient-text">5 simple steps</span></h2>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4" id="stepsGrid"></div>
+      </div>
+    </section>
+
+    <!-- ============== 11. TESTIMONIALS ============== -->
+    <section class="relative py-16 sm:py-24 bg-gradient-to-b from-transparent via-purple-950/20 to-transparent">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10 sm:mb-16">
+          <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3">Testimonials</div>
+          <h2 class="font-display text-3xl sm:text-4xl lg:text-5xl font-bold">Loved by <span class="gradient-text">creators</span></h2>
+          <p class="text-sm sm:text-base text-gray-400 max-w-2xl mx-auto mt-3">Real stories from real creators earning with CreatorBoost every day.</p>
+        </div>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" id="testimonialsGrid"></div>
+      </div>
+    </section>
+
+    <!-- ============== 12. PRICING ============== -->
+    <section id="pricing" class="relative py-16 sm:py-24">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10 sm:mb-16">
+          <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3">Pricing</div>
+          <h2 class="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">Simple, <span class="gradient-text">creator-first</span> pricing</h2>
+          <p class="text-sm sm:text-base text-gray-400 max-w-2xl mx-auto">Pay only when you earn. No upfront fees, no monthly minimums.</p>
+        </div>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div class="glass-strong rounded-2xl p-5 sm:p-6 card-glow">
+            <div class="text-xs text-gray-400 mb-1">Free</div>
+            <div class="text-2xl sm:text-3xl font-bold mb-1">$0</div>
+            <div class="text-[10px] sm:text-xs text-gray-500 mb-4">Forever, no card required</div>
+            <ul class="space-y-2 text-xs sm:text-sm text-gray-300">
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> 1 active campaign</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Bronze tier</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Standard CPM rates</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Email support</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Basic analytics</li>
+            </ul>
+            <button onclick="navigate('signup')" class="btn-ghost w-full mt-5 py-2.5 rounded-xl text-xs sm:text-sm font-medium">Get Started</button>
+          </div>
+          <div class="glass-strong rounded-2xl p-5 sm:p-6 card-glow">
+            <div class="text-xs text-gray-400 mb-1">Starter</div>
+            <div class="text-2xl sm:text-3xl font-bold mb-1">5%</div>
+            <div class="text-[10px] sm:text-xs text-gray-500 mb-4">platform fee, billed on earnings</div>
+            <ul class="space-y-2 text-xs sm:text-sm text-gray-300">
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> 5 active campaigns</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Up to Silver tier</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> +10% CPM boost</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Priority support</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Advanced analytics</li>
+            </ul>
+            <button onclick="navigate('signup')" class="btn-ghost w-full mt-5 py-2.5 rounded-xl text-xs sm:text-sm font-medium">Start Trial</button>
+          </div>
+          <div class="glass-strong rounded-2xl p-5 sm:p-6 card-glow ring-2 ring-yellow-500/50 relative">
+            <div class="absolute -top-2 right-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-[10px] font-bold px-2 py-0.5 rounded-full">POPULAR</div>
+            <div class="text-xs text-gray-400 mb-1">Professional</div>
+            <div class="text-2xl sm:text-3xl font-bold mb-1">3%</div>
+            <div class="text-[10px] sm:text-xs text-gray-500 mb-4">platform fee, billed on earnings</div>
+            <ul class="space-y-2 text-xs sm:text-sm text-gray-300">
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Unlimited campaigns</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Up to Gold tier</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> +25% CPM boost</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> 24/7 chat support</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Premium analytics</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Verified badge</li>
+            </ul>
+            <button onclick="navigate('signup')" class="btn-primary w-full mt-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white">Get Professional</button>
+          </div>
+          <div class="glass-strong rounded-2xl p-5 sm:p-6 card-glow">
+            <div class="text-xs text-gray-400 mb-1">Enterprise</div>
+            <div class="text-2xl sm:text-3xl font-bold mb-1">Custom</div>
+            <div class="text-[10px] sm:text-xs text-gray-500 mb-4">volume-based, contact sales</div>
+            <ul class="space-y-2 text-xs sm:text-sm text-gray-300">
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Everything in Pro</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Diamond tier access</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> +100% CPM boost</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Dedicated manager</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Custom integrations</li>
+              <li class="flex items-center gap-2"><span class="text-green-400">✓</span> SLA guarantee</li>
+            </ul>
+            <button onclick="navigate('contact')" class="btn-ghost w-full mt-5 py-2.5 rounded-xl text-xs sm:text-sm font-medium">Contact Sales</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== 13. FAQ ============== -->
+    <section class="relative py-16 sm:py-24 bg-gradient-to-b from-transparent via-purple-950/20 to-transparent">
+      <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10 sm:mb-12">
+          <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3">FAQ</div>
+          <h2 class="font-display text-3xl sm:text-4xl lg:text-5xl font-bold">Got <span class="gradient-text">questions?</span></h2>
+        </div>
+        <div class="space-y-2" id="faqList"></div>
+      </div>
+    </section>
+
+    <!-- ============== 14. BLOG PREVIEW ============== -->
+    <section id="blog" class="relative py-16 sm:py-24">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between mb-10 sm:mb-12 flex-wrap gap-3">
+          <div>
+            <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-2">From the blog</div>
+            <h2 class="font-display text-2xl sm:text-3xl lg:text-4xl font-bold">Tips, guides & <span class="gradient-text">insights</span></h2>
+          </div>
+          <button onclick="navigate('blog')" class="text-xs sm:text-sm text-purple-400 hover:text-purple-300">View all posts →</button>
+        </div>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5" id="blogGrid"></div>
+      </div>
+    </section>
+
+    <!-- ============== 15. CONTACT FORM ============== -->
+    <section id="contact" class="relative py-16 sm:py-24 bg-gradient-to-b from-transparent via-blue-950/20 to-transparent">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10 sm:mb-12">
+          <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3">Get in touch</div>
+          <h2 class="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">We&apos;d love to <span class="gradient-text">hear from you</span></h2>
+          <p class="text-sm sm:text-base text-gray-400 max-w-2xl mx-auto">Questions about pricing, partnerships, or just want to say hi? Drop us a line.</p>
+        </div>
+        <div class="grid lg:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
+          <div class="glass rounded-2xl p-5 text-center card-glow">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center mx-auto mb-3 text-2xl">📧</div>
+            <h3 class="font-semibold text-sm mb-1">Email</h3>
+            <p class="text-xs text-gray-400">support@creatorboost.io</p>
+          </div>
+          <div class="glass rounded-2xl p-5 text-center card-glow">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mx-auto mb-3 text-2xl">💬</div>
+            <h3 class="font-semibold text-sm mb-1">Live Chat</h3>
+            <p class="text-xs text-gray-400">Available 24/7 for paid plans</p>
+          </div>
+          <div class="glass rounded-2xl p-5 text-center card-glow">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center mx-auto mb-3 text-2xl">📍</div>
+            <h3 class="font-semibold text-sm mb-1">Office</h3>
+            <p class="text-xs text-gray-400">San Francisco, CA</p>
+          </div>
+        </div>
+        <div class="grid lg:grid-cols-2 gap-5 sm:gap-6">
+          <div class="glass-strong rounded-2xl p-5 sm:p-8">
+            <h3 class="font-display text-xl sm:text-2xl font-bold mb-4">Send us a message</h3>
+            <form onsubmit="event.preventDefault(); alert('Thanks! We will reply within 24 hours.'); this.reset();" class="space-y-4">
+              <div class="grid sm:grid-cols-2 gap-3">
+                <div><label class="text-xs text-gray-300 block mb-1.5">First name</label><input required class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="John" /></div>
+                <div><label class="text-xs text-gray-300 block mb-1.5">Last name</label><input required class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="Doe" /></div>
+              </div>
+              <div><label class="text-xs text-gray-300 block mb-1.5">Email</label><input type="email" required class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="you@example.com" /></div>
+              <div><label class="text-xs text-gray-300 block mb-1.5">Subject</label>
+                <select class="input-field w-full px-4 py-3 rounded-xl text-sm">
+                  <option>General Inquiry</option><option>Sales</option><option>Partnership</option><option>Press</option><option>Bug Report</option>
+                </select>
+              </div>
+              <div><label class="text-xs text-gray-300 block mb-1.5">Message</label><textarea required rows="5" class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="Tell us what's on your mind..."></textarea></div>
+              <button type="submit" class="btn-primary w-full py-3 rounded-xl text-sm font-semibold text-white">Send Message</button>
+            </form>
+          </div>
+          <div class="space-y-3 sm:space-y-4">
+            <div class="glass-strong rounded-2xl p-5 sm:p-6">
+              <h4 class="font-semibold mb-3 text-sm sm:text-base">Support hours</h4>
+              <ul class="space-y-2 text-xs sm:text-sm text-gray-300">
+                <li class="flex justify-between"><span>Live chat</span><span class="text-green-400 flex items-center gap-2"><span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> Online</span></li>
+                <li class="flex justify-between"><span>Email response</span><span class="text-gray-400">&lt; 24h</span></li>
+                <li class="flex justify-between"><span>Enterprise support</span><span class="text-purple-300">24/7</span></li>
+              </ul>
+            </div>
+            <div class="glass-strong rounded-2xl p-5 sm:p-6">
+              <h4 class="font-semibold mb-3 text-sm sm:text-base">Follow us</h4>
+              <div class="grid grid-cols-3 gap-2">
+                <a class="glass rounded-lg p-3 text-center text-xs hover:bg-white/5 transition cursor-pointer">𝕏 Twitter</a>
+                <a class="glass rounded-lg p-3 text-center text-xs hover:bg-white/5 transition cursor-pointer">in LinkedIn</a>
+                <a class="glass rounded-lg p-3 text-center text-xs hover:bg-white/5 transition cursor-pointer">▶ YouTube</a>
+                <a class="glass rounded-lg p-3 text-center text-xs hover:bg-white/5 transition cursor-pointer">📷 Instagram</a>
+                <a class="glass rounded-lg p-3 text-center text-xs hover:bg-white/5 transition cursor-pointer">💬 Discord</a>
+                <a class="glass rounded-lg p-3 text-center text-xs hover:bg-white/5 transition cursor-pointer">📌 GitHub</a>
+              </div>
+            </div>
+            <div class="glass-strong rounded-2xl p-5 sm:p-6">
+              <h4 class="font-semibold mb-2 text-sm sm:text-base">Need urgent help?</h4>
+              <p class="text-xs text-gray-400 mb-3">Visit our help center for instant answers.</p>
+              <button onclick="navigate('support')" class="btn-ghost w-full py-2 rounded-lg text-xs sm:text-sm">Visit Help Center</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== FOOTER CTA STRIP ============== -->
+    <section class="relative py-12 sm:py-16">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="relative glass-strong rounded-3xl p-6 sm:p-10 text-center overflow-hidden">
+          <div class="absolute -top-16 -left-16 w-64 h-64 bg-purple-600/30 rounded-full blur-3xl"></div>
+          <div class="absolute -bottom-16 -right-16 w-64 h-64 bg-blue-600/30 rounded-full blur-3xl"></div>
+          <div class="relative">
+            <h2 class="font-display text-2xl sm:text-4xl lg:text-5xl font-bold mb-3">Ready to <span class="gradient-text">boost</span> your earnings?</h2>
+            <p class="text-xs sm:text-base text-gray-400 mb-6 max-w-xl mx-auto">Join 12,000+ creators already monetizing their audience. Free to start, no credit card required.</p>
+            <div class="flex flex-wrap gap-3 justify-center">
+              <button onclick="navigate('signup')" class="btn-primary text-white font-semibold px-6 sm:px-7 py-3 sm:py-3.5 rounded-xl flex items-center gap-2 text-sm">Start Earning Today <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg></button>
+              <button onclick="navigate('contact')" class="btn-ghost text-white font-semibold px-6 sm:px-7 py-3 sm:py-3.5 rounded-xl text-sm">Contact Sales</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== 16. FOOTER ============== -->
+    <footer class="relative border-t border-white/5 py-12 sm:py-16 bg-[#03020a]">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6 sm:gap-8 mb-8 sm:mb-12">
+          <div class="col-span-2 sm:col-span-3 lg:col-span-2">
+            <div class="flex items-center gap-2 mb-3 sm:mb-4">
+              <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              </div>
+              <span class="font-display text-lg sm:text-xl font-bold">Creator<span class="gradient-text">Boost</span></span>
+            </div>
+            <p class="text-xs sm:text-sm text-gray-400 max-w-sm mb-4">The modern creator monetization platform. Earn from every valid view with smart unlock campaigns and AI fraud detection.</p>
+            <div class="flex gap-2 flex-wrap">
+              <a class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg glass flex items-center justify-center hover:bg-white/10 transition cursor-pointer text-xs sm:text-sm font-bold" title="Twitter / X">𝕏</a>
+              <a class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg glass flex items-center justify-center hover:bg-white/10 transition cursor-pointer text-xs sm:text-sm font-bold" title="LinkedIn">in</a>
+              <a class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg glass flex items-center justify-center hover:bg-white/10 transition cursor-pointer text-xs sm:text-sm font-bold" title="YouTube">▶</a>
+              <a class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg glass flex items-center justify-center hover:bg-white/10 transition cursor-pointer text-xs sm:text-sm" title="Instagram">📷</a>
+              <a class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg glass flex items-center justify-center hover:bg-white/10 transition cursor-pointer text-xs sm:text-sm font-bold" title="Discord">💬</a>
+              <a class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg glass flex items-center justify-center hover:bg-white/10 transition cursor-pointer text-xs sm:text-sm" title="TikTok">🎵</a>
+            </div>
+          </div>
+          <div>
+            <h4 class="font-semibold text-white mb-3 sm:mb-4 text-xs sm:text-sm">Product</h4>
+            <ul class="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-400">
+              <li><a href="#features" onclick="closeMobile(); scrollToSection('features')" class="hover:text-white transition">Features</a></li>
+              <li><a href="#pricing" onclick="closeMobile(); scrollToSection('pricing')" class="hover:text-white transition">Pricing</a></li>
+              <li><a href="#calculator" onclick="closeMobile(); scrollToSection('calculator')" class="hover:text-white transition">Calculator</a></li>
+              <li><a href="#blog" onclick="closeMobile(); scrollToSection('blog')" class="hover:text-white transition">Changelog</a></li>
+              <li><a href="#blog" onclick="closeMobile(); scrollToSection('blog')" class="hover:text-white transition">Roadmap</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="font-semibold text-white mb-3 sm:mb-4 text-xs sm:text-sm">Company</h4>
+            <ul class="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-400">
+              <li><a href="#" onclick="navigate('about')" class="hover:text-white transition">About</a></li>
+              <li><a href="#blog" onclick="closeMobile(); scrollToSection('blog')" class="hover:text-white transition">Blog</a></li>
+              <li><a href="#contact" onclick="closeMobile(); scrollToSection('contact')" class="hover:text-white transition">Contact</a></li>
+              <li><a href="#" onclick="navigate('contact')" class="hover:text-white transition">Careers</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="font-semibold text-white mb-3 sm:mb-4 text-xs sm:text-sm">Support</h4>
+            <ul class="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-400">
+              <li><a href="#" onclick="navigate('support')" class="hover:text-white transition">Help Center</a></li>
+              <li><a href="#blog" onclick="closeMobile(); scrollToSection('blog')" class="hover:text-white transition">Guides</a></li>
+              <li><a href="#contact" onclick="closeMobile(); scrollToSection('contact')" class="hover:text-white transition">API Docs</a></li>
+              <li><a href="#" onclick="navigate('contact')" class="hover:text-white transition">Status</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="font-semibold text-white mb-3 sm:mb-4 text-xs sm:text-sm">Legal</h4>
+            <ul class="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-400">
+              <li><a href="#" onclick="navigate('terms')" class="hover:text-white transition">Terms</a></li>
+              <li><a href="#" onclick="navigate('privacy')" class="hover:text-white transition">Privacy</a></li>
+              <li><a href="#" onclick="navigate('terms')" class="hover:text-white transition">Cookies</a></li>
+              <li><a href="#" onclick="navigate('terms')" class="hover:text-white transition">DMCA</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="border-t border-white/5 pt-6 sm:pt-8 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4 text-[10px] sm:text-xs text-gray-500">
+          <div>© 2026 CreatorBoost, Inc. All rights reserved.</div>
+          <div class="flex items-center gap-3 sm:gap-4 flex-wrap justify-center">
+            <div class="flex items-center gap-2"><span class="dot-pulse"></span> All systems operational</div>
+            <span>v2.4.1</span>
+            <span>Made with 💜 for creators</span>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </main>
+</div>
+
+<!-- ============== AUTH PAGES ============== -->
+<div id="page-login" class="page">
+  <div class="min-h-screen hero-gradient flex items-center justify-center pt-24 px-4 relative">
+    <div class="floating-orb w-96 h-96 bg-purple-600/30 -top-20 -left-20 animate-float"></div>
+    <div class="floating-orb w-96 h-96 bg-blue-600/30 -bottom-20 -right-20 animate-float" style="animation-delay: -3s"></div>
+    <div class="relative w-full max-w-md">
+      <div class="text-center mb-6">
+        <a href="#" onclick="navigate('landing')" class="inline-flex items-center gap-2 mb-4">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+            <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          <span class="font-display text-2xl font-bold">Creator<span class="gradient-text">Boost</span></span>
+        </a>
+      </div>
+      <div class="glass-strong rounded-2xl p-6 sm:p-8 card-glow">
+        <h2 class="font-display text-2xl font-bold mb-1">Welcome back</h2>
+        <p class="text-sm text-gray-400 mb-6">Sign in to your account</p>
+        <button class="w-full btn-ghost py-3 rounded-xl flex items-center justify-center gap-2 mb-4 text-sm font-medium">
+          <svg class="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Continue with Google
+        </button>
+        <div class="flex items-center gap-3 my-4">
+          <div class="flex-1 h-px bg-white/10"></div>
+          <span class="text-xs text-gray-500">OR</span>
+          <div class="flex-1 h-px bg-white/10"></div>
+        </div>
+        <form onsubmit="event.preventDefault(); navigate('dashboard')" class="space-y-4">
+          <div>
+            <label class="text-xs font-medium text-gray-300 block mb-1.5">Email</label>
+            <input type="email" required class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="you@example.com" />
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-xs font-medium text-gray-300">Password</label>
+              <a href="#" onclick="navigate('forgot')" class="text-xs text-purple-400 hover:text-purple-300">Forgot?</a>
+            </div>
+            <input type="password" required class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="••••••••" />
+          </div>
+          <label class="flex items-center gap-2 text-xs text-gray-400">
+            <input type="checkbox" class="rounded" /> Remember me for 30 days
+          </label>
+          <button type="submit" class="btn-primary w-full py-3 rounded-xl text-sm font-semibold text-white">Sign In</button>
+        </form>
+        <p class="text-center text-sm text-gray-400 mt-6">Don&apos;t have an account? <a href="#" onclick="navigate('signup')" class="text-purple-400 hover:text-purple-300 font-medium">Sign up</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="page-signup" class="page">
+  <div class="min-h-screen hero-gradient flex items-center justify-center pt-24 px-4 relative py-12">
+    <div class="floating-orb w-96 h-96 bg-purple-600/30 -top-20 -right-20 animate-float"></div>
+    <div class="floating-orb w-96 h-96 bg-pink-500/20 -bottom-20 -left-20 animate-float" style="animation-delay: -2s"></div>
+    <div class="relative w-full max-w-md">
+      <div class="text-center mb-6">
+        <a href="#" onclick="navigate('landing')" class="inline-flex items-center gap-2 mb-4">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+            <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          <span class="font-display text-2xl font-bold">Creator<span class="gradient-text">Boost</span></span>
+        </a>
+      </div>
+      <div class="glass-strong rounded-2xl p-6 sm:p-8 card-glow">
+        <h2 class="font-display text-2xl font-bold mb-1">Create your account</h2>
+        <p class="text-sm text-gray-400 mb-6">Start earning in less than 2 minutes</p>
+        <button class="w-full btn-ghost py-3 rounded-xl flex items-center justify-center gap-2 mb-4 text-sm font-medium">
+          <svg class="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Sign up with Google
+        </button>
+        <div class="flex items-center gap-3 my-4">
+          <div class="flex-1 h-px bg-white/10"></div>
+          <span class="text-xs text-gray-500">OR</span>
+          <div class="flex-1 h-px bg-white/10"></div>
+        </div>
+        <form onsubmit="event.preventDefault(); navigate('verify')" class="space-y-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-medium text-gray-300 block mb-1.5">First name</label>
+              <input type="text" required class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="John" />
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-300 block mb-1.5">Last name</label>
+              <input type="text" required class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="Doe" />
+            </div>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-300 block mb-1.5">Email</label>
+            <input type="email" required class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="you@example.com" />
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-300 block mb-1.5">Password</label>
+            <input type="password" required minlength="8" class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="At least 8 characters" />
+          </div>
+          <label class="flex items-start gap-2 text-xs text-gray-400">
+            <input type="checkbox" required class="mt-0.5 rounded" />
+            <span>I agree to the <a href="#" onclick="navigate('terms')" class="text-purple-400">Terms</a> and <a href="#" onclick="navigate('privacy')" class="text-purple-400">Privacy Policy</a></span>
+          </label>
+          <button type="submit" class="btn-primary w-full py-3 rounded-xl text-sm font-semibold text-white">Create Account</button>
+        </form>
+        <p class="text-center text-sm text-gray-400 mt-6">Already have an account? <a href="#" onclick="navigate('login')" class="text-purple-400 hover:text-purple-300 font-medium">Sign in</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="page-forgot" class="page">
+  <div class="min-h-screen hero-gradient flex items-center justify-center pt-24 px-4">
+    <div class="w-full max-w-md">
+      <div class="glass-strong rounded-2xl p-6 sm:p-8 card-glow text-center">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center mx-auto mb-4">
+          <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+        </div>
+        <h2 class="font-display text-2xl font-bold mb-2">Forgot password?</h2>
+        <p class="text-sm text-gray-400 mb-6">Enter your email and we&apos;ll send you a reset link.</p>
+        <form onsubmit="event.preventDefault(); alert('Reset link sent!'); navigate('login')" class="space-y-4 text-left">
+          <div>
+            <label class="text-xs font-medium text-gray-300 block mb-1.5">Email</label>
+            <input type="email" required class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="you@example.com" />
+          </div>
+          <button type="submit" class="btn-primary w-full py-3 rounded-xl text-sm font-semibold text-white">Send Reset Link</button>
+        </form>
+        <p class="text-sm text-gray-400 mt-6"><a href="#" onclick="navigate('login')" class="text-purple-400">← Back to sign in</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="page-verify" class="page">
+  <div class="min-h-screen hero-gradient flex items-center justify-center pt-24 px-4">
+    <div class="w-full max-w-md text-center">
+      <div class="glass-strong rounded-2xl p-6 sm:p-8 card-glow">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center mx-auto mb-4">
+          <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        </div>
+        <h2 class="font-display text-2xl font-bold mb-2">Verify your email</h2>
+        <p class="text-sm text-gray-400 mb-6">We&apos;ve sent a 6-digit code to your email. Enter it below to continue.</p>
+        <div class="flex justify-center gap-2 mb-6">
+          <input maxlength="1" class="input-field w-11 h-14 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-bold rounded-xl" />
+          <input maxlength="1" class="input-field w-11 h-14 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-bold rounded-xl" />
+          <input maxlength="1" class="input-field w-11 h-14 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-bold rounded-xl" />
+          <input maxlength="1" class="input-field w-11 h-14 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-bold rounded-xl" />
+          <input maxlength="1" class="input-field w-11 h-14 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-bold rounded-xl" />
+          <input maxlength="1" class="input-field w-11 h-14 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-bold rounded-xl" />
+        </div>
+        <button onclick="navigate('dashboard')" class="btn-primary w-full py-3 rounded-xl text-sm font-semibold text-white">Verify &amp; Continue</button>
+        <p class="text-xs text-gray-500 mt-4">Didn&apos;t receive the code? <a href="#" class="text-purple-400">Resend</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== ABOUT ============== -->
+<div id="page-about" class="page">
+  <div class="min-h-screen pt-24 pb-12 hero-gradient">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="mb-6 sm:mb-8 text-xs sm:text-sm text-gray-500"><a href="#" onclick="navigate('landing')" class="hover:text-white">Home</a> <span class="mx-2">/</span> <span class="text-white">About</span></nav>
+      <div class="text-center mb-10 sm:mb-12">
+        <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3 sm:mb-4">About Us</div>
+        <h1 class="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4">Built by creators, <span class="gradient-text">for creators</span></h1>
+        <p class="text-sm sm:text-base text-gray-400 max-w-2xl mx-auto">CreatorBoost started with a simple mission: give every creator a fair, transparent way to monetize their audience. Today, we power 12,000+ creators across 180+ countries.</p>
+      </div>
+      <div class="grid grid-cols-3 gap-3 sm:gap-4 mb-10 sm:mb-12">
+        <div class="glass rounded-2xl p-4 sm:p-6 text-center stat-card"><div class="text-2xl sm:text-3xl font-bold gradient-text mb-1">$2.4M+</div><div class="text-[10px] sm:text-xs text-gray-400">Paid to creators</div></div>
+        <div class="glass rounded-2xl p-4 sm:p-6 text-center stat-card"><div class="text-2xl sm:text-3xl font-bold gradient-text mb-1">12,000+</div><div class="text-[10px] sm:text-xs text-gray-400">Active creators</div></div>
+        <div class="glass rounded-2xl p-4 sm:p-6 text-center stat-card"><div class="text-2xl sm:text-3xl font-bold gradient-text mb-1">180+</div><div class="text-[10px] sm:text-xs text-gray-400">Countries served</div></div>
+      </div>
+      <div class="grid lg:grid-cols-2 gap-5 sm:gap-6 mb-10 sm:mb-12">
+        <div class="glass-strong rounded-2xl p-5 sm:p-8">
+          <h3 class="font-display text-xl sm:text-2xl font-bold mb-3">Our Story</h3>
+          <p class="text-xs sm:text-sm text-gray-400 mb-3 leading-relaxed">We started in 2023 when our founder, a YouTuber with 500K subscribers, realized that traditional monetization platforms were opaque, slow, and unfair to creators. We built CreatorBoost to fix that.</p>
+          <p class="text-xs sm:text-sm text-gray-400 leading-relaxed">Today, CreatorBoost is a global platform with a team of 30+ engineers, designers, and creator-success specialists. We&apos;re profitable, independent, and creator-funded.</p>
+        </div>
+        <div class="glass-strong rounded-2xl p-5 sm:p-8">
+          <h3 class="font-display text-xl sm:text-2xl font-bold mb-3">Our Values</h3>
+          <ul class="space-y-3 text-xs sm:text-sm text-gray-300">
+            <li class="flex items-start gap-2"><span class="text-purple-400 mt-1">●</span> <span><strong>Transparency first.</strong> Every CPM rate, every fee, every payout — visible to creators.</span></li>
+            <li class="flex items-start gap-2"><span class="text-purple-400 mt-1">●</span> <span><strong>Fairness always.</strong> We pay out 70%+ to creators.</span></li>
+            <li class="flex items-start gap-2"><span class="text-purple-400 mt-1">●</span> <span><strong>Quality over quantity.</strong> AI fraud detection ensures only real views are rewarded.</span></li>
+            <li class="flex items-start gap-2"><span class="text-purple-400 mt-1">●</span> <span><strong>Creators are partners.</strong> Our success is built on theirs.</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="glass-strong rounded-2xl p-5 sm:p-8">
+        <h3 class="font-display text-xl sm:text-2xl font-bold mb-5 sm:mb-6 text-center">Meet the team</h3>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div class="glass rounded-xl p-3 sm:p-4 text-center card-glow"><div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 mx-auto mb-2 sm:mb-3 flex items-center justify-center text-xl sm:text-2xl font-bold">A</div><div class="font-semibold text-xs sm:text-sm">Alex Chen</div><div class="text-[10px] sm:text-xs text-gray-500">Founder &amp; CEO</div></div>
+          <div class="glass rounded-xl p-3 sm:p-4 text-center card-glow"><div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 mx-auto mb-2 sm:mb-3 flex items-center justify-center text-xl sm:text-2xl font-bold">S</div><div class="font-semibold text-xs sm:text-sm">Sarah Kim</div><div class="text-[10px] sm:text-xs text-gray-500">Head of Product</div></div>
+          <div class="glass rounded-xl p-3 sm:p-4 text-center card-glow"><div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 mx-auto mb-2 sm:mb-3 flex items-center justify-center text-xl sm:text-2xl font-bold">M</div><div class="font-semibold text-xs sm:text-sm">Marcus Lee</div><div class="text-[10px] sm:text-xs text-gray-500">Engineering Lead</div></div>
+          <div class="glass rounded-xl p-3 sm:p-4 text-center card-glow"><div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 mx-auto mb-2 sm:mb-3 flex items-center justify-center text-xl sm:text-2xl font-bold">P</div><div class="font-semibold text-xs sm:text-sm">Priya Patel</div><div class="text-[10px] sm:text-xs text-gray-500">Creator Success</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== CONTACT PAGE ============== -->
+<div id="page-contact" class="page">
+  <div class="min-h-screen pt-24 pb-12 hero-gradient">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="mb-6 sm:mb-8 text-xs sm:text-sm text-gray-500"><a href="#" onclick="navigate('landing')" class="hover:text-white">Home</a> <span class="mx-2">/</span> <span class="text-white">Contact</span></nav>
+      <div class="text-center mb-10 sm:mb-12">
+        <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3 sm:mb-4">Get in touch</div>
+        <h1 class="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4">We&apos;d love to <span class="gradient-text">hear from you</span></h1>
+        <p class="text-sm sm:text-base text-gray-400 max-w-2xl mx-auto">Questions about pricing, partnerships, or just want to say hi? Drop us a line.</p>
+      </div>
+      <div class="grid sm:grid-cols-3 gap-3 sm:gap-4 mb-5 sm:mb-6">
+        <div class="glass rounded-2xl p-4 sm:p-5 text-center card-glow"><div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center mx-auto mb-2 sm:mb-3 text-xl sm:text-2xl">📧</div><h3 class="font-semibold text-xs sm:text-sm mb-1">Email</h3><p class="text-[10px] sm:text-xs text-gray-400">support@creatorboost.io</p></div>
+        <div class="glass rounded-2xl p-4 sm:p-5 text-center card-glow"><div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mx-auto mb-2 sm:mb-3 text-xl sm:text-2xl">💬</div><h3 class="font-semibold text-xs sm:text-sm mb-1">Live Chat</h3><p class="text-[10px] sm:text-xs text-gray-400">Available 24/7</p></div>
+        <div class="glass rounded-2xl p-4 sm:p-5 text-center card-glow"><div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center mx-auto mb-2 sm:mb-3 text-xl sm:text-2xl">📍</div><h3 class="font-semibold text-xs sm:text-sm mb-1">Office</h3><p class="text-[10px] sm:text-xs text-gray-400">San Francisco, CA</p></div>
+      </div>
+      <div class="grid lg:grid-cols-2 gap-5 sm:gap-6">
+        <div class="glass-strong rounded-2xl p-5 sm:p-8">
+          <h3 class="font-display text-xl sm:text-2xl font-bold mb-4">Send us a message</h3>
+          <form onsubmit="event.preventDefault(); alert('Thanks! We will reply within 24 hours.'); this.reset();" class="space-y-4">
+            <div class="grid sm:grid-cols-2 gap-3">
+              <div><label class="text-xs text-gray-300 block mb-1.5">First name</label><input required class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="John" /></div>
+              <div><label class="text-xs text-gray-300 block mb-1.5">Last name</label><input required class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="Doe" /></div>
+            </div>
+            <div><label class="text-xs text-gray-300 block mb-1.5">Email</label><input type="email" required class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="you@example.com" /></div>
+            <div><label class="text-xs text-gray-300 block mb-1.5">Subject</label>
+              <select class="input-field w-full px-4 py-3 rounded-xl text-sm">
+                <option>General Inquiry</option><option>Sales</option><option>Partnership</option><option>Press</option><option>Bug Report</option>
+              </select>
+            </div>
+            <div><label class="text-xs text-gray-300 block mb-1.5">Message</label><textarea required rows="5" class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="Tell us what's on your mind..."></textarea></div>
+            <button type="submit" class="btn-primary w-full py-3 rounded-xl text-sm font-semibold text-white">Send Message</button>
+          </form>
+        </div>
+        <div class="space-y-3 sm:space-y-4">
+          <div class="glass-strong rounded-2xl p-5 sm:p-6">
+            <h4 class="font-semibold mb-3 text-sm sm:text-base">Support hours</h4>
+            <ul class="space-y-2 text-xs sm:text-sm text-gray-300">
+              <li class="flex justify-between"><span>Live chat</span><span class="text-green-400">Online</span></li>
+              <li class="flex justify-between"><span>Email response</span><span class="text-gray-400">&lt; 24h</span></li>
+              <li class="flex justify-between"><span>Enterprise support</span><span class="text-purple-300">24/7</span></li>
+            </ul>
+          </div>
+          <div class="glass-strong rounded-2xl p-5 sm:p-6">
+            <h4 class="font-semibold mb-3 text-sm sm:text-base">Follow us</h4>
+            <div class="grid grid-cols-3 gap-2">
+              <a class="glass rounded-lg p-2.5 sm:p-3 text-center text-[10px] sm:text-xs hover:bg-white/5 transition cursor-pointer">𝕏 Twitter</a>
+              <a class="glass rounded-lg p-2.5 sm:p-3 text-center text-[10px] sm:text-xs hover:bg-white/5 transition cursor-pointer">in LinkedIn</a>
+              <a class="glass rounded-lg p-2.5 sm:p-3 text-center text-[10px] sm:text-xs hover:bg-white/5 transition cursor-pointer">▶ YouTube</a>
+              <a class="glass rounded-lg p-2.5 sm:p-3 text-center text-[10px] sm:text-xs hover:bg-white/5 transition cursor-pointer">📷 Instagram</a>
+              <a class="glass rounded-lg p-2.5 sm:p-3 text-center text-[10px] sm:text-xs hover:bg-white/5 transition cursor-pointer">💬 Discord</a>
+              <a class="glass rounded-lg p-2.5 sm:p-3 text-center text-[10px] sm:text-xs hover:bg-white/5 transition cursor-pointer">📌 GitHub</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== BLOG ============== -->
+<div id="page-blog" class="page">
+  <div class="min-h-screen pt-24 pb-12 hero-gradient">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="mb-6 sm:mb-8 text-xs sm:text-sm text-gray-500"><a href="#" onclick="navigate('landing')" class="hover:text-white">Home</a> <span class="mx-2">/</span> <span class="text-white">Blog</span></nav>
+      <div class="text-center mb-10 sm:mb-12">
+        <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3 sm:mb-4">Blog</div>
+        <h1 class="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4">Creator <span class="gradient-text">insights & guides</span></h1>
+        <p class="text-sm sm:text-base text-gray-400 max-w-2xl mx-auto">Actionable tips, growth strategies, and monetization guides.</p>
+      </div>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5" id="blogList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== SUPPORT ============== -->
+<div id="page-support" class="page">
+  <div class="min-h-screen pt-24 pb-12 hero-gradient">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="mb-6 sm:mb-8 text-xs sm:text-sm text-gray-500"><a href="#" onclick="navigate('landing')" class="hover:text-white">Home</a> <span class="mx-2">/</span> <span class="text-white">Support</span></nav>
+      <div class="text-center mb-10 sm:mb-12">
+        <h1 class="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4">How can we <span class="gradient-text">help?</span></h1>
+        <p class="text-sm sm:text-base text-gray-400 max-w-xl mx-auto mb-6 sm:mb-8">Search our knowledge base or contact our support team.</p>
+        <form onsubmit="event.preventDefault()" class="max-w-2xl mx-auto flex gap-2">
+          <input class="input-field flex-1 px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl text-sm" placeholder="Search for answers..." />
+          <button class="btn-primary px-5 sm:px-6 py-3 sm:py-3.5 rounded-xl text-sm font-semibold text-white">Search</button>
+        </form>
+      </div>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-10 sm:mb-12">
+        <div class="glass rounded-2xl p-4 sm:p-6 card-glow text-center"><div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center mx-auto mb-2 sm:mb-3 text-xl sm:text-2xl">📚</div><h3 class="font-semibold text-xs sm:text-sm mb-1">Knowledge Base</h3><p class="text-[10px] sm:text-xs text-gray-400">200+ articles</p></div>
+        <div class="glass rounded-2xl p-4 sm:p-6 card-glow text-center"><div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mx-auto mb-2 sm:mb-3 text-xl sm:text-2xl">💬</div><h3 class="font-semibold text-xs sm:text-sm mb-1">Live Chat</h3><p class="text-[10px] sm:text-xs text-gray-400">Avg 2 min</p></div>
+        <div class="glass rounded-2xl p-4 sm:p-6 card-glow text-center"><div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center mx-auto mb-2 sm:mb-3 text-xl sm:text-2xl">📧</div><h3 class="font-semibold text-xs sm:text-sm mb-1">Email</h3><p class="text-[10px] sm:text-xs text-gray-400">support@creatorboost.io</p></div>
+        <div class="glass rounded-2xl p-4 sm:p-6 card-glow text-center"><div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center mx-auto mb-2 sm:mb-3 text-xl sm:text-2xl">📞</div><h3 class="font-semibold text-xs sm:text-sm mb-1">24/7 Support</h3><p class="text-[10px] sm:text-xs text-gray-400">Always online</p></div>
+      </div>
+      <div class="glass-strong rounded-2xl p-5 sm:p-8">
+        <h3 class="font-display text-xl sm:text-2xl font-bold mb-5 sm:mb-6">Frequently asked questions</h3>
+        <div class="space-y-2" id="supportFaqList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== TERMS ============== -->
+<div id="page-terms" class="page">
+  <div class="min-h-screen pt-24 pb-12 hero-gradient">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="mb-6 sm:mb-8 text-xs sm:text-sm text-gray-500"><a href="#" onclick="navigate('landing')" class="hover:text-white">Home</a> <span class="mx-2">/</span> <span class="text-white">Terms</span></nav>
+      <div class="glass-strong rounded-2xl p-5 sm:p-8 md:p-10">
+        <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3 sm:mb-4">Legal</div>
+        <h1 class="font-display text-2xl sm:text-3xl md:text-4xl font-bold mb-2">Terms of Service</h1>
+        <p class="text-xs sm:text-sm text-gray-500 mb-6 sm:mb-8">Last updated: January 15, 2026</p>
+        <div class="space-y-5 sm:space-y-6 text-xs sm:text-sm text-gray-300 leading-relaxed">
+          <section><h2 class="font-display text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">1. Acceptance of Terms</h2><p>By accessing or using CreatorBoost, you agree to be bound by these Terms of Service. If you do not agree, you may not use the service.</p></section>
+          <section><h2 class="font-display text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">2. Account Registration</h2><p>You must provide accurate, complete information when creating an account. You are responsible for maintaining the security of your account credentials. You must be at least 18 years old to use CreatorBoost.</p></section>
+          <section><h2 class="font-display text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">3. Earnings &amp; Payouts</h2><p>Earnings are calculated based on valid views, country CPM rates, and your creator level. CPM rates are subject to change at the admin&apos;s discretion. Minimum withdrawal amount is $10. Payouts are processed within 24-48 hours.</p></section>
+          <section><h2 class="font-display text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">4. Prohibited Activities</h2><p>You may not use bots, VPNs, proxies, or any fraudulent means to generate views. Fraudulent activity will result in immediate account suspension and forfeiture of earnings.</p></section>
+          <section><h2 class="font-display text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">5. Refunds &amp; Chargebacks</h2><p>All earnings are final once paid out. Chargebacks or fraudulent payment methods will result in account termination and legal action.</p></section>
+          <section><h2 class="font-display text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">6. Limitation of Liability</h2><p>CreatorBoost is not liable for any indirect, incidental, or consequential damages arising from use of the platform.</p></section>
+          <section><h2 class="font-display text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">7. Modifications</h2><p>We reserve the right to modify these terms at any time. Continued use of the service constitutes acceptance of modified terms.</p></section>
+          <section><h2 class="font-display text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">8. Contact</h2><p>For questions about these terms, contact us at legal@creatorboost.io.</p></section>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== PRIVACY ============== -->
+<div id="page-privacy" class="page">
+  <div class="min-h-screen pt-24 pb-12 hero-gradient">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="mb-6 sm:mb-8 text-xs sm:text-sm text-gray-500"><a href="#" onclick="navigate('landing')" class="hover:text-white">Home</a> <span class="mx-2">/</span> <span class="text-white">Privacy</span></nav>
+      <div class="glass-strong rounded-2xl p-5 sm:p-8 md:p-10">
+        <div class="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3 sm:mb-4">Legal</div>
+        <h1 class="font-display text-2xl sm:text-3xl md:text-4xl font-bold mb-2">Privacy Policy</h1>
+        <p class="text-xs sm:text-sm text-gray-500 mb-6 sm:mb-8">Last updated: January 15, 2026</p>
+        <div class="space-y-5 sm:space-y-6 text-xs sm:text-sm text-gray-300 leading-relaxed">
+          <section><h2 class="font-display text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">1. Information We Collect</h2><p>We collect information you provide (name, email, payment details) and technical data (IP address, device fingerprint, browser type) to operate the platform and prevent fraud.</p></section>
+          <section><h2 class="font-display text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">2. How We Use Your Information</h2><p>We use your information to provide services, process payments, detect fraud, and improve the platform. We never sell your data to third parties.</p></section>
+          <section><h2 class="font-display text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">3. Cookies &amp; Tracking</h2><p>We use cookies and similar technologies for authentication, analytics, and fraud prevention.</p></section>
+          <section><h2 class="font-display text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">4. Data Security</h2><p>We use industry-standard encryption (TLS 1.3), Supabase RLS, and 2FA to protect your data.</p></section>
+          <section><h2 class="font-display text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">5. Your Rights</h2><p>You have the right to access, correct, or delete your personal data. Contact privacy@creatorboost.io to exercise these rights.</p></section>
+          <section><h2 class="font-display text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">6. International Transfers</h2><p>Data may be transferred to and processed in the United States and other countries where our service providers operate.</p></section>
+          <section><h2 class="font-display text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">7. Children&apos;s Privacy</h2><p>CreatorBoost is not intended for users under 18.</p></section>
+          <section><h2 class="font-display text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">8. Contact</h2><p>For privacy inquiries, contact privacy@creatorboost.io.</p></section>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== 404 ============== -->
+<div id="page-404" class="page">
+  <div class="min-h-screen hero-gradient flex items-center justify-center px-4 relative pt-24">
+    <div class="floating-orb w-96 h-96 bg-purple-600/30 -top-20 -left-20 animate-float"></div>
+    <div class="floating-orb w-96 h-96 bg-blue-600/30 -bottom-20 -right-20 animate-float" style="animation-delay: -3s"></div>
+    <div class="text-center relative">
+      <div class="font-display text-[100px] sm:text-[150px] md:text-[180px] font-bold leading-none gradient-text">404</div>
+      <h1 class="font-display text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-3">Page not found</h1>
+      <p class="text-xs sm:text-base text-gray-400 mb-6 sm:mb-8 max-w-md mx-auto">The page you&apos;re looking for doesn&apos;t exist. Let&apos;s get you back on track.</p>
+      <div class="flex gap-3 justify-center flex-wrap">
+        <button onclick="navigate('landing')" class="btn-primary px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm font-semibold text-white">Back to Home</button>
+        <button onclick="navigate('support')" class="btn-ghost px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl text-sm">Get Support</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== CREATOR DASHBOARD ============== -->
+<div id="page-dashboard" class="page">
+  <div class="flex min-h-screen pt-16">
+    <aside id="sidebar" class="fixed lg:sticky top-16 left-0 z-40 w-64 h-[calc(100vh-4rem)] glass-strong border-r border-white/5 overflow-y-auto -translate-x-full lg:translate-x-0 transition-transform">
+      <div class="p-4">
+        <div class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-3 px-3">Main</div>
+        <nav class="space-y-1">
+          <a href="#" data-page="dashboard" class="sidebar-link active flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            Dashboard
+          </a>
+          <a href="#" data-page="campaigns" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+            Campaigns
+          </a>
+          <a href="#" data-page="create-campaign" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            Create Campaign
+          </a>
+          <a href="#" data-page="analytics" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            Analytics
+          </a>
+          <a href="#" data-page="withdraw" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+            Withdraw
+          </a>
+          <a href="#" data-page="referrals" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            Referrals
+          </a>
+          <a href="#" data-page="tools" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Tools
+          </a>
+        </nav>
+        <div class="text-xs uppercase tracking-widest text-gray-500 font-semibold mb-3 mt-6 px-3">Account</div>
+        <nav class="space-y-1">
+          <a href="#" data-page="settings" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            Profile
+          </a>
+          <a href="#" data-page="notifications" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            Notifications
+          </a>
+          <a href="#" data-page="support" class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            Support
+          </a>
+        </nav>
+        <div class="mt-6 p-4 glass rounded-xl">
+          <div class="text-xs text-gray-400 mb-1">Current Level</div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="badge badge-gold">★ Gold</span>
+            <span class="text-xs text-gray-500">48%</span>
+          </div>
+          <div class="h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-yellow-400 to-orange-500" style="width:48%"></div>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">2.6M more to <span class="text-purple-300">Platinum</span></p>
+        </div>
+      </div>
+    </aside>
+    <div class="flex-1 lg:ml-0 min-w-0">
+      <header class="sticky top-16 z-30 glass-strong border-b border-white/5">
+        <div class="px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <button id="sidebarToggle" class="lg:hidden p-2 text-gray-400">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+            <div>
+              <h1 id="pageTitle" class="font-display text-base sm:text-lg font-bold">Dashboard</h1>
+              <p class="text-[10px] sm:text-xs text-gray-500 hidden sm:block">Welcome back, Alex. Here's your overview.</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 sm:gap-3">
+            <div class="hidden md:flex items-center gap-2 px-3 py-2 glass rounded-lg text-sm">
+              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input class="bg-transparent outline-none text-sm w-32 lg:w-40 placeholder-gray-500" placeholder="Search..." />
+            </div>
+            <button class="relative p-2 glass rounded-lg hover:bg-white/5">
+              <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+              <span class="notification-dot"></span>
+            </button>
+            <div class="flex items-center gap-2 pl-2 border-l border-white/10">
+              <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-xs sm:text-sm font-bold">A</div>
+              <div class="hidden sm:block">
+                <div class="text-xs font-semibold leading-tight">Alex M.</div>
+                <div class="text-[10px] text-gray-500 leading-tight">Gold Creator</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+      <div id="dash-dashboard" class="dash-page p-4 sm:p-6 space-y-6">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" id="statsGrid"></div>
+        <div class="grid lg:grid-cols-3 gap-3 sm:gap-4">
+          <div class="lg:col-span-2 glass rounded-2xl p-4 sm:p-5">
+            <div class="flex items-center justify-between mb-3 sm:mb-4">
+              <div><h3 class="font-semibold text-sm sm:text-base">Earnings Overview</h3><p class="text-[10px] sm:text-xs text-gray-500">Last 30 days performance</p></div>
+              <select class="bg-white/5 text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-white/10 outline-none">
+                <option>Last 30 days</option><option>Last 7 days</option><option>This year</option>
+              </select>
+            </div>
+            <div class="h-64 sm:h-72"><canvas id="earningsChart"></canvas></div>
+          </div>
+          <div class="glass rounded-2xl p-4 sm:p-5">
+            <h3 class="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Traffic Sources</h3>
+            <div class="h-64 sm:h-72"><canvas id="countryChart"></canvas></div>
+          </div>
+        </div>
+        <div class="grid lg:grid-cols-3 gap-3 sm:gap-4">
+          <div class="glass rounded-2xl p-4 sm:p-5">
+            <h3 class="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Devices</h3>
+            <div class="h-48 sm:h-56"><canvas id="deviceChart"></canvas></div>
+          </div>
+          <div class="glass rounded-2xl p-4 sm:p-5 lg:col-span-2">
+            <div class="flex items-center justify-between mb-3 sm:mb-4">
+              <h3 class="font-semibold text-sm sm:text-base">Recent Campaigns</h3>
+              <a href="#" data-page="campaigns" class="text-[10px] sm:text-xs text-purple-400">View all →</a>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs sm:text-sm">
+                <thead><tr class="text-[10px] sm:text-xs text-gray-500 border-b border-white/5"><th class="text-left py-2 font-medium">Campaign</th><th class="text-left py-2 font-medium">Views</th><th class="text-left py-2 font-medium">CPM</th><th class="text-left py-2 font-medium">Earnings</th><th class="text-left py-2 font-medium">Status</th></tr></thead>
+                <tbody id="recentCampaigns"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="glass rounded-2xl p-4 sm:p-5">
+          <h3 class="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Recent Activity</h3>
+          <div class="space-y-2 sm:space-y-3" id="activityFeed"></div>
+        </div>
+      </div>
+      <div id="dash-campaigns" class="dash-page hidden p-4 sm:p-6 space-y-6">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div><h2 class="font-display text-xl sm:text-2xl font-bold">My Campaigns</h2><p class="text-xs sm:text-sm text-gray-500">Manage all your unlock campaigns in one place</p></div>
+          <button onclick="showSubPage('create-campaign')" class="btn-primary px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            New Campaign
+          </button>
+        </div>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4" id="campaignsList"></div>
+      </div>
+      <div id="dash-create-campaign" class="dash-page hidden p-4 sm:p-6">
+        <div class="max-w-4xl">
+          <h2 class="font-display text-xl sm:text-2xl font-bold mb-1">Create New Campaign</h2>
+          <p class="text-xs sm:text-sm text-gray-500 mb-5 sm:mb-6">Set up your unlock campaign in minutes</p>
+          <div class="glass-strong rounded-2xl p-5 sm:p-6 space-y-5 sm:space-y-6">
+            <div class="grid sm:grid-cols-2 gap-3 sm:gap-4">
+              <div><label class="text-xs font-medium text-gray-300 block mb-1.5">Campaign Name *</label><input class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="My Awesome Campaign" /></div>
+              <div><label class="text-xs font-medium text-gray-300 block mb-1.5">Campaign Slug *</label><input class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="my-awesome-campaign" /></div>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-3 sm:gap-4">
+              <div><label class="text-xs font-medium text-gray-300 block mb-1.5">Category</label>
+                <select class="input-field w-full px-4 py-3 rounded-xl text-sm">
+                  <option>YouTube Growth</option><option>Instagram Growth</option><option>TikTok Growth</option><option>Website Traffic</option><option>App Install</option><option>Other</option>
+                </select>
+              </div>
+              <div><label class="text-xs font-medium text-gray-300 block mb-1.5">Destination URL *</label><input class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="https://..." /></div>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-300 block mb-1.5">Description</label>
+              <textarea rows="3" class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="Tell visitors what to expect..."></textarea>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-3 sm:gap-4">
+              <div><label class="text-xs font-medium text-gray-300 block mb-1.5">Thumbnail (400x400)</label><div class="input-field border-dashed rounded-xl p-5 sm:p-6 text-center cursor-pointer hover:bg-white/5"><svg class="w-7 h-7 sm:w-8 sm:h-8 mx-auto text-gray-500 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z"/></svg><p class="text-[10px] sm:text-xs text-gray-400">Click to upload</p></div></div>
+              <div><label class="text-xs font-medium text-gray-300 block mb-1.5">Banner (1200x400)</label><div class="input-field border-dashed rounded-xl p-5 sm:p-6 text-center cursor-pointer hover:bg-white/5"><svg class="w-7 h-7 sm:w-8 sm:h-8 mx-auto text-gray-500 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z"/></svg><p class="text-[10px] sm:text-xs text-gray-400">Click to upload</p></div></div>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-300 block mb-3">Select Tasks *</label>
+              <div class="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3" id="taskOptions"></div>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-3 sm:gap-4">
+              <div><label class="text-xs font-medium text-gray-300 block mb-1.5">Status</label>
+                <select class="input-field w-full px-4 py-3 rounded-xl text-sm"><option>Active</option><option>Draft</option><option>Paused</option></select>
+              </div>
+              <div><label class="text-xs font-medium text-gray-300 block mb-1.5">Expiry Date</label><input type="date" class="input-field w-full px-4 py-3 rounded-xl text-sm" /></div>
+            </div>
+            <div class="flex justify-end gap-3 pt-4 border-t border-white/5">
+              <button class="btn-ghost px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm">Save as Draft</button>
+              <button onclick="alert('Campaign created!'); showSubPage('campaigns')" class="btn-primary px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white">Create Campaign</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="dash-analytics" class="dash-page hidden p-4 sm:p-6 space-y-6">
+        <h2 class="font-display text-xl sm:text-2xl font-bold">Analytics</h2>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" id="analyticsStats"></div>
+        <div class="grid lg:grid-cols-2 gap-3 sm:gap-4">
+          <div class="glass rounded-2xl p-4 sm:p-5"><h3 class="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Traffic Over Time</h3><div class="h-64 sm:h-72"><canvas id="trafficChart"></canvas></div></div>
+          <div class="glass rounded-2xl p-4 sm:p-5"><h3 class="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Hourly Performance</h3><div class="h-64 sm:h-72"><canvas id="hourlyChart"></canvas></div></div>
+        </div>
+        <div class="glass rounded-2xl p-4 sm:p-5">
+          <h3 class="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Top Countries Performance</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs sm:text-sm">
+              <thead><tr class="text-[10px] sm:text-xs text-gray-500 border-b border-white/5"><th class="text-left py-2 font-medium">Country</th><th class="text-left py-2 font-medium">Views</th><th class="text-left py-2 font-medium">Valid</th><th class="text-left py-2 font-medium">Invalid</th><th class="text-left py-2 font-medium">Earnings</th><th class="text-left py-2 font-medium">Tier</th></tr></thead>
+              <tbody id="countryTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div id="dash-withdraw" class="dash-page hidden p-4 sm:p-6 space-y-6">
+        <div><h2 class="font-display text-xl sm:text-2xl font-bold">Withdraw Funds</h2><p class="text-xs sm:text-sm text-gray-500">Minimum withdrawal: $10.00</p></div>
+        <div class="grid lg:grid-cols-3 gap-3 sm:gap-4">
+          <div class="lg:col-span-2 glass-strong rounded-2xl p-5 sm:p-6">
+            <h3 class="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Request Withdrawal</h3>
+            <div class="space-y-3 sm:space-y-4">
+              <div>
+                <label class="text-xs font-medium text-gray-300 block mb-1.5">Amount (USD)</label>
+                <input type="number" min="10" class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="Enter amount" />
+                <p class="text-[10px] sm:text-xs text-gray-500 mt-1">Available balance: <span class="text-white font-semibold">$847.32</span></p>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-300 block mb-3">Payment Method</label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3" id="paymentMethods"></div>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-gray-300 block mb-1.5">Account Details</label>
+                <input class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="Enter your account/wallet details" />
+              </div>
+              <button onclick="alert('Withdrawal request submitted! Processing within 24-48 hours.')" class="btn-primary w-full py-3 rounded-xl text-sm font-semibold text-white">Request Withdrawal</button>
+            </div>
+          </div>
+          <div class="space-y-3 sm:space-y-4">
+            <div class="glass rounded-2xl p-4 sm:p-5"><div class="text-[10px] sm:text-xs text-gray-400 mb-1">Available Balance</div><div class="text-2xl sm:text-3xl font-bold gradient-text">$847.32</div></div>
+            <div class="glass rounded-2xl p-4 sm:p-5"><div class="text-[10px] sm:text-xs text-gray-400 mb-1">Pending</div><div class="text-2xl sm:text-3xl font-bold">$120.00</div></div>
+            <div class="glass rounded-2xl p-4 sm:p-5"><div class="text-[10px] sm:text-xs text-gray-400 mb-1">Total Withdrawn</div><div class="text-2xl sm:text-3xl font-bold">$11,880.00</div></div>
+          </div>
+        </div>
+        <div class="glass rounded-2xl p-4 sm:p-5">
+          <h3 class="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Withdraw History</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs sm:text-sm">
+              <thead><tr class="text-[10px] sm:text-xs text-gray-500 border-b border-white/5"><th class="text-left py-2 font-medium">Date</th><th class="text-left py-2 font-medium">Amount</th><th class="text-left py-2 font-medium">Method</th><th class="text-left py-2 font-medium">Status</th></tr></thead>
+              <tbody id="withdrawHistory"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div id="dash-referrals" class="dash-page hidden p-4 sm:p-6 space-y-6">
+        <div><h2 class="font-display text-xl sm:text-2xl font-bold">Referral Program</h2><p class="text-xs sm:text-sm text-gray-500">Earn <span class="text-purple-400 font-semibold">10% commission</span> on every friend's earnings</p></div>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" id="referralStats"></div>
+        <div class="glass-strong rounded-2xl p-5 sm:p-6">
+          <h3 class="font-semibold text-sm sm:text-base mb-1 sm:mb-2">Your Referral Link</h3>
+          <p class="text-[10px] sm:text-xs text-gray-500 mb-3 sm:mb-4">Share this link and earn lifetime commission</p>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input readonly value="https://creatorboost.io/ref/alex-7f8a2" class="input-field flex-1 px-4 py-3 rounded-xl text-xs sm:text-sm" />
+            <button onclick="navigator.clipboard.writeText('https://creatorboost.io/ref/alex-7f8a2'); this.textContent='Copied!'" class="btn-primary px-4 sm:px-5 py-3 rounded-xl text-xs sm:text-sm font-semibold text-white">Copy</button>
+          </div>
+        </div>
+        <div class="glass rounded-2xl p-4 sm:p-5">
+          <h3 class="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Your Referrals</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs sm:text-sm">
+              <thead><tr class="text-[10px] sm:text-xs text-gray-500 border-b border-white/5"><th class="text-left py-2 font-medium">User</th><th class="text-left py-2 font-medium">Joined</th><th class="text-left py-2 font-medium">Their Earnings</th><th class="text-left py-2 font-medium">Your Commission</th><th class="text-left py-2 font-medium">Status</th></tr></thead>
+              <tbody id="referralList"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div id="dash-tools" class="dash-page hidden p-4 sm:p-6 space-y-6">
+        <h2 class="font-display text-xl sm:text-2xl font-bold">Tools</h2>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div class="glass-strong rounded-2xl p-5 sm:p-6 card-glow">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center mb-3 sm:mb-4 text-xl sm:text-2xl">🔗</div>
+            <h3 class="font-semibold text-sm sm:text-base mb-1">URL Shortener</h3>
+            <p class="text-[10px] sm:text-xs text-gray-500 mb-2 sm:mb-3">Shorten any URL for sharing</p>
+            <input id="urlInput" class="input-field w-full px-3 py-2 rounded-lg text-xs sm:text-sm mb-2" placeholder="https://example.com/long-url" />
+            <button onclick="shortenUrl()" class="btn-primary w-full py-2 rounded-lg text-xs sm:text-sm font-semibold text-white">Shorten</button>
+            <div id="urlResult" class="hidden mt-2 p-2 glass rounded-lg text-[10px] sm:text-xs text-purple-300"></div>
+          </div>
+          <div class="glass-strong rounded-2xl p-5 sm:p-6 card-glow">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center mb-3 sm:mb-4 text-xl sm:text-2xl">📱</div>
+            <h3 class="font-semibold text-sm sm:text-base mb-1">QR Code Generator</h3>
+            <p class="text-[10px] sm:text-xs text-gray-500 mb-2 sm:mb-3">Generate QR for your campaigns</p>
+            <input id="qrInput" class="input-field w-full px-3 py-2 rounded-lg text-xs sm:text-sm mb-2" placeholder="Enter URL or text" />
+            <button onclick="generateQR()" class="btn-primary w-full py-2 rounded-lg text-xs sm:text-sm font-semibold text-white">Generate</button>
+            <div id="qrResult" class="hidden mt-3 flex justify-center p-3 bg-white rounded-lg">
+              <div id="qrCode" class="w-28 h-28 sm:w-32 sm:h-32"></div>
+            </div>
+          </div>
+          <div class="glass-strong rounded-2xl p-5 sm:p-6 card-glow">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mb-3 sm:mb-4 text-xl sm:text-2xl">🛡️</div>
+            <h3 class="font-semibold text-sm sm:text-base mb-1">Fraud Checker</h3>
+            <p class="text-[10px] sm:text-xs text-gray-500 mb-2 sm:mb-3">Verify if a visitor is legitimate</p>
+            <input class="input-field w-full px-3 py-2 rounded-lg text-xs sm:text-sm mb-2" placeholder="IP or device ID" />
+            <button class="btn-primary w-full py-2 rounded-lg text-xs sm:text-sm font-semibold text-white">Check</button>
+          </div>
+        </div>
+      </div>
+      <div id="dash-settings" class="dash-page hidden p-4 sm:p-6 space-y-6 max-w-3xl">
+        <h2 class="font-display text-xl sm:text-2xl font-bold">Profile Settings</h2>
+        <div class="glass-strong rounded-2xl p-5 sm:p-6 space-y-5 sm:space-y-6">
+          <div class="flex items-center gap-3 sm:gap-4 pb-5 sm:pb-6 border-b border-white/5">
+            <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-2xl sm:text-3xl font-bold">A</div>
+            <div class="flex-1">
+              <h3 class="font-semibold text-base sm:text-lg">Alex Morgan</h3>
+              <p class="text-xs sm:text-sm text-gray-500">Gold Creator • Member since Jan 2024</p>
+              <button class="text-xs text-purple-400 mt-1">Change avatar</button>
+            </div>
+          </div>
+          <div class="grid sm:grid-cols-2 gap-3 sm:gap-4">
+            <div><label class="text-xs font-medium text-gray-300 block mb-1.5">Full Name</label><input class="input-field w-full px-4 py-3 rounded-xl text-sm" value="Alex Morgan" /></div>
+            <div><label class="text-xs font-medium text-gray-300 block mb-1.5">Username</label><input class="input-field w-full px-4 py-3 rounded-xl text-sm" value="@alexmorgan" /></div>
+            <div><label class="text-xs font-medium text-gray-300 block mb-1.5">Email</label><input class="input-field w-full px-4 py-3 rounded-xl text-sm" value="alex@example.com" /></div>
+            <div><label class="text-xs font-medium text-gray-300 block mb-1.5">Country</label>
+              <select class="input-field w-full px-4 py-3 rounded-xl text-sm">
+                <option>United States</option><option>United Kingdom</option><option>Pakistan</option><option>India</option>
+              </select>
+            </div>
+          </div>
+          <div><label class="text-xs font-medium text-gray-300 block mb-1.5">Bio</label><textarea rows="3" class="input-field w-full px-4 py-3 rounded-xl text-sm">Content creator passionate about tech and lifestyle.</textarea></div>
+          <div>
+            <h4 class="font-semibold mb-3 text-sm sm:text-base">Security</h4>
+            <div class="space-y-3">
+              <div class="flex items-center justify-between p-3 glass rounded-xl"><div><div class="text-sm font-medium">Two-Factor Authentication</div><div class="text-[10px] sm:text-xs text-gray-500">Add an extra layer of security</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+              <div class="flex items-center justify-between p-3 glass rounded-xl"><div><div class="text-sm font-medium">Email Notifications</div><div class="text-[10px] sm:text-xs text-gray-500">Receive updates via email</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+              <div class="flex items-center justify-between p-3 glass rounded-xl"><div><div class="text-sm font-medium">Push Notifications</div><div class="text-[10px] sm:text-xs text-gray-500">Real-time browser notifications</div></div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+            </div>
+          </div>
+          <button class="btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold text-white">Save Changes</button>
+        </div>
+      </div>
+      <div id="dash-notifications" class="dash-page hidden p-4 sm:p-6 space-y-3">
+        <h2 class="font-display text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Notifications</h2>
+        <div class="space-y-3" id="notificationsList"></div>
+      </div>
+      <div id="dash-support" class="dash-page hidden p-4 sm:p-6 space-y-6">
+        <h2 class="font-display text-xl sm:text-2xl font-bold">Support Center</h2>
+        <div class="grid lg:grid-cols-3 gap-3 sm:gap-4">
+          <div class="lg:col-span-2 glass-strong rounded-2xl p-5 sm:p-6">
+            <h3 class="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Create a Ticket</h3>
+            <form onsubmit="event.preventDefault(); alert('Ticket submitted! Response within 24h.')" class="space-y-3 sm:space-y-4">
+              <div><label class="text-xs font-medium text-gray-300 block mb-1.5">Subject</label><input required class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="Brief description" /></div>
+              <div><label class="text-xs font-medium text-gray-300 block mb-1.5">Category</label>
+                <select class="input-field w-full px-4 py-3 rounded-xl text-sm">
+                  <option>General Inquiry</option><option>Payment Issue</option><option>Campaign Problem</option><option>Account Issue</option><option>Bug Report</option>
+                </select>
+              </div>
+              <div><label class="text-xs font-medium text-gray-300 block mb-1.5">Message</label><textarea required rows="5" class="input-field w-full px-4 py-3 rounded-xl text-sm" placeholder="Describe your issue..."></textarea></div>
+              <button type="submit" class="btn-primary px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white">Submit Ticket</button>
+            </form>
+          </div>
+          <div class="space-y-3 sm:space-y-4">
+            <div class="glass rounded-2xl p-4 sm:p-5">
+              <h4 class="font-semibold mb-3 text-sm sm:text-base">Quick Help</h4>
+              <div class="space-y-2 text-xs sm:text-sm">
+                <a href="#" onclick="navigate('support')" class="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 text-gray-300">❓ FAQs</a>
+                <a href="#" onclick="navigate('blog')" class="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 text-gray-300">📚 Knowledge Base</a>
+                <a href="mailto:support@creatorboost.io" class="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 text-gray-300">📧 Email Support</a>
+                <a href="#" class="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 text-gray-300">💬 Live Chat</a>
+              </div>
+            </div>
+            <div class="glass rounded-2xl p-4 sm:p-5">
+              <h4 class="font-semibold mb-2 text-sm sm:text-base">Response Time</h4>
+              <p class="text-[10px] sm:text-xs text-gray-400 mb-2">Average reply: 2 hours</p>
+              <div class="flex items-center gap-2 text-xs text-green-400"><span class="dot-pulse"></span> Support online</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== JS DATA & LOGIC ============== -->
+<script>
+/* ---------------- DATA ---------------- */
+const features = [
+  { icon: '💰', title: 'Earn by CPM', desc: 'Get paid for every 1000 valid views from real users worldwide.' },
+  { icon: '▶️', title: 'YouTube Subscribe', desc: 'Grow subscribers through unlock campaigns.' },
+  { icon: '👍', title: 'YouTube Like Unlock', desc: 'Boost engagement on your videos.' },
+  { icon: '🎬', title: 'Watch Video Unlock', desc: 'Increase watch time and views on your content.' },
+  { icon: '📷', title: 'Instagram Follow', desc: 'Gain real Instagram followers.' },
+  { icon: '🎵', title: 'TikTok Follow Unlock', desc: 'Build your TikTok presence.' },
+  { icon: '✈️', title: 'Telegram Join Unlock', desc: 'Grow Telegram channels and groups quickly.' },
+  { icon: '💬', title: 'Discord Join Unlock', desc: 'Expand your Discord community.' },
+  { icon: '🌐', title: 'Website Visit Unlock', desc: 'Drive real, targeted traffic to your site.' },
+  { icon: '📁', title: 'File Download Unlock', desc: 'Get downloads for your files & resources.' },
+  { icon: '📱', title: 'QR Code Generator', desc: 'Create QR codes for your campaigns instantly.' },
+  { icon: '🔗', title: 'URL Shortener', desc: 'Shorten campaign links for cleaner sharing.' },
+  { icon: '📊', title: 'Analytics Dashboard', desc: 'Track performance with detailed real-time data.' },
+  { icon: '⚡', title: 'Real-Time Earnings', desc: 'Watch your earnings update live as views come in.' },
+  { icon: '🛡️', title: 'AI Fraud Detection', desc: 'Advanced AI filters bots, VPNs, and fake traffic.' },
+  { icon: '🌍', title: '180+ Countries', desc: 'Reach global audience across all major markets.' },
+];
+
+const steps = [
+  { n: 1, title: 'Create', desc: 'Set up your unlock campaign in minutes', icon: '✨' },
+  { n: 2, title: 'Share', desc: 'Share your unique campaign link', icon: '🔗' },
+  { n: 3, title: 'Engage', desc: 'Visitors complete tasks to unlock', icon: '✅' },
+  { n: 4, title: 'Verify', desc: 'AI verifies each view for authenticity', icon: '🤖' },
+  { n: 5, title: 'Earn', desc: 'Get paid for every 1000 valid views', icon: '💰' },
+];
+
+const levels = [
+  { name: 'Bronze', level: 'bronze', mult: '1.0x', color: 'badge-bronze', icon: '🥉', perks: ['Basic CPM', 'Standard support'] },
+  { name: 'Silver', level: 'silver', mult: '1.1x', color: 'badge-silver', icon: '🥈', perks: ['+10% CPM', 'Priority queue'] },
+  { name: 'Gold', level: 'gold', mult: '1.25x', color: 'badge-gold', icon: '🥇', perks: ['+25% CPM', 'Verified badge', 'Priority support'] },
+  { name: 'Platinum', level: 'platinum', mult: '1.5x', color: 'badge-platinum', icon: '💎', perks: ['+50% CPM', 'Fast withdrawals', 'Premium analytics'] },
+  { name: 'Diamond', level: 'diamond', mult: '2.0x', color: 'badge-diamond', icon: '👑', perks: ['+100% CPM', 'VIP support', 'Account manager'] },
+];
+
+const testimonials = [
+  { name: 'Sarah K.', country: 'USA', earnings: '$8,420', role: 'YouTube Creator', text: 'CreatorBoost completely changed how I monetize. From $200 to $2,500/month in 3 months!', avatar: 'S' },
+  { name: 'Mike T.', country: 'UK', earnings: '$3,180', role: 'Instagram Influencer', text: 'The AI fraud detection is incredible. Every view is real.', avatar: 'M' },
+  { name: 'Priya R.', country: 'India', earnings: '$1,950', role: 'TikTok Creator', text: 'Best platform for creators. Dashboard is gorgeous, withdrawals are fast.', avatar: 'P' },
+  { name: 'James W.', country: 'Canada', earnings: '$5,640', role: 'Twitch Streamer', text: 'Switched and never looked back. Support is responsive, payouts are quick.', avatar: 'J' },
+  { name: 'Carlos M.', country: 'Brazil', earnings: '$2,210', role: 'Content Creator', text: 'The CPM calculator alone helped me plan around Tier 1 traffic.', avatar: 'C' },
+  { name: 'Aisha N.', country: 'UAE', earnings: '$4,890', role: 'Lifestyle Vlogger', text: 'Reached Platinum in 4 months. Higher rates really add up.', avatar: 'A' },
+  { name: 'David L.', country: 'Australia', earnings: '$6,720', role: 'Tech Reviewer', text: 'I run 5 YouTube channels. CreatorBoost handles them all seamlessly.', avatar: 'D' },
+  { name: 'Yuki T.', country: 'Japan', earnings: '$2,840', role: 'Fashion Creator', text: 'Beautiful interface, transparent rates, great referral program.', avatar: 'Y' },
+];
+
+const tasks = [
+  { id: 'yt_sub', name: 'YouTube Subscribe', icon: '▶️' },
+  { id: 'yt_like', name: 'YouTube Like', icon: '👍' },
+  { id: 'yt_watch', name: 'Watch Video', icon: '🎬' },
+  { id: 'ig_follow', name: 'Instagram Follow', icon: '📷' },
+  { id: 'tt_follow', name: 'TikTok Follow', icon: '🎵' },
+  { id: 'tg_join', name: 'Telegram Join', icon: '✈️' },
+  { id: 'dc_join', name: 'Discord Join', icon: '💬' },
+  { id: 'fb_like', name: 'Facebook Like', icon: '📘' },
+  { id: 'web_visit', name: 'Website Visit', icon: '🌐' },
+  { id: 'custom', name: 'Custom Task', icon: '⚙️' },
+];
+
+const paymentMethods = [
+  { id: 'jazzcash', name: 'JazzCash', icon: '📱' },
+  { id: 'easypaisa', name: 'EasyPaisa', icon: '💸' },
+  { id: 'paypal', name: 'PayPal', icon: '🅿️' },
+  { id: 'binance', name: 'Binance Pay', icon: '🟡' },
+  { id: 'usdt', name: 'USDT (TRC20)', icon: '₮' },
+  { id: 'bank', name: 'Bank Transfer', icon: '🏦' },
+];
+
+const myCampaigns = [
+  { name: 'YouTube Subscribe Boost', views: 482000, valid: 421000, earnings: 2105, status: 'active', cpm: 5 },
+  { name: 'Instagram Followers', views: 234000, valid: 198000, earnings: 594, status: 'active', cpm: 3 },
+  { name: 'TikTok Followers Push', views: 156000, valid: 132000, earnings: 132, status: 'paused', cpm: 1 },
+  { name: 'Telegram Group Growth', views: 98000, valid: 87000, earnings: 87, status: 'active', cpm: 1 },
+  { name: 'Website Traffic Boost', views: 67000, valid: 58000, earnings: 348, status: 'draft', cpm: 6 },
+  { name: 'Discord Community', views: 45000, valid: 38000, earnings: 76, status: 'active', cpm: 2 },
+];
+
+const faqs = [
+  { q: 'How much can I earn?', a: 'Earnings depend on valid views and country tier. Tier 1: $4-6/1K views, Tier 2: $2-3.5, Tier 3: $0.5-1.5. Use the CPM calculator above.' },
+  { q: 'When can I withdraw?', a: 'You can withdraw once your balance reaches $10. Payouts are processed within 24-48 hours.' },
+  { q: 'How does fraud detection work?', a: 'Our AI analyzes 50+ signals including IP reputation, device fingerprinting, behavior patterns, VPN/proxy detection.' },
+  { q: 'What payment methods are supported?', a: 'JazzCash, EasyPaisa, PayPal, Binance Pay, USDT (TRC20), and Bank Transfer.' },
+  { q: 'How do I increase my CPM rate?', a: 'Level up! Bronze → Diamond unlocks higher CPM rates. Diamond = 100% CPM bonus plus dedicated account manager.' },
+  { q: 'Is CreatorBoost free to use?', a: 'Yes! Creating an account and starting your first campaign is free. We only earn when you earn.' },
+  { q: 'What are the 5 creator levels?', a: 'Bronze (1.0×), Silver (1.1×), Gold (1.25×), Platinum (1.5×), Diamond (2.0×). Each unlocks better rates and perks.' },
+];
+
+const blogPosts = [
+  { category: 'SEO Tips', title: '10 SEO Strategies That Actually Work in 2026', excerpt: 'Google\'s algorithm has changed. Here are the tactics top creators use to rank.', author: 'Alex Chen', date: 'Jan 12', read: '8 min', icon: '🔍', color: 'from-blue-500/20 to-cyan-500/20' },
+  { category: 'Creator Guides', title: 'How to Reach Gold Tier in 90 Days', excerpt: 'A step-by-step playbook for hitting 1M valid views and unlocking 25% higher CPM.', author: 'Sarah Kim', date: 'Jan 8', read: '12 min', icon: '🏆', color: 'from-yellow-500/20 to-orange-500/20' },
+  { category: 'Traffic Tips', title: 'The Tier 1 Traffic Playbook', excerpt: 'Where to find high-value visitors from USA, UK, and Germany.', author: 'Marcus Lee', date: 'Jan 5', read: '10 min', icon: '🌍', color: 'from-purple-500/20 to-pink-500/20' },
+  { category: 'Monetization', title: 'CPM Rates Explained: A Complete Guide', excerpt: 'Everything you need to know about how CreatorBoost calculates your earnings.', author: 'Priya Patel', date: 'Dec 28', read: '6 min', icon: '💰', color: 'from-green-500/20 to-emerald-500/20' },
+  { category: 'Case Studies', title: 'How Sarah Grew From $200 to $8,400/Month', excerpt: 'A deep dive into one creator\'s journey and the strategies she used.', author: 'Sarah Kim', date: 'Dec 20', read: '15 min', icon: '📈', color: 'from-pink-500/20 to-purple-500/20' },
+  { category: 'Creator Guides', title: 'YouTube Algorithm Secrets for 2026', excerpt: 'What we learned analyzing 1,000 successful channels.', author: 'Alex Chen', date: 'Dec 15', read: '9 min', icon: '🎬', color: 'from-red-500/20 to-pink-500/20' },
+  { category: 'Traffic Tips', title: 'How to Spot Bot Traffic in 60 Seconds', excerpt: 'A practical guide to identifying low-quality visitors.', author: 'Marcus Lee', date: 'Dec 10', read: '7 min', icon: '🛡️', color: 'from-orange-500/20 to-red-500/20' },
+  { category: 'Monetization', title: 'Maximize Earnings with Smart Task Selection', excerpt: 'Which task combinations convert best? Data from 10,000+ campaigns.', author: 'Priya Patel', date: 'Dec 5', read: '11 min', icon: '⚡', color: 'from-indigo-500/20 to-violet-500/20' },
+  { category: 'SEO Tips', title: 'YouTube SEO: Rank #1 in 2026', excerpt: 'The exact checklist we use for top-performing videos.', author: 'Alex Chen', date: 'Nov 28', read: '14 min', icon: '🎯', color: 'from-cyan-500/20 to-blue-500/20' },
+];
+
+/* ---------------- RENDER ---------------- */
+function renderFeatures() {
+  document.getElementById('featuresGrid').innerHTML = features.map(f => `
+    <div class="glass rounded-2xl p-4 sm:p-6 card-glow relative overflow-hidden">
+      <div class="absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br ${f.icon === '💰' ? 'from-purple-500/20 to-blue-500/20' : f.icon === '▶️' ? 'from-red-500/20 to-pink-500/20' : f.icon === '🛡️' ? 'from-green-500/20 to-emerald-500/20' : 'from-blue-500/20 to-purple-500/20'} rounded-full blur-2xl"></div>
+      <div class="text-2xl sm:text-3xl mb-2 sm:mb-3 relative">${f.icon}</div>
+      <h3 class="font-semibold text-sm sm:text-base mb-1 relative">${f.title}</h3>
+      <p class="text-[10px] sm:text-xs text-gray-400 relative">${f.desc}</p>
+    </div>
+  `).join('');
+}
+function renderSteps() {
+  document.getElementById('stepsGrid').innerHTML = steps.map(s => `
+    <div class="glass rounded-2xl p-4 sm:p-5 text-center card-glow">
+      <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center mx-auto mb-2 sm:mb-3 text-base sm:text-xl font-bold shadow-lg shadow-purple-500/30">${s.n}</div>
+      <div class="text-xl sm:text-2xl mb-1 sm:mb-2">${s.icon}</div>
+      <h3 class="font-semibold mb-1 text-xs sm:text-sm">${s.title}</h3>
+      <p class="text-[10px] sm:text-xs text-gray-400">${s.desc}</p>
+    </div>
+  `).join('');
+}
+function renderLevels() {
+  document.getElementById('levelsGrid').innerHTML = levels.map((l, i) => `
+    <div class="glass rounded-2xl p-4 sm:p-5 card-glow ${i === 2 ? 'ring-2 ring-yellow-500/50 bg-gradient-to-br from-yellow-500/5 to-orange-500/5' : ''}">
+      ${i === 2 ? '<div class="text-[10px] sm:text-xs text-yellow-300 font-semibold mb-1">⭐ POPULAR</div>' : ''}
+      <div class="text-2xl sm:text-3xl mb-1 sm:mb-2">${l.icon}</div>
+      <h3 class="font-display text-base sm:text-lg font-bold mb-1">${l.name}</h3>
+      <div class="text-[10px] sm:text-xs text-gray-400 mb-2 sm:mb-3">From ${['0','100K','1M','5M','10M'][i]} views</div>
+      <div class="text-lg sm:text-2xl font-bold gradient-text mb-2 sm:mb-3">${l.mult}</div>
+      <ul class="space-y-1">
+        ${l.perks.map(p => `<li class="text-[10px] sm:text-xs text-gray-300 flex items-start gap-1.5"><span class="text-purple-400 flex-shrink-0">✓</span><span>${p}</span></li>`).join('')}
+      </ul>
+    </div>
+  `).join('');
+}
+function renderTestimonials() {
+  document.getElementById('testimonialsGrid').innerHTML = testimonials.map(t => `
+    <div class="glass rounded-2xl p-4 sm:p-5 card-glow">
+      <div class="flex items-center gap-1 mb-2 sm:mb-3 text-yellow-400 text-sm">★★★★★</div>
+      <p class="text-[10px] sm:text-xs text-gray-300 mb-3 sm:mb-4 line-clamp-4">&ldquo;${t.text}&rdquo;</p>
+      <div class="flex items-center justify-between pt-2 sm:pt-3 border-t border-white/5">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center font-bold text-[10px] sm:text-sm flex-shrink-0">${t.avatar}</div>
+          <div class="min-w-0">
+            <div class="text-[10px] sm:text-xs font-semibold truncate">${t.name}</div>
+            <div class="text-[10px] text-gray-500 truncate">${t.role}</div>
+          </div>
+        </div>
+        <div class="text-right flex-shrink-0">
+          <div class="text-[10px] text-gray-500">/mo</div>
+          <div class="text-[10px] sm:text-xs font-bold text-green-400">${t.earnings}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+function renderFaqs(id, list) {
+  document.getElementById(id).innerHTML = list.map((f, i) => `
+    <details class="glass rounded-xl group" ${i === 0 ? 'open' : ''}>
+      <summary class="cursor-pointer p-3 sm:p-4 font-medium text-xs sm:text-sm flex items-center justify-between list-none gap-2">
+        <span>${f.q}</span>
+        <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-purple-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </summary>
+      <div class="px-3 sm:px-4 pb-3 sm:pb-4 text-[10px] sm:text-xs text-gray-400 leading-relaxed">${f.a}</div>
+    </details>
+  `).join('');
+}
+function renderBlog(id, list) {
+  document.getElementById(id).innerHTML = list.map(p => `
+    <article class="glass rounded-2xl overflow-hidden card-glow cursor-pointer">
+      <div class="h-32 sm:h-40 bg-gradient-to-br ${p.color} flex items-center justify-center text-4xl sm:text-5xl">${p.icon}</div>
+      <div class="p-4 sm:p-5">
+        <div class="text-[10px] sm:text-xs text-purple-300 mb-1 sm:mb-2">${p.category}</div>
+        <h3 class="font-semibold mb-1 sm:mb-2 line-clamp-2 text-xs sm:text-sm">${p.title}</h3>
+        <p class="text-[10px] sm:text-xs text-gray-400 mb-3 sm:mb-4 line-clamp-2">${p.excerpt}</p>
+        <div class="flex items-center justify-between text-[10px] sm:text-xs text-gray-500">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <div class="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-[9px] sm:text-[10px] font-bold flex-shrink-0">${p.author[0]}</div>
+            <span class="truncate">${p.author} • ${p.date}</span>
+          </div>
+          <span class="flex-shrink-0">${p.read}</span>
+        </div>
+      </div>
+    </article>
+  `).join('');
+}
+function renderStats() {
+  const stats = [
+    { label: 'Total Earnings', value: '$12,847.32', change: '+23.5%', icon: '💰' },
+    { label: "Today's", value: '$48.20', change: '+12.1%', icon: '📈' },
+    { label: 'Valid Views', value: '2.4M', change: '85.7%', icon: '👁️' },
+    { label: 'CPM Rate', value: '$5.00', change: 'Gold', icon: '⚡' },
+    { label: 'Balance', value: '$847.32', change: 'Available', icon: '💎' },
+    { label: 'Pending', value: '$120.00', change: 'Processing', icon: '⏳' },
+    { label: 'Total Views', value: '2.8M', change: '+5.4%', icon: '📊' },
+    { label: 'Referral', value: '$234.18', change: '+8.7%', icon: '👥' },
+  ];
+  document.getElementById('statsGrid').innerHTML = stats.map(s => `
+    <div class="glass rounded-2xl p-4 sm:p-5 stat-card">
+      <div class="flex items-center justify-between mb-1 sm:mb-2">
+        <div class="text-[10px] sm:text-xs text-gray-400">${s.label}</div>
+        <div class="text-base sm:text-xl">${s.icon}</div>
+      </div>
+      <div class="text-lg sm:text-2xl font-bold">${s.value}</div>
+      <div class="text-[10px] sm:text-xs text-green-400 mt-0.5 sm:mt-1">${s.change}</div>
+    </div>
+  `).join('');
+}
+function renderCampaigns() {
+  document.getElementById('campaignsList').innerHTML = myCampaigns.map(c => `
+    <div class="glass-strong rounded-2xl p-4 sm:p-5 card-glow">
+      <div class="flex items-start justify-between mb-2 sm:mb-3">
+        <div class="min-w-0">
+          <h3 class="font-semibold text-sm sm:text-base truncate">${c.name}</h3>
+          <p class="text-[10px] sm:text-xs text-gray-500">/${c.slug}</p>
+        </div>
+        <span class="badge status-${c.status} flex-shrink-0 ml-2">${c.status}</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2 sm:gap-3 mb-3 text-xs sm:text-sm">
+        <div><div class="text-[10px] sm:text-xs text-gray-500">Views</div><div class="font-semibold">${c.views.toLocaleString()}</div></div>
+        <div><div class="text-[10px] sm:text-xs text-gray-500">Valid</div><div class="font-semibold">${c.valid.toLocaleString()}</div></div>
+        <div><div class="text-[10px] sm:text-xs text-gray-500">CPM</div><div class="font-semibold">$${c.cpm}</div></div>
+        <div><div class="text-[10px] sm:text-xs text-gray-500">Earned</div><div class="font-semibold text-green-400">$${c.earnings.toLocaleString()}</div></div>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn-ghost flex-1 py-2 rounded-lg text-[10px] sm:text-xs">Edit</button>
+        <button class="btn-primary flex-1 py-2 rounded-lg text-[10px] sm:text-xs text-white">Stats</button>
+      </div>
+    </div>
+  `).join('');
+}
+function renderRecentCampaigns() {
+  document.getElementById('recentCampaigns').innerHTML = myCampaigns.slice(0, 5).map(c => `
+    <tr class="border-b border-white/5 table-row">
+      <td class="py-3 font-medium">${c.name}</td>
+      <td class="py-3">${c.valid.toLocaleString()}</td>
+      <td class="py-3">$${c.cpm}</td>
+      <td class="py-3 text-green-400">$${c.earnings.toLocaleString()}</td>
+      <td class="py-3"><span class="badge status-${c.status}">${c.status}</span></td>
+    </tr>
+  `).join('');
+}
+function renderActivity() {
+  const acts = [
+    { icon: '💰', text: '<strong>+$24.50</strong> earned from <strong>YT Subscribe Boost</strong>', time: '2 min ago' },
+    { icon: '👁️', text: 'New <strong>1,247 valid views</strong> on <strong>IG Followers</strong>', time: '15 min ago' },
+    { icon: '✅', text: 'Withdrawal of <strong>$250.00</strong> approved', time: '1 hour ago' },
+    { icon: '🤖', text: 'AI blocked <strong>89 fraudulent</strong> views', time: '2 hours ago' },
+    { icon: '🎯', text: 'You reached <strong>Gold Level</strong>! CPM +25%', time: '1 day ago' },
+    { icon: '👥', text: '<strong>Sarah K.</strong> joined via your referral', time: '2 days ago' },
+  ];
+  document.getElementById('activityFeed').innerHTML = acts.map(a => `
+    <div class="flex items-start gap-2 sm:gap-3 p-3 glass rounded-xl">
+      <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center text-base sm:text-lg flex-shrink-0">${a.icon}</div>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs sm:text-sm">${a.text}</p>
+        <p class="text-[10px] sm:text-xs text-gray-500 mt-0.5">${a.time}</p>
+      </div>
+    </div>
+  `).join('');
+}
+function renderTasks() {
+  document.getElementById('taskOptions').innerHTML = tasks.map(t => `
+    <label class="glass rounded-xl p-2.5 sm:p-3 flex items-center gap-2 sm:gap-3 cursor-pointer hover:bg-white/5">
+      <input type="checkbox" class="rounded text-purple-500 flex-shrink-0" />
+      <span class="text-base sm:text-xl flex-shrink-0">${t.icon}</span>
+      <span class="text-[10px] sm:text-xs font-medium truncate">${t.name}</span>
+    </label>
+  `).join('');
+}
+function renderPaymentMethods() {
+  document.getElementById('paymentMethods').innerHTML = paymentMethods.map(m => `
+    <label class="glass rounded-xl p-2.5 sm:p-3 flex flex-col items-center gap-1 cursor-pointer hover:bg-white/5 text-center">
+      <input type="radio" name="pm" class="text-purple-500" />
+      <span class="text-xl sm:text-2xl">${m.icon}</span>
+      <span class="text-[10px] sm:text-xs font-medium">${m.name}</span>
+    </label>
+  `).join('');
+}
+function renderWithdrawHistory() {
+  const items = [
+    { date: '2026-07-22', amount: 250, method: 'USDT', status: 'pending' },
+    { date: '2026-07-15', amount: 500, method: 'PayPal', status: 'paid' },
+    { date: '2026-07-08', amount: 180, method: 'Binance', status: 'paid' },
+    { date: '2026-06-30', amount: 320, method: 'Bank', status: 'approved' },
+    { date: '2026-06-22', amount: 100, method: 'JazzCash', status: 'rejected' },
+  ];
+  document.getElementById('withdrawHistory').innerHTML = items.map(i => `
+    <tr class="border-b border-white/5 table-row">
+      <td class="py-3">${i.date}</td>
+      <td class="py-3 font-semibold">$${i.amount}</td>
+      <td class="py-3">${i.method}</td>
+      <td class="py-3"><span class="badge status-${i.status}">${i.status}</span></td>
+    </tr>
+  `).join('');
+}
+function renderReferralStats() {
+  const stats = [
+    { label: 'Total Referrals', value: '47', icon: '👥' },
+    { label: 'Active', value: '32', icon: '✅' },
+    { label: 'Clicks', value: '1,284', icon: '👆' },
+    { label: 'Earnings', value: '$234.18', icon: '💰' },
+  ];
+  document.getElementById('referralStats').innerHTML = stats.map(s => `
+    <div class="glass rounded-2xl p-4 sm:p-5 stat-card">
+      <div class="text-xl sm:text-2xl mb-1 sm:mb-2">${s.icon}</div>
+      <div class="text-[10px] sm:text-xs text-gray-400">${s.label}</div>
+      <div class="text-lg sm:text-2xl font-bold mt-0.5 sm:mt-1">${s.value}</div>
+    </div>
+  `).join('');
+  const refs = [
+    { user: 'Sarah K.', joined: '2026-05-12', earnings: 4298, comm: 429.80, status: 'active' },
+    { user: 'Mike T.', joined: '2026-04-08', earnings: 1820, comm: 182.00, status: 'active' },
+    { user: 'Priya R.', joined: '2026-03-22', earnings: 7820, comm: 782.00, status: 'active' },
+    { user: 'James W.', joined: '2026-02-14', earnings: 320, comm: 32.00, status: 'inactive' },
+  ];
+  document.getElementById('referralList').innerHTML = refs.map(r => `
+    <tr class="border-b border-white/5 table-row">
+      <td class="py-3 font-medium">${r.user}</td>
+      <td class="py-3">${r.joined}</td>
+      <td class="py-3">$${r.earnings.toLocaleString()}</td>
+      <td class="py-3 text-green-400 font-semibold">$${r.comm.toFixed(2)}</td>
+      <td class="py-3"><span class="badge status-${r.status === 'active' ? 'active' : 'paused'}">${r.status}</span></td>
+    </tr>
+  `).join('');
+}
+function renderAnalyticsStats() {
+  const stats = [
+    { label: 'Total Views', value: '2.8M', change: '+5.4%' },
+    { label: 'Valid Views', value: '2.4M', change: '85.7%' },
+    { label: 'Invalid Views', value: '418K', change: '14.3%' },
+    { label: 'Avg. Watch Time', value: '24s', change: '+8%' },
+  ];
+  document.getElementById('analyticsStats').innerHTML = stats.map(s => `
+    <div class="glass rounded-2xl p-4 sm:p-5">
+      <div class="text-[10px] sm:text-xs text-gray-400">${s.label}</div>
+      <div class="text-lg sm:text-2xl font-bold mt-0.5 sm:mt-1">${s.value}</div>
+      <div class="text-[10px] sm:text-xs text-green-400 mt-0.5 sm:mt-1">${s.change}</div>
+    </div>
+  `).join('');
+  const countries = [
+    { name: '🇺🇸 USA', views: '892K', valid: '812K', invalid: '80K', earnings: '$4,872', tier: 'Tier 1' },
+    { name: '🇬🇧 UK', views: '423K', valid: '389K', invalid: '34K', earnings: '$2,334', tier: 'Tier 1' },
+    { name: '🇩🇪 Germany', views: '298K', valid: '274K', invalid: '24K', earnings: '$1,644', tier: 'Tier 1' },
+    { name: '🇫🇷 France', views: '187K', valid: '168K', invalid: '19K', earnings: '$588', tier: 'Tier 2' },
+    { name: '🇮🇳 India', views: '524K', valid: '461K', invalid: '63K', earnings: '$461', tier: 'Tier 3' },
+    { name: '🇧🇷 Brazil', views: '198K', valid: '174K', invalid: '24K', earnings: '$174', tier: 'Tier 3' },
+  ];
+  document.getElementById('countryTable').innerHTML = countries.map(c => `
+    <tr class="border-b border-white/5 table-row">
+      <td class="py-3">${c.name}</td>
+      <td class="py-3">${c.views}</td>
+      <td class="py-3 text-green-400">${c.valid}</td>
+      <td class="py-3 text-red-400">${c.invalid}</td>
+      <td class="py-3 font-semibold">${c.earnings}</td>
+      <td class="py-3"><span class="badge badge-platinum">${c.tier}</span></td>
+    </tr>
+  `).join('');
+}
+function renderNotifications() {
+  const notifs = [
+    { type: 'success', title: 'Withdrawal Approved', desc: 'Your withdrawal of $250.00 has been approved.', time: '5 min ago' },
+    { type: 'info', title: 'New Referral', desc: 'Sarah K. joined using your referral link.', time: '1 hour ago' },
+    { type: 'warning', title: 'Campaign Paused', desc: 'TikTok Followers Push was paused due to low quality.', time: '3 hours ago' },
+    { type: 'info', title: 'New Feature', desc: 'Custom tasks are now available.', time: '1 day ago' },
+    { type: 'success', title: 'Level Up!', desc: 'Congratulations! You reached Gold level.', time: '2 days ago' },
+  ];
+  const colors = { success: 'text-green-400', info: 'text-blue-400', warning: 'text-yellow-400' };
+  document.getElementById('notificationsList').innerHTML = notifs.map(n => `
+    <div class="glass rounded-xl p-3 sm:p-4 flex items-start gap-3">
+      <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0 font-bold ${colors[n.type]}">${n.type === 'success' ? '✓' : n.type === 'warning' ? '!' : 'i'}</div>
+      <div class="flex-1 min-w-0">
+        <h4 class="font-semibold text-xs sm:text-sm">${n.title}</h4>
+        <p class="text-[10px] sm:text-xs text-gray-400 mt-0.5">${n.desc}</p>
+        <p class="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">${n.time}</p>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ---------------- CALCULATOR ---------------- */
+let currentQuality = 0.75;
+const tierCpm = { tier_1: 5, tier_2: 2.75, tier_3: 1, mixed: 2.83 };
+
+function setVisitors(v) {
+  document.getElementById('calcVisitors').value = v;
+  document.querySelectorAll('[onclick^="setVisitors"]').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  updateCalculator();
+}
+function setQuality(q) {
+  currentQuality = q;
+  document.querySelectorAll('.quality-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  updateCalculator();
+}
+function updateCalculator() {
+  const visitors = parseInt(document.getElementById('calcVisitors').value) || 0;
+  const tier = document.getElementById('calcTier').value;
+  const level = parseFloat(document.getElementById('calcLevel').value);
+  const quality = currentQuality;
+  const baseCpm = tierCpm[tier] || 5;
+  const validViews = Math.round(visitors * quality);
+  const revenue = (validViews / 1000) * baseCpm * level;
+  const creator = revenue * 0.7;
+  const platform = revenue * 0.3;
+  const effectiveCpm = visitors > 0 ? (revenue / visitors) * 1000 : 0;
+  document.getElementById('calcRevenue').textContent = '$' + revenue.toFixed(2);
+  document.getElementById('calcCreator').textContent = '$' + creator.toFixed(2);
+  document.getElementById('calcPlatform').textContent = '$' + platform.toFixed(2);
+  document.getElementById('calcCPM').textContent = '$' + effectiveCpm.toFixed(3);
+  document.getElementById('calcValid').textContent = validViews.toLocaleString();
+  document.getElementById('calcValidPct').textContent = (quality * 100) + '% valid';
+  updateCalcChart(creator, platform);
+}
+
+function updateCalcChart(creator, platform) {
+  const el = document.getElementById('calcChart');
+  if (!el || !window.Chart) return;
+  if (window._calcChart) { window._calcChart.destroy(); }
+  window._calcChart = new Chart(el, {
+    type: 'doughnut',
+    data: { labels: ['You earn', 'Platform'], datasets: [{ data: [creator || 0.01, platform || 0.01], backgroundColor: ['#10b981', '#3b82f6'], borderColor: '#0a0716', borderWidth: 3 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 }, usePointStyle: true, padding: 10 } } } },
+  });
+}
+
+/* ---------------- CHARTS ---------------- */
+const fontOpts = { family: 'Inter', size: 11 };
+const gridColor = 'rgba(255,255,255,0.06)';
+const tickColor = '#94a3b8';
+
+function makeEarningsChart() {
+  const el = document.getElementById('earningsChart');
+  if (!el) return;
+  if (window._earningsChart) window._earningsChart.destroy();
+  window._earningsChart = new Chart(el, {
+    type: 'line',
+    data: { labels: Array.from({length: 30}, (_, i) => `Day ${i+1}`), datasets: [{ label: 'Earnings', data: Array.from({length: 30}, () => Math.floor(Math.random() * 80) + 20), borderColor: '#8b5cf6', backgroundColor: (ctx) => { const g = ctx.chart.ctx.createLinearGradient(0,0,0,250); g.addColorStop(0, 'rgba(139,92,246,0.4)'); g.addColorStop(1, 'rgba(59,130,246,0)'); return g; }, fill: true, tension: 0.4, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { color: tickColor, font: fontOpts, maxTicksLimit: 8 } }, y: { grid: { color: gridColor }, ticks: { color: tickColor, font: fontOpts, callback: v => '$' + v } } } }
+  });
+}
+function makeCountryChart() {
+  const el = document.getElementById('countryChart');
+  if (!el) return;
+  if (window._countryChart) window._countryChart.destroy();
+  window._countryChart = new Chart(el, {
+    type: 'bar',
+    data: { labels: ['🇺🇸 USA', '🇬🇧 UK', '🇩🇪 DE', '🇫🇷 FR', '🇮🇳 IN', '🇧🇷 BR'], datasets: [{ data: [812, 389, 274, 168, 461, 174], backgroundColor: ['#8b5cf6','#6366f1','#3b82f6','#06b6d4','#a855f7','#ec4899'], borderRadius: 6 }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor }, ticks: { color: tickColor, font: fontOpts } }, y: { grid: { display: false }, ticks: { color: tickColor, font: fontOpts } } } }
+  });
+}
+function makeDeviceChart() {
+  const el = document.getElementById('deviceChart');
+  if (!el) return;
+  if (window._deviceChart) window._deviceChart.destroy();
+  window._deviceChart = new Chart(el, {
+    type: 'doughnut',
+    data: { labels: ['Mobile', 'Desktop', 'Tablet'], datasets: [{ data: [65, 28, 7], backgroundColor: ['#8b5cf6','#3b82f6','#ec4899'], borderColor: '#0a0716', borderWidth: 3 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: tickColor, font: fontOpts, padding: 12, usePointStyle: true } } } }
+  });
+}
+function makeHeroChart() {
+  const el = document.getElementById('heroChart');
+  if (!el) return;
+  if (window._heroChart) window._heroChart.destroy();
+  window._heroChart = new Chart(el, {
+    type: 'line',
+    data: { labels: ['M','T','W','T','F','S','S'], datasets: [{ data: [120, 180, 240, 220, 280, 320, 290], borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.2)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+  });
+}
+function makeDashboardPreviewCharts() {
+  const dashRev = document.getElementById('dashRevenueChart');
+  if (dashRev) {
+    if (window._dashRevChart) window._dashRevChart.destroy();
+    window._dashRevChart = new Chart(dashRev, {
+      type: 'line',
+      data: { labels: Array.from({length: 30}, (_, i) => `Day ${i+1}`), datasets: [{ data: Array.from({length: 30}, () => Math.floor(Math.random() * 80) + 20), borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.2)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+    });
+  }
+  const dashCtry = document.getElementById('dashCountryChart');
+  if (dashCtry) {
+    if (window._dashCtryChart) window._dashCtryChart.destroy();
+    window._dashCtryChart = new Chart(dashCtry, {
+      type: 'bar',
+      data: { labels: ['USA', 'UK', 'DE', 'FR', 'IN', 'BR'], datasets: [{ data: [812, 389, 274, 168, 461, 174], backgroundColor: ['#8b5cf6','#6366f1','#3b82f6','#06b6d4','#a855f7','#ec4899'], borderRadius: 4 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+    });
+  }
+}
+function makeAdminCharts() {
+  const rev = document.getElementById('adminRevChart');
+  if (rev) {
+    if (window._adminRevChart) window._adminRevChart.destroy();
+    window._adminRevChart = new Chart(rev, {
+      type: 'line',
+      data: { labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul'], datasets: [
+        { label: 'Revenue', data: [120, 145, 178, 220, 268, 312, 387], borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.2)', fill: true, tension: 0.4, borderWidth: 2 },
+        { label: 'Profit', data: [30, 38, 48, 62, 78, 92, 124], borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.2)', fill: true, tension: 0.4, borderWidth: 2 },
+      ] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: tickColor, font: fontOpts, usePointStyle: true } } }, scales: { x: { grid: { display: false }, ticks: { color: tickColor, font: fontOpts } }, y: { grid: { color: gridColor }, ticks: { color: tickColor, font: fontOpts, callback: v => '$' + v + 'K' } } } }
+    });
+  }
+  const ad = document.getElementById('adminAdChart');
+  if (ad) {
+    if (window._adminAdChart) window._adminAdChart.destroy();
+    window._adminAdChart = new Chart(ad, {
+      type: 'doughnut',
+      data: { labels: ['Monetag','Adsterra','AdSense','Other'], datasets: [{ data: [38, 26, 22, 14], backgroundColor: ['#8b5cf6','#3b82f6','#10b981','#ec4899'], borderColor: '#0a0716', borderWidth: 3 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: tickColor, font: fontOpts, padding: 10, usePointStyle: true } } } }
+    });
+  }
+}
+function makeTrafficChart() {
+  const el = document.getElementById('trafficChart');
+  if (!el) return;
+  if (window._trafficChart) window._trafficChart.destroy();
+  window._trafficChart = new Chart(el, {
+    type: 'line',
+    data: { labels: Array.from({length: 24}, (_, i) => `${i}h`), datasets: [
+      { label: 'Valid', data: Array.from({length: 24}, () => Math.floor(Math.random() * 100) + 30), borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.2)', fill: true, tension: 0.4, borderWidth: 2 },
+      { label: 'Invalid', data: Array.from({length: 24}, () => Math.floor(Math.random() * 20)), borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', fill: true, tension: 0.4, borderWidth: 2 },
+    ] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: tickColor, font: fontOpts, usePointStyle: true } } }, scales: { x: { grid: { display: false }, ticks: { color: tickColor, font: fontOpts } }, y: { grid: { color: gridColor }, ticks: { color: tickColor, font: fontOpts } } } }
+  });
+}
+function makeHourlyChart() {
+  const el = document.getElementById('hourlyChart');
+  if (!el) return;
+  if (window._hourlyChart) window._hourlyChart.destroy();
+  window._hourlyChart = new Chart(el, {
+    type: 'bar',
+    data: { labels: Array.from({length: 12}, (_, i) => i*2 + 'h'), datasets: [{ data: Array.from({length: 12}, () => Math.floor(Math.random()*80)+10), backgroundColor: (ctx) => { const g = ctx.chart.ctx.createLinearGradient(0,0,0,200); g.addColorStop(0, '#8b5cf6'); g.addColorStop(1, '#3b82f6'); return g; }, borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { color: tickColor, font: fontOpts } }, y: { grid: { color: gridColor }, ticks: { color: tickColor, font: fontOpts } } } }
+  });
+}
+
+function initCharts() {
+  makeHeroChart();
+  makeEarningsChart();
+  makeCountryChart();
+  makeDeviceChart();
+  makeTrafficChart();
+  makeHourlyChart();
+  makeAdminCharts();
+  makeDashboardPreviewCharts();
+  updateCalculator();
+}
+
+/* ---------------- COUNTER ANIMATION ---------------- */
+function animateCounters() {
+  document.querySelectorAll('.counter').forEach(el => {
+    const target = parseFloat(el.dataset.target || '0');
+    const prefix = el.dataset.prefix || '';
+    const duration = 2000;
+    const start = performance.now();
+    const startVal = 0;
+    const isDecimal = target % 1 !== 0;
+    function tick(now) {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const v = startVal + (target - startVal) * eased;
+      if (isDecimal) el.textContent = prefix + v.toFixed(2);
+      else el.textContent = prefix + Math.floor(v).toLocaleString();
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+/* ---------------- MOBILE MENU ---------------- */
+function openMobile() {
+  document.getElementById('mobileDrawer').classList.add('open');
+  document.getElementById('mobileOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeMobile() {
+  document.getElementById('mobileDrawer').classList.remove('open');
+  document.getElementById('mobileOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.getElementById('mobileMenuBtn').addEventListener('click', openMobile);
+document.getElementById('mobileOverlay').addEventListener('click', closeMobile);
+
+/* ---------------- NAVIGATION ---------------- */
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const el = document.getElementById('page-' + page);
+  if (el) { el.classList.add('active'); window.scrollTo({ top: 0, behavior: 'instant' }); }
+  closeMobile();
+  if (page === 'dashboard') setTimeout(initCharts, 50);
+  if (page === '404') return;
+  if (!['landing','login','signup','forgot','verify','dashboard','about','contact','blog','support','terms','privacy','404'].includes(page)) {
+    setTimeout(initCharts, 100);
+  }
+}
+function scrollToSection(id) {
+  if (!document.getElementById('page-landing').classList.contains('active')) {
+    navigate('landing');
+    setTimeout(() => {
+      const target = document.getElementById(id);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  } else {
+    const target = document.getElementById(id);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+function showSubPage(sub) {
+  navigate('dashboard');
+  setTimeout(() => {
+    document.querySelectorAll('.dash-page').forEach(p => p.classList.add('hidden'));
+    const tgt = document.getElementById('dash-' + sub);
+    if (tgt) tgt.classList.remove('hidden');
+    const t = { dashboard: 'Dashboard', campaigns: 'My Campaigns', 'create-campaign': 'Create Campaign', analytics: 'Analytics', withdraw: 'Withdraw', referrals: 'Referrals', tools: 'Tools', settings: 'Profile Settings', notifications: 'Notifications', support: 'Support' };
+    document.getElementById('pageTitle').textContent = t[sub] || sub;
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+    document.querySelectorAll(`[data-page="${sub}"]`).forEach(l => l.classList.add('active'));
+    setTimeout(initCharts, 50);
+  }, 50);
+}
+
+/* ---------------- TOOLS ---------------- */
+function shortenUrl() {
+  const v = document.getElementById('urlInput').value;
+  if (!v) { alert('Please enter a URL'); return; }
+  const r = document.getElementById('urlResult');
+  r.textContent = 'cb.io/' + Math.random().toString(36).substring(2, 8);
+  r.classList.remove('hidden');
+}
+function generateQR() {
+  const v = document.getElementById('qrInput').value || 'https://creatorboost.io';
+  const qr = document.getElementById('qrResult');
+  const grid = 12;
+  const cells = Array.from({length: grid*grid}, () => Math.random() > 0.5);
+  const html = '<div class="grid grid-cols-12 gap-px">' + cells.map(c => `<div class="w-2.5 h-2.5 ${c ? 'bg-black' : 'bg-white'}"></div>`).join('') + '</div>';
+  document.getElementById('qrCode').innerHTML = html;
+  qr.classList.remove('hidden');
+}
+
+/* ---------------- INIT ---------------- */
+function init() {
+  renderFeatures();
+  renderSteps();
+  renderLevels();
+  renderTestimonials();
+  renderStats();
+  renderCampaigns();
+  renderRecentCampaigns();
+  renderActivity();
+  renderTasks();
+  renderPaymentMethods();
+  renderWithdrawHistory();
+  renderReferralStats();
+  renderAnalyticsStats();
+  renderNotifications();
+  renderFaqs('faqList', faqs);
+  renderFaqs('supportFaqList', faqs);
+  renderBlog('blogGrid', blogPosts.slice(0, 6));
+  renderBlog('blogList', blogPosts);
+  setTimeout(initCharts, 100);
+  setTimeout(animateCounters, 500);
+}
+init();
+
+document.addEventListener('click', (e) => {
+  const dp = e.target.closest('[data-page]');
+  if (dp) { e.preventDefault(); showSubPage(dp.dataset.page); }
+});
+document.getElementById('sidebarToggle')?.addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('-translate-x-full');
+});
+
+// expose
+window.navigate = navigate;
+window.showSubPage = showSubPage;
+window.scrollToSection = scrollToSection;
+window.shortenUrl = shortenUrl;
+window.generateQR = generateQR;
+window.setVisitors = setVisitors;
+window.setQuality = setQuality;
+window.updateCalculator = updateCalculator;
+window.openMobile = openMobile;
+window.closeMobile = closeMobile;
+</script>
+
+</body>
+</html>

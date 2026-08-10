@@ -1,0 +1,80 @@
+'use client';
+import Link from 'next/link';
+import Image from "next/image";
+import { usePathname } from 'next/navigation';
+import { BarChart3, Users, Megaphone, Wallet, DollarSign, Network, Award, Settings, LogOut, ArrowLeft, Zap } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
+
+const links = [
+  { href: '/admin', label: 'Statistics', icon: BarChart3, exact: true },
+  { href: '/admin/users', label: 'Users', icon: Users },
+  { href: '/admin/campaigns', label: 'Campaigns', icon: Megaphone },
+  { href: '/admin/withdrawals', label: 'Withdrawals', icon: Wallet },
+  { href: '/admin/cpm', label: 'CPM Rates', icon: DollarSign },
+  { href: '/admin/ads', label: 'Ad Networks', icon: Network },
+  { href: '/admin/levels', label: 'Creator Levels', icon: Award },
+  { href: '/admin/settings', label: 'Settings', icon: Settings },
+];
+
+export default function AdminSidebar() {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const isActive = (href: string, exact?: boolean) => exact ? pathname === href : pathname?.startsWith(href);
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push('/');
+  };
+
+  return (
+    <aside className="w-64 h-full glass-strong border-r border-white/5 overflow-y-auto">
+      <div className="p-4">
+        <Link href="/" className="flex items-center gap-2 mb-6">
+          <Image
+            src="/logo.png"
+            alt="CreatorBoost"
+            width={180}
+            height={48}
+            className="h-11 w-auto object-contain mt-1"
+          />
+
+          <span className="font-display text-lg font-bold">Admin<span className="text-red-400">Panel</span></span>
+        </Link>
+
+        <div className="mb-4 p-3 glass rounded-xl">
+          <div className="text-xs text-gray-400">Logged in as</div>
+          <div className="text-sm font-semibold flex items-center gap-2 mt-1">
+            <span className="w-6 h-6 rounded-full bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center text-xs">SA</span>
+            Super Admin
+          </div>
+        </div>
+
+        <nav className="space-y-1">
+          {links.map(l => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className={`sidebar-link ${isActive(l.href, l.exact) ? 'active' : 'text-gray-400'}`}
+            >
+              <l.icon className="w-4 h-4" />
+              {l.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="mt-6 space-y-1">
+          <Link href="/dashboard" className="sidebar-link text-gray-400">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Creator
+          </Link>
+          <button onClick={handleLogout} className="sidebar-link text-gray-400 w-full">
+            <LogOut className="w-4 h-4" />
+            Logout
+          </button>
+        </div>
+      </div>
+    </aside>
+  );
+}
