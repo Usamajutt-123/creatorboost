@@ -5,6 +5,7 @@ import { Save, Send, Upload, X, Plus, Image as ImageIcon, Check } from 'lucide-r
 import DashboardTopbar from '@/components/DashboardTopbar';
 import { createClient } from '@/lib/supabase/client';
 import { isValidHttpUrl } from '@/lib/utils';
+import { buildTaskMetadata, isValidTaskUrl } from '@/lib/tasks';
 import { toast } from 'sonner';
 import { IconType } from "react-icons";
 
@@ -133,13 +134,24 @@ export default function CreateCampaignPage() {
     if (selectedTasks.length === 0) { toast.error('Select at least one task'); return; }
     if (status === 'active' && !form.destination_url) { toast.error('Destination URL is required'); return; }
     if (status === 'active' && !isValidHttpUrl(form.destination_url)) { toast.error('Destination URL must be a valid http(s) URL'); return; }
-
     // Validate custom task fields
     const customTask = selectedTasks.find(t => t.id === 'custom');
     if (customTask && (!customTask.title || !customTask.url)) {
       toast.error('Custom task requires both title and URL');
       setExpandedTask('custom');
       return;
+    }
+
+    // Every task that opens a destination requires the creator's own URL.
+    // The exact URL is saved to campaigns.task_metadata and used verbatim
+    // on the unlock page — there is no default/hardcoded destination.
+    for (const task of selectedTasks) {
+      if (!isValidTaskUrl(task.url || '')) {
+        const name = TASK_OPTIONS.find(o => o.id === task.id)?.name || task.id;
+        toast.error(`Enter a valid http(s) URL for "${name}"`);
+        setExpandedTask(task.id);
+        return;
+      }
     }
 
     setLoading(true);
@@ -162,12 +174,9 @@ export default function CreateCampaignPage() {
 
       const slug = form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       const taskIds = selectedTasks.map(t => t.id);
-      const taskMetadata: Record<string, any> = {};
-      selectedTasks.forEach(t => {
-        if (t.id === 'custom' && t.title && t.url) {
-          taskMetadata[t.id] = { title: t.title, url: t.url };
-        }
-      });
+      // Store the creator-configured URL for EVERY task (not just custom),
+      // so the unlock page opens exactly what the creator entered.
+      const taskMetadata = buildTaskMetadata(selectedTasks);
 
       const { error } = await supabase.from('campaigns').insert({
         creator_id: user.id,
@@ -175,7 +184,7 @@ export default function CreateCampaignPage() {
         slug: `${slug}-${Date.now().toString(36)}`,
         description: form.description,
         category: form.category,
-        destination_url: form.destination_url || '',
+        destination_url: form.destination_url.trim() || '',
         tasks: taskIds,
         task_metadata: taskMetadata,
         thumbnail_url: thumbnailUrl || null,

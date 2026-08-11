@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Save, X, Image as ImageIcon, Check, ArrowLeft, Loader2 } from 'lucide-react';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import { createClient } from '@/lib/supabase/client';
+import { buildTaskMetadata, isValidTaskUrl } from '@/lib/tasks';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { isValidHttpUrl } from '@/lib/utils';
@@ -132,6 +133,17 @@ export default function EditCampaignPage({ params }: { params: { id: string } })
       return;
     }
 
+    // Every task URL is validated and saved exactly as entered — an old
+    // URL is fully replaced when the creator changes it.
+    for (const task of selectedTasks) {
+      if (!isValidTaskUrl(task.url || '')) {
+        const name = TASK_OPTIONS.find(o => o.id === task.id)?.name || task.id;
+        toast.error(`Enter a valid http(s) URL for "${name}"`);
+        setExpandedTask(task.id);
+        return;
+      }
+    }
+
     setSaving(true);
     const supabase = createClient();
     try {
@@ -141,10 +153,9 @@ export default function EditCampaignPage({ params }: { params: { id: string } })
       if (bannerFile) { const url = await uploadMedia(supabase, bannerFile, 'banner'); if (url) bannerUrl = url; }
 
       const taskIds = selectedTasks.map(t => t.id);
-      const taskMetadata: Record<string, any> = {};
-      selectedTasks.forEach(t => {
-        if (t.id === 'custom' && t.title && t.url) taskMetadata[t.id] = { title: t.title, url: t.url };
-      });
+      // Persist the updated per-task URLs for every task type. Editing a
+      // URL replaces the stored value, so visitors get the NEW URL.
+      const taskMetadata = buildTaskMetadata(selectedTasks);
 
       const { error } = await supabase.from('campaigns').update({
         name: form.name,
@@ -269,14 +280,15 @@ export default function EditCampaignPage({ params }: { params: { id: string } })
                       </button>
                       {isExpanded && (
                         <div className="px-3 pb-3 pt-1 border-t border-white/5 mt-1 space-y-2">
-                          {t.id === 'custom' ? (
-                            <>
-                              <input value={taskData?.title || ''} onChange={e => updateTaskField(t.id, 'title', e.target.value)} className="input-field text-xs py-2" placeholder="Task title (e.g. Visit our website)" />
-                              <input value={taskData?.url || ''} onChange={e => updateTaskField(t.id, 'url', e.target.value)} className="input-field text-xs py-2" placeholder="Task URL (https://...)" />
-                            </>
-                          ) : (
-                            <p className="text-xs text-gray-500">Visitors will be directed to complete this task on the official platform.</p>
+                          {t.id === 'custom' && (
+                            <input value={taskData?.title || ''} onChange={e => updateTaskField(t.id, 'title', e.target.value)} className="input-field text-xs py-2" placeholder="Task title (e.g. Visit our website)" />
                           )}
+                          <input
+                            value={taskData?.url || ''}
+                            onChange={e => updateTaskField(t.id, 'url', e.target.value)}
+                            className="input-field text-xs py-2"
+                            placeholder="Task URL (https://...)"
+                          />
                           <button type="button" onClick={(e) => { e.stopPropagation(); removeTask(t.id); }} className="text-xs text-red-400 hover:text-red-300">Remove task</button>
                         </div>
                       )}

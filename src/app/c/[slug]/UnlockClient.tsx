@@ -1,31 +1,53 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Check, Lock, Unlock, Loader2, AlertCircle, Shield, ExternalLink } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-
-const TASK_LABELS: Record<string, { name: string; icon: string; url: string }> = {
-  youtube_subscribe: { name: 'Subscribe to YouTube channel', icon: '▶️', url: 'https://youtube.com/' },
-  youtube_like: { name: 'Like the YouTube video', icon: '👍', url: 'https://youtube.com/' },
-  youtube_comment: { name: 'Comment on the YouTube video', icon: '💬', url: 'https://youtube.com/' },
-  watch_video: { name: 'Watch the full YouTube video', icon: '🎬', url: 'https://youtube.com/' },
-  instagram_follow: { name: 'Follow on Instagram', icon: '📷', url: 'https://instagram.com/' },
-  tiktok_follow: { name: 'Follow on TikTok', icon: '🎵', url: 'https://tiktok.com/' },
-  telegram_join: { name: 'Join Telegram channel', icon: '✈️', url: 'https://t.me/' },
-  discord_join: { name: 'Join Discord server', icon: '🎮', url: 'https://discord.gg/' },
-  facebook_follow: { name: 'Follow on Facebook', icon: '📘', url: 'https://facebook.com/' },
-  twitter_follow: { name: 'Follow on X (Twitter)', icon: '🐦', url: 'https://x.com/' },
-  website_visit: { name: 'Visit the website', icon: '🌐', url: '' },
-  file_download: { name: 'Download the app', icon: '📥', url: '' },
-  custom: { name: 'Complete custom task', icon: '⚙️', url: '' },
-};
+import { getTaskUrl, getTaskName, getTaskHostname, TASK_DEFINITIONS, type ViewCheckCategory } from '@/lib/tasks';
 
 type Step = 'tasks' | 'verifying' | 'complete' | 'error';
+
+/**
+ * Persistent per-device identifier.
+ *
+ * The previous implementation derived the "fingerprint" from
+ * userAgent + language + screen size, which is identical for many real
+ * visitors — so two different people on the same browser/language/screen
+ * collided and the second one was wrongly rejected as a "duplicate
+ * device". A random per-browser id (kept in localStorage) makes the
+ * signal actually device-specific. The server still treats it as an
+ * untrusted signal only: earnings, caps, IP checks and idempotency are
+ * all decided server-side.
+ */
+function getDeviceId(): string {
+  try {
+    const KEY = 'cb_device_id';
+    const existing = window.localStorage.getItem(KEY);
+    if (existing && existing.length >= 16) return existing;
+    const id =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+    window.localStorage.setItem(KEY, id);
+    return id;
+  } catch {
+    // localStorage unavailable (private mode etc.) — fall back to a
+    // per-page random id; server-side IP checks still apply.
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+  }
+}
+
+/** Client-safe, honest copy for the outcome of the server-side traffic check. */
+const CHECK_NOTES: Partial<Record<ViewCheckCategory, string>> = {
+  duplicate: 'This visit was already counted. Your reward is unlocked — the creator earns once per verified visit.',
+  traffic: 'Your reward is unlocked. Note: our automated traffic check did not credit this visit for earnings (common with VPNs, repeat visits from one network, or automated browsers).',
+};
 
 export default function UnlockClient({ campaign }: { campaign: any }) {
   const router = useRouter();
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [step, setStep] = useState<Step>('tasks');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [progress, setProgress] = useState(0);
   const [idempotencyKey, setIdempotencyKey] = useState('');
 
@@ -35,36 +57,29 @@ export default function UnlockClient({ campaign }: { campaign: any }) {
     setIdempotencyKey(`${Date.now()}-${Math.random().toString(36).slice(2, 12)}`);
   }, []);
 
+  const taskMetadata = campaign.task_metadata || {};
+
   const tasks: string[] = campaign.tasks || ['website_visit'];
   const totalSteps = tasks.length;
   const completedCount = completed.size;
   const allComplete = completedCount === totalSteps;
   const progressPct = totalSteps > 0 ? Math.round((completedCount / totalSteps) * 100) : 0;
 
-  const getTaskUrl = (taskId: string): string => {
-    if (taskId === 'custom') {
-      const meta = campaign.task_metadata?.custom;
-      return meta?.url || '';
-    }
-    return TASK_LABELS[taskId]?.url || '';
-  };
-
-  const getTaskName = (taskId: string): string => {
-    if (taskId === 'custom') {
-      const meta = campaign.task_metadata?.custom;
-      return meta?.title || 'Complete custom task';
-    }
-    return TASK_LABELS[taskId]?.name || taskId;
-  };
+  // The task destination comes EXCLUSIVELY from the campaign row the
+  // creator saved in Supabase (campaigns.task_metadata[taskId].url).
+  // There is deliberately NO fallback URL: no YouTube, no Google search,
+  // no default destination. If a legacy task has no stored URL it is
+  // completed in place without opening anything.
+  const getTaskUrlFor = useCallback(
+    (taskId: string): string => getTaskUrl(taskId, taskMetadata),
+    [taskMetadata],
+  );
 
   const completeTask = (task: string) => {
     if (completed.has(task)) return;
-    const url = getTaskUrl(task);
+    const url = getTaskUrlFor(task);
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
-    } else {
-      const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(campaign.name)}`;
-      window.open(searchUrl, '_blank', 'noopener,noreferrer');
     }
     setCompleted(prev => new Set([...prev, task]));
   };
@@ -79,8 +94,6 @@ export default function UnlockClient({ campaign }: { campaign: any }) {
     }, 200);
 
     try {
-      const fp = `${navigator.userAgent}-${navigator.language}-${screen.width}x${screen.height}`;
-
       // NOTE: the client sends only campaignId + non-financial signals.
       // creatorId, country, CPM, fraud score and the valid/invalid decision
       // are all determined server-side.
@@ -89,7 +102,7 @@ export default function UnlockClient({ campaign }: { campaign: any }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           campaignId: campaign.id,
-          deviceFingerprint: fp,
+          deviceFingerprint: getDeviceId(),
           userAgent: navigator.userAgent,
           tasksCompleted: Array.from(completed),
           idempotencyKey: idempotencyKey || undefined,
@@ -101,21 +114,36 @@ export default function UnlockClient({ campaign }: { campaign: any }) {
       let data: any = {};
       try { data = await res.json(); } catch { /* ignore */ }
 
-      if (!res.ok) { setError(data.error || 'Verification failed'); setStep('error'); return; }
+      // Real request failures (rate limited, campaign gone, server error)
+      // are genuine errors and keep the error state.
+      if (!res.ok) {
+        setError(data.error || 'Could not complete the request. Please try again.');
+        setStep('error');
+        return;
+      }
 
-      if (data.valid) {
-        setStep('complete');
-        setTimeout(() => {
-          router.push(`/destination/${campaign.slug || campaign.id}`);
-        }, 1200);
-      } else {
+      // The unlock contract: the visitor opened every configured task URL
+      // (confirmed in the browser, per product design). The server-side
+      // traffic check decides EARNINGS only — a flagged visit is recorded
+      // honestly as invalid and never credited, but it does not fake or
+      // block the reward, and it never shows a false "Verification
+      // Failed" for a visitor who completed legitimate tasks.
+      const check: ViewCheckCategory = data.check || 'error';
+      if (check === 'campaign' || check === 'error') {
         setError(
-          data.duplicate
-            ? 'This visit was already counted. You can still proceed to the reward.'
-            : `This visit could not be verified. Please try again from a different network.`
+          check === 'campaign'
+            ? 'This campaign is no longer available.'
+            : 'We could not verify this visit. Please try again.',
         );
         setStep('error');
+        return;
       }
+
+      setNotice(CHECK_NOTES[check] || '');
+      setStep('complete');
+      setTimeout(() => {
+        router.push(`/destination/${campaign.slug || campaign.id}`);
+      }, 1600);
     } catch {
       clearInterval(interval);
       setError('Network error. Please try again.');
@@ -176,8 +204,9 @@ export default function UnlockClient({ campaign }: { campaign: any }) {
                 <div className="space-y-2.5 mb-5">
                   {tasks.map((t, i) => {
                     const done = completed.has(t);
-                    const taskName = getTaskName(t);
-                    const taskUrl = getTaskUrl(t);
+                    const taskName = getTaskName(t, taskMetadata);
+                    const taskUrl = getTaskUrlFor(t);
+                    const hostname = getTaskHostname(taskUrl);
                     return (
                       <button
                         key={`${t}-${i}`}
@@ -193,8 +222,13 @@ export default function UnlockClient({ campaign }: { campaign: any }) {
                         }`}>
                           {done ? <Check className="w-4 h-4 text-white" /> : <span className="text-sm font-semibold">{i + 1}</span>}
                         </div>
-                        <span className="text-xl flex-shrink-0">{TASK_LABELS[t]?.icon || '⚙️'}</span>
-                        <span className="text-sm font-medium flex-1 text-left truncate">{taskName}</span>
+                        <span className="text-xl flex-shrink-0">{TASK_DEFINITIONS[t]?.icon || '⚙️'}</span>
+                        <span className="flex-1 min-w-0 text-left">
+                          <span className="text-sm font-medium block truncate">{taskName}</span>
+                          {hostname && !done && (
+                            <span className="text-[11px] text-gray-500 block truncate">{hostname}</span>
+                          )}
+                        </span>
                         {done ? (
                           <span className="text-xs text-green-400 flex items-center gap-1 flex-shrink-0">
                             <Check className="w-3 h-3" /> Done
@@ -216,7 +250,7 @@ export default function UnlockClient({ campaign }: { campaign: any }) {
                 </button>
                 <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-500">
                   <Shield className="w-3 h-3" />
-                  Tasks are confirmed in your browser. Traffic is verified on our servers before a reward is unlocked.
+                  Task clicks are confirmed in your browser. Views are checked on our servers for earnings.
                 </div>
               </>
             )}
@@ -238,7 +272,12 @@ export default function UnlockClient({ campaign }: { campaign: any }) {
                   <Check className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="font-semibold text-xl mb-2 text-green-400">Unlocked! 🎉</h3>
-                <p className="text-sm text-gray-400">Redirecting to your reward...</p>
+                <p className="text-sm text-gray-400 mb-6">Redirecting to your reward...</p>
+                {notice && (
+                  <div className="mx-auto max-w-md p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300/90 text-left">
+                    {notice}
+                  </div>
+                )}
               </div>
             )}
 
@@ -247,7 +286,7 @@ export default function UnlockClient({ campaign }: { campaign: any }) {
                 <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
                   <AlertCircle className="w-8 h-8 text-red-400" />
                 </div>
-                <h3 className="font-semibold text-xl mb-2 text-red-400">Verification Failed</h3>
+                <h3 className="font-semibold text-xl mb-2 text-red-400">Unable to Unlock</h3>
                 <p className="text-sm text-gray-400 mb-6">{error}</p>
                 <button onClick={() => { setStep('tasks'); setError(''); }} className="btn-ghost px-5 py-2.5 rounded-xl text-sm">
                   Try Again

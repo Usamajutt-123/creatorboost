@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { recordView, type ValidatedCampaign } from '@/lib/earnings';
+import { mapViewCheck } from '@/lib/tasks';
 import { rateLimit } from '@/lib/rate-limit';
 import { getClientIp } from '@/lib/request-ip';
 import { createClient } from '@/lib/supabase/server';
@@ -65,11 +66,20 @@ export async function POST(request: NextRequest) {
     });
 
     // Never leak internal reasons that aid fraudsters; return a safe shape.
+    // `check` is a coarse category the unlock page can act on:
+    //   valid      -> view verified, earnings credited
+    //   duplicate  -> same visit already counted; reward still unlocks
+    //   traffic    -> visit flagged by traffic checks; recorded invalid
+    //                 (no earnings) but the reward still unlocks — the
+    //                 visitor completed the configured tasks
+    //   campaign   -> campaign is not unlockable right now
+    //   error      -> something went wrong
     // Detailed reasons stay in the DB (views.invalid_reason) for analytics.
     return NextResponse.json({
       valid: result.valid,
       duplicate: result.duplicate,
       reason: result.valid ? null : (result.duplicate ? 'duplicate' : 'invalid'),
+      check: mapViewCheck(result.valid, result.duplicate, result.reason),
       earning: result.valid ? result.earning : 0,
     });
   } catch (e) {
