@@ -1,7 +1,28 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import DashboardSidebar from '@/components/DashboardSidebar';
 import MobileSidebar from '@/components/MobileSidebar';
+import { sendTemplateEmail, isConfigured as emailConfigured } from '@/lib/email';
+
+/** One-time welcome email after the account becomes active. */
+async function maybeSendWelcomeEmail(userId: string, email: string | null | undefined) {
+  if (!email || !emailConfigured()) return;
+  try {
+    const supabase = createAdminClient();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('welcome_email_sent_at, status, full_name')
+      .eq('id', userId)
+      .maybeSingle();
+    if (!profile || profile.welcome_email_sent_at || profile.status !== 'active') return;
+    const res = await sendTemplateEmail('welcome', email, { name: profile.full_name || 'creator' });
+    if (res.sent) {
+      await supabase.from('profiles').update({ welcome_email_sent_at: new Date().toISOString() }).eq('id', userId);
+    }
+  } catch (e) {
+    console.error('[dashboard] welcome email failed', e);
+  }
+}
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
@@ -16,6 +37,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .single();
 
   if (!profile) redirect('/login');
+
+  // Fire-and-forget welcome email (deduped by welcome_email_sent_at).
+  void maybeSendWelcomeEmail(user.id, profile.email);
 
   const level = profile.level || 'bronze';
 

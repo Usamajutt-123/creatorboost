@@ -16,6 +16,9 @@
 
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { headers } from 'next/headers';
+import { getClientIpFromHeaders } from '@/lib/request-ip';
+import { sendTemplateEmail } from '@/lib/email';
+import { validateManualRevenueRow, type ManualRevenueInput } from '@/lib/ad-revenue/manual';
 
 type Admin = { id: string; role: string };
 
@@ -50,8 +53,17 @@ async function requireSuperAdmin(): Promise<Admin> {
 
 function clientIp(): string | null {
   try {
-    const h = headers();
-    return h.get('x-forwarded-for')?.split(',')[0]?.trim() || null;
+    return getClientIpFromHeaders(headers());
+  } catch {
+    return null;
+  }
+}
+
+async function getProfileEmail(userId: string): Promise<string | null> {
+  try {
+    const supabase = createAdminClient();
+    const { data } = await supabase.from('profiles').select('email').eq('id', userId).maybeSingle();
+    return data?.email || null;
   } catch {
     return null;
   }
@@ -119,14 +131,26 @@ export async function adminUserDetail(userId: string) {
 export async function adminSetUserStatus(userId: string, status: string) {
   const admin = await requireAdmin();
   const supabase = createAdminClient();
-  const { data: target } = await supabase.from('profiles').select('role, status').eq('id', userId).single();
+  const { data: target } = await supabase.from('profiles').select('role, status, email').eq('id', userId).single();
   if (!target) throw new Error('User not found');
   // Regular admins may not modify a super_admin.
   if (target.role === 'super_admin' && admin.role !== 'super_admin') throw new Error('Only super admin can modify a super admin account');
   if (!['active', 'suspended', 'banned'].includes(status)) throw new Error('Invalid status');
+  if (target.status === status) return { ok: true, unchanged: true };
   const { error } = await supabase.from('profiles').update({ status }).eq('id', userId);
   if (error) throw new Error(error.message);
   await audit(admin, `user_status_${status}`, 'profile', userId, { status: target.status }, { status });
+
+  // Notify the user (graceful: email failures never fail the action).
+  if (target.email && (status === 'suspended' || status === 'banned')) {
+    try {
+      await sendTemplateEmail(status === 'banned' ? 'account_banned' : 'account_suspended', target.email, {
+        reason: 'Please contact support for details.',
+      });
+    } catch (e) {
+      console.error('[admin] status email failed', e);
+    }
+  }
   return { ok: true };
 }
 
@@ -156,6 +180,7 @@ export async function adminCampaignAction(campaignId: string, action: string) {
   if (action === 'pause') patch = { status: 'paused' };
   else if (action === 'resume') patch = { status: 'active' };
   else if (action === 'delete') patch = { deleted_at: new Date().toISOString() };
+  else if (action === 'restore') patch = { deleted_at: null, status: 'paused' }; // restore soft-deleted (stay paused until resumed)
   else throw new Error('Invalid action');
 
   const { error } = await supabase.from('campaigns').update(patch).eq('id', campaignId);
@@ -167,10 +192,10 @@ export async function adminCampaignAction(campaignId: string, action: string) {
 export async function adminListCampaigns() {
   await requireAdmin();
   const supabase = createAdminClient();
+  // Include soft-deleted campaigns so admins can restore them.
   const { data } = await supabase
     .from('campaigns')
     .select('id, slug, name, creator_id, total_views, valid_views, total_earnings, status, deleted_at, created_at')
-    .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(200);
   const rows = data || [];
@@ -204,13 +229,26 @@ export async function adminListWithdrawals() {
   const userIds = [...new Set(rows.map((w: any) => w.user_id))];
   let profiles: Record<string, { full_name: string; email: string }> = {};
   if (userIds.length) {
+    // Admin client: full profiles (includes email) — RLS lets admins read these.
     const { data: p } = await supabase
-      .from('public_profiles')
-      .select('id, full_name')
+      .from('profiles')
+      .select('id, full_name, email')
       .in('id', userIds);
-    profiles = (p || []).reduce((acc: any, x: any) => { acc[x.id] = { full_name: x.full_name, email: '' }; return acc; }, {});
+    profiles = (p || []).reduce((acc: any, x: any) => { acc[x.id] = { full_name: x.full_name, email: x.email }; return acc; }, {});
   }
   return rows.map((w: any) => ({ ...w, user: profiles[w.user_id] || null }));
+}
+
+async function withdrawalUserEmail(withdrawalId: string): Promise<{ email: string | null; amount: number; method: string }> {
+  try {
+    const supabase = createAdminClient();
+    const { data } = await supabase.from('withdrawals').select('user_id, amount, fee, method').eq('id', withdrawalId).maybeSingle();
+    if (!data) return { email: null, amount: 0, method: '' };
+    const email = await getProfileEmail(data.user_id);
+    return { email, amount: Number(data.amount), method: data.method };
+  } catch {
+    return { email: null, amount: 0, method: '' };
+  }
 }
 
 export async function adminApproveWithdrawal(id: string) {
@@ -219,6 +257,11 @@ export async function adminApproveWithdrawal(id: string) {
   const { error } = await supabase.rpc('approve_withdrawal', { p_withdrawal_id: id, p_admin_id: admin.id });
   if (error) throw new Error(error.message);
   await audit(admin, 'withdrawal_approve', 'withdrawal', id);
+  const { email, amount } = await withdrawalUserEmail(id);
+  if (email) {
+    try { await sendTemplateEmail('withdrawal_approved', email, { amount: amount.toFixed(2) }); }
+    catch (e) { console.error('[admin] withdrawal email failed', e); }
+  }
   return { ok: true };
 }
 
@@ -228,6 +271,11 @@ export async function adminRejectWithdrawal(id: string, reason: string) {
   const { error } = await supabase.rpc('reject_withdrawal', { p_withdrawal_id: id, p_admin_id: admin.id, p_reason: reason });
   if (error) throw new Error(error.message);
   await audit(admin, 'withdrawal_reject', 'withdrawal', id, null, { reason });
+  const { email, amount } = await withdrawalUserEmail(id);
+  if (email) {
+    try { await sendTemplateEmail('withdrawal_rejected', email, { amount: amount.toFixed(2), reason: reason || 'Not specified' }); }
+    catch (e) { console.error('[admin] withdrawal email failed', e); }
+  }
   return { ok: true };
 }
 
@@ -237,6 +285,62 @@ export async function adminPayWithdrawal(id: string, txId: string) {
   const { error } = await supabase.rpc('pay_withdrawal', { p_withdrawal_id: id, p_admin_id: admin.id, p_tx_id: txId });
   if (error) throw new Error(error.message);
   await audit(admin, 'withdrawal_pay', 'withdrawal', id, null, { txId });
+  const { email, amount } = await withdrawalUserEmail(id);
+  if (email) {
+    try { await sendTemplateEmail('withdrawal_paid', email, { amount: amount.toFixed(2), txId: txId || '' }); }
+    catch (e) { console.error('[admin] withdrawal email failed', e); }
+  }
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------
+// AD REVENUE LEDGER (REAL vs MANUAL)
+// ------------------------------------------------------------------
+export async function adminListAdRevenue() {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from('ad_revenue_imports')
+    .select('*')
+    .order('revenue_date', { ascending: false })
+    .limit(500);
+  return data || [];
+}
+
+export async function adminImportAdRevenue(rows: ManualRevenueInput[]) {
+  const admin = await requireAdmin();
+  if (!Array.isArray(rows) || rows.length === 0) throw new Error('No rows provided');
+  if (rows.length > 100) throw new Error('Too many rows (max 100 per import)');
+
+  const cleaned: Record<string, unknown>[] = [];
+  for (const r of rows) {
+    const err = validateManualRevenueRow(r);
+    if (err) throw new Error(err);
+    cleaned.push({
+      revenue_date: r.date,
+      network: String(r.network).trim(),
+      impressions: Number(r.impressions) || 0,
+      clicks: r.clicks === null || r.clicks === undefined ? 0 : Number(r.clicks),
+      revenue: Number(r.revenue),
+      currency: (r.currency || 'USD').toUpperCase(),
+      country: r.country ? r.country.toUpperCase() : null,
+      source: 'manual',
+    });
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.from('ad_revenue_imports').insert(cleaned as never[]);
+  if (error) throw new Error(error.message);
+  await audit(admin, 'ad_revenue_import', 'ad_revenue_imports', undefined, null, { count: cleaned.length, source: 'manual' });
+  return { ok: true, imported: cleaned.length };
+}
+
+export async function adminDeleteAdRevenue(id: number) {
+  const admin = await requireAdmin();
+  const supabase = createAdminClient();
+  const { error } = await supabase.from('ad_revenue_imports').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+  await audit(admin, 'ad_revenue_delete', 'ad_revenue_imports', undefined, null, { id });
   return { ok: true };
 }
 

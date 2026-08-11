@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { recordView, type ValidatedCampaign } from '@/lib/earnings';
 import { rateLimit } from '@/lib/rate-limit';
+import { getClientIp } from '@/lib/request-ip';
 import { createClient } from '@/lib/supabase/server';
 import { recordViewSchema } from '@/lib/view-schema';
 
@@ -16,7 +17,8 @@ import { recordViewSchema } from '@/lib/view-schema';
  */
 
 export async function POST(request: NextRequest) {
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  // Trustworthy IP extraction (platform IP -> x-real-ip -> right-most xff).
+  const ip = getClientIp(request) || 'unknown';
 
   try {
     const allowed = await rateLimit(`view:${ip}`, 60, 60_000);
@@ -63,10 +65,11 @@ export async function POST(request: NextRequest) {
     });
 
     // Never leak internal reasons that aid fraudsters; return a safe shape.
+    // Detailed reasons stay in the DB (views.invalid_reason) for analytics.
     return NextResponse.json({
       valid: result.valid,
       duplicate: result.duplicate,
-      reason: result.valid ? null : (result.reason || 'invalid'),
+      reason: result.valid ? null : (result.duplicate ? 'duplicate' : 'invalid'),
       earning: result.valid ? result.earning : 0,
     });
   } catch (e) {

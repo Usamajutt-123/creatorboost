@@ -15,7 +15,7 @@ const team = [
 const values = [
   { icon: Target, title: 'Transparency First', desc: 'Every CPM rate, every fee, every payout — visible to creators.' },
   { icon: Heart, title: 'Fairness Always', desc: 'We pay out 70%+ to creators. The platform only wins when creators win.' },
-  { icon: Shield, title: 'Quality Over Quantity', desc: 'AI fraud detection ensures only real views are rewarded.' },
+  { icon: Shield, title: 'Quality Over Quantity', desc: 'Server-side fraud detection ensures only real views are rewarded.' },
   { icon: Zap, title: 'Creators Are Partners', desc: 'Our success is built on theirs — and we never forget it.' },
 ];
 
@@ -58,7 +58,7 @@ export default function AboutPage() {
               <ul className="space-y-3 text-sm text-gray-300">
                 <li className="flex items-start gap-2"><span className="text-purple-400 mt-1">●</span> <span><strong>Transparency first.</strong> Every CPM rate, every fee, every payout — visible to creators.</span></li>
                 <li className="flex items-start gap-2"><span className="text-purple-400 mt-1">●</span> <span><strong>Fairness always.</strong> We pay out 70%+ to creators. The platform only wins when creators win.</span></li>
-                <li className="flex items-start gap-2"><span className="text-purple-400 mt-1">●</span> <span><strong>Quality over quantity.</strong> AI fraud detection ensures only real views are rewarded.</span></li>
+                <li className="flex items-start gap-2"><span className="text-purple-400 mt-1">●</span> <span><strong>Quality over quantity.</strong> Server-side fraud detection ensures only real views are rewarded.</span></li>
                 <li className="flex items-start gap-2"><span className="text-purple-400 mt-1">●</span> <span><strong>Creators are partners.</strong> Our success is built on theirs.</span></li>
               </ul>
             </div>

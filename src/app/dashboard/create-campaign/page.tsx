@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Save, Send, Upload, X, Plus, Image as ImageIcon, Check } from 'lucide-react';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import { createClient } from '@/lib/supabase/client';
+import { isValidHttpUrl } from '@/lib/utils';
 import { toast } from 'sonner';
 import { IconType } from "react-icons";
 
@@ -131,6 +132,7 @@ export default function CreateCampaignPage() {
     if (!form.name) { toast.error('Campaign name is required'); return; }
     if (selectedTasks.length === 0) { toast.error('Select at least one task'); return; }
     if (status === 'active' && !form.destination_url) { toast.error('Destination URL is required'); return; }
+    if (status === 'active' && !isValidHttpUrl(form.destination_url)) { toast.error('Destination URL must be a valid http(s) URL'); return; }
 
     // Validate custom task fields
     const customTask = selectedTasks.find(t => t.id === 'custom');
@@ -173,7 +175,7 @@ export default function CreateCampaignPage() {
         slug: `${slug}-${Date.now().toString(36)}`,
         description: form.description,
         category: form.category,
-        destination_url: form.destination_url || 'https://example.com',
+        destination_url: form.destination_url || '',
         tasks: taskIds,
         task_metadata: taskMetadata,
         thumbnail_url: thumbnailUrl || null,

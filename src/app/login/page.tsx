@@ -1,17 +1,29 @@
 'use client';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Zap, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
-export default function LoginPage() {
+/**
+ * Login with redirect preservation: a user sent to /login?redirect=/x
+ * returns to /x after a successful sign-in (never blindly forced to
+ * /dashboard). Only internal relative paths are accepted.
+ */
+function LoginContent() {
   const router = useRouter();
+  const params = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const getRedirectPath = (): string => {
+    const r = params.get('redirect');
+    if (r && r.startsWith('/') && !r.startsWith('//') && !r.includes(':')) return r;
+    return '/dashboard';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,15 +33,18 @@ export default function LoginPage() {
     setLoading(false);
     if (error) { toast.error(error.message); return; }
     toast.success('Welcome back!');
-    router.push('/dashboard');
+    router.push(getRedirectPath());
     router.refresh();
   };
 
   const handleGoogle = async () => {
     const supabase = createClient();
+    const redirectPath = getRedirectPath();
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectPath)}`,
+      },
     });
   };
 
@@ -79,7 +94,7 @@ export default function LoginPage() {
               <div className="relative">
                 <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input type={showPw ? 'text' : 'password'} required value={password} onChange={e => setPassword(e.target.value)} className="input-field pl-10 pr-10" placeholder="••••••••" />
-                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
+                <button type="button" onClick={() => setShowPw(!showPw)} aria-label={showPw ? "Hide password" : "Show password"} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
                   {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
@@ -95,5 +110,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen hero-gradient" />}>
+      <LoginContent />
+    </Suspense>
   );
 }

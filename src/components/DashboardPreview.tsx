@@ -11,7 +11,7 @@ export default function DashboardPreview() {
         <div className="text-center mb-16">
           <div className="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-4">Creator Dashboard</div>
           <h2 className="font-display text-4xl sm:text-5xl font-bold mb-4">A dashboard that <span className="gradient-text">just works</span></h2>
-          <p className="text-gray-400 max-w-2xl mx-auto">Track every view, click, and earning in real-time. Beautiful, intuitive, and built for scale.</p>
+          <p className="text-gray-400 max-w-2xl mx-auto">Track every view, valid rate, country and earning from real data. Beautiful, intuitive, and built for scale.</p>
         </div>
         <div className="relative">
           <div className="absolute -inset-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-3xl opacity-20 blur-2xl" />

@@ -154,7 +154,7 @@ export default function AdminUsersPage() {
                 <h3 className="font-display text-xl font-bold">{selected.full_name || selected.username}</h3>
                 <p className="text-xs text-gray-400 flex items-center gap-1"><Mail className="w-3 h-3" /> {selected.email} · {timeAgo(selected.created_at)}</p>
               </div>
-              <button onClick={() => setSelected(null)} className="p-2 text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+              <button onClick={() => setSelected(null)} aria-label="Close user details" className="p-2 text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">

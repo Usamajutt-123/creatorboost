@@ -2,9 +2,9 @@ export default function LiveStats() {
   // Figures shown here are illustrative examples, not audited platform
   // metrics, until real revenue analytics are wired to live ad networks.
   const stats = [
-    { v: 'Millions+', l: 'Creators monetizing their audience', i: '💰' },
-    { v: '180+', l: 'Countries supported', i: '🌍' },
-    { v: 'Tier-based', l: 'Competitive CPM (admin-configurable)', i: '⚡' },
+    { v: '100%', l: 'Server-side view verification', i: '💰' },
+    { v: 'Tier 1–3', l: 'Country CPM tiers (admin-configurable)', i: '🌍' },
+    { v: '24h', l: 'Default earnings holding period', i: '⚡' },
     { v: 'Fraud-aware', l: 'Traffic is verified on our servers', i: '🛡️' },
   ];
   return (

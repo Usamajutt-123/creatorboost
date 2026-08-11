@@ -13,10 +13,24 @@ export default function ContactPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await new Promise(r => setTimeout(r, 800));
-    setLoading(false);
-    toast.success('Thanks! We will reply within 24 hours.');
-    setForm({ firstName: '', lastName: '', email: '', subject: 'General Inquiry', message: '' });
+    try {
+      const res = await fetch('/api/support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || 'Could not send your message. Please try again.');
+        return;
+      }
+      toast.success(data.message || 'Thanks! We will reply within 24 hours.');
+      setForm({ firstName: '', lastName: '', email: '', subject: 'General Inquiry', message: '' });
+    } catch {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -36,8 +50,8 @@ export default function ContactPage() {
           <div className="grid sm:grid-cols-3 gap-4 mb-8">
             {[
               { icon: Mail, title: 'Email', desc: 'support@creatorboost.io' },
-              { icon: MessageCircle, title: 'Live Chat', desc: 'Available 24/7 for paid plans' },
-              { icon: MapPin, title: 'Office', desc: 'San Francisco, CA' },
+              { icon: MessageCircle, title: 'Response Time', desc: 'Within 24 hours' },
+              { icon: MapPin, title: 'Help Center', desc: 'Visit /support for FAQs' },
             ].map(s => (
               <div key={s.title} className="glass rounded-2xl p-5 text-center card-glow">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center mx-auto mb-3">

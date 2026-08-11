@@ -76,6 +76,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         {children}
         <Toaster theme="dark" position="top-right" richColors />
+        {/* Real PWA: service worker registration (see public/sw.js). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+              window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/sw.js').catch(function () {});
+              });
+            }`,
+          }}
+        />
       </body>
     </html>
   );

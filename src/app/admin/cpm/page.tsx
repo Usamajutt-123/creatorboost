@@ -160,8 +160,8 @@ export default function CpmAdminPage() {
             </select>
             <input type="number" step="0.01" value={newCountry.cpm_default} onChange={e => setNewCountry({ ...newCountry, cpm_default: parseFloat(e.target.value) })} className="input-field text-sm py-2" placeholder="CPM" />
             <div className="flex gap-1">
-              <button onClick={addCountry} className="btn-primary flex-1 py-2 rounded-lg text-xs font-semibold text-white"><Check className="w-3.5 h-3.5 inline" /></button>
-              <button onClick={() => setAddingCountry(false)} className="btn-ghost flex-1 py-2 rounded-lg text-xs"><X className="w-3.5 h-3.5 inline" /></button>
+              <button onClick={addCountry} aria-label="Confirm add country" className="btn-primary flex-1 py-2 rounded-lg text-xs font-semibold text-white"><Check className="w-3.5 h-3.5 inline" /></button>
+              <button onClick={() => setAddingCountry(false)} aria-label="Cancel add country" className="btn-ghost flex-1 py-2 rounded-lg text-xs"><X className="w-3.5 h-3.5 inline" /></button>
             </div>
           </div>
         </div>
