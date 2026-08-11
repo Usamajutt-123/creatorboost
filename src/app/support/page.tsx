@@ -10,7 +10,7 @@ export const metadata = {
   description: 'Get help with CreatorBoost. Browse our knowledge base, FAQs, or contact our support team via WhatsApp or email.',
 };
 
-const SUPPORT_EMAIL = 'royalsenpai0@gmail.com';
+const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || 'support@creatorboost.io';
 const WHATSAPP_NUMBER = '923209104702';
 const WHATSAPP_DISPLAY = '+92 320 9104702';
 

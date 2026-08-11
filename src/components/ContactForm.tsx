@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { MessageCircle, Phone, Mail, MapPin, Send, ExternalLink } from 'lucide-react';
 
-const SUPPORT_EMAIL = 'royalsenpai0@gmail.com';
-const WHATSAPP_NUMBER = '923209104702'; // 03209104702 â†’ international format
+const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || 'support@creatorboost.io';
+const WHATSAPP_NUMBER = '923209104702';
 const WHATSAPP_DISPLAY = '+92 320 9104702';
 
 export default function ContactForm() {
@@ -19,30 +19,24 @@ export default function ContactForm() {
     }
     setLoading(true);
 
-    // Build a mailto: link so the user's email client opens with all fields pre-filled
-    const subject = encodeURIComponent(`[${form.subject}] CreatorBoost Contact Form`);
-    const body = encodeURIComponent(
-      `Name: ${form.first} ${form.last}\nEmail: ${form.email}\nSubject: ${form.subject}\n\nMessage:\n${form.message}`
-    );
-    const mailto = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
-
-    // Open mailto
-    window.location.href = mailto;
-
-    // Also try API submission to /api/support (fallback if mailto is blocked)
     try {
-      await fetch('/api/support', {
+      const res = await fetch('/api/support', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, to: SUPPORT_EMAIL }),
       });
-    } catch { }
-
-    setTimeout(() => {
-      setLoading(false);
-      toast.success('Message prepared! Your email client should open. We will reply within 24 hours.');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || 'Failed to send. Please try again.');
+        return;
+      }
+      toast.success('Message sent! We will reply within 24 hours.');
       setForm({ first: '', last: '', email: '', subject: 'General Inquiry', message: '' });
-    }, 600);
+    } catch {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openWhatsApp = () => {

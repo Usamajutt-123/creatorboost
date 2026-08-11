@@ -7,6 +7,7 @@ import {
   Tooltip, Filler, Legend,
 } from 'chart.js';
 import { createClient } from '@/lib/supabase/client';
+import { localDayKey, daysAgoStart } from '@/lib/utils';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Filler, Legend);
 
@@ -43,14 +44,14 @@ export default function DashboardCharts() {
 
       setProfile(p);
 
-      // Earnings per day (30 days)
+      // Earnings per day (30 days, local timezone)
       const dayMap: Record<string, number> = {};
       for (let i = 29; i >= 0; i--) {
-        const d = new Date(Date.now() - i * 86400_000).toISOString().substring(0, 10);
+        const d = localDayKey(daysAgoStart(i));
         dayMap[d] = 0;
       }
       (earningsRows || []).forEach((e: any) => {
-        const d = new Date(e.created_at).toISOString().substring(0, 10);
+        const d = localDayKey(e.created_at);
         if (dayMap[d] !== undefined) dayMap[d] += Number(e.amount);
       });
       const dayLabels = Object.keys(dayMap);
@@ -123,7 +124,7 @@ export default function DashboardCharts() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-semibold">Earnings Overview</h3>
-              <p className="text-xs text-gray-500">Last 30 days Â· real data</p>
+              <p className="text-xs text-gray-500">Last 30 days · real data</p>
             </div>
           </div>
           <div className="h-64 sm:h-72">
@@ -180,7 +181,7 @@ export default function DashboardCharts() {
               const isPast = i < currentLevelIdx;
               return (
                 <div key={lvl} className={`p-3 rounded-xl bg-gradient-to-br ${colors[i]} ${isCurrent ? 'ring-2 ring-yellow-300 scale-105' : isPast ? 'opacity-80' : 'opacity-50'}`}>
-                  <div className="text-2xl mb-1">{['ðŸ¥‰', 'ðŸ¥ˆ', 'ðŸ¥‡', 'ðŸ’Ž', 'ðŸ‘‘'][i]}</div>
+                  <div className="text-2xl mb-1">{['🥉', '🥈', '🥇', '💎', '👑'][i]}</div>
                   <div className="text-xs font-bold text-white">{lvl}</div>
                   {isCurrent && <div className="text-[9px] text-white/90 mt-1">Current</div>}
                 </div>

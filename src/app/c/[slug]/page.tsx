@@ -11,7 +11,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     .select('name, description')
     .eq('slug', params.slug)
     .eq('status', 'active')
-    .single();
+    .is('deleted_at', null)
+    .maybeSingle();
 
   if (!campaign) return { title: 'Campaign not found' };
 
@@ -30,10 +31,11 @@ export default async function UnlockPage({ params }: { params: { slug: string } 
   const supabase = createClient();
   const { data: campaign } = await supabase
     .from('campaigns')
-    .select('*, creator:profiles(full_name, level)')
+    .select('*')
     .eq('slug', params.slug)
     .eq('status', 'active')
-    .single();
+    .is('deleted_at', null)
+    .maybeSingle();
 
   if (!campaign) notFound();
 

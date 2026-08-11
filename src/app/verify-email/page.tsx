@@ -1,14 +1,28 @@
 'use client';
-import { useRef } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { Zap, Mail } from 'lucide-react';
-
+import { useRouter } from 'next/navigation';
+import { Zap, Mail, Loader2 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 
 export default function VerifyEmailPage() {
-  const inputs = useRef<(HTMLInputElement | null)[]>([]);
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [resending, setResending] = useState(false);
 
-  const handleChange = (i: number, v: string) => {
-    if (v && i < 5) inputs.current[i + 1]?.focus();
+  const handleResend = async () => {
+    if (!email) { toast.error('Enter your email first'); return; }
+    setResending(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+    setResending(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Confirmation email re-sent!');
   };
 
   return (
@@ -18,23 +32,30 @@ export default function VerifyEmailPage() {
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center mx-auto mb-4">
             <Mail className="w-7 h-7 text-white" />
           </div>
-          <h2 className="font-display text-2xl font-bold mb-2">Verify your email</h2>
-          <p className="text-sm text-gray-400 mb-6">We&apos;ve sent a 6-digit code to your email. Enter it below to continue.</p>
-          <div className="flex justify-center gap-2 mb-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <input
-                key={i}
-                ref={el => { inputs.current[i] = el; }}
-                maxLength={1}
-                onChange={e => handleChange(i, e.target.value)}
-                className="input-field w-12 h-14 text-center text-2xl font-bold"
-              />
-            ))}
-          </div>
-          <Link href="/dashboard" className="btn-primary w-full py-3 rounded-xl text-sm font-semibold text-white inline-block">
-            Verify &amp; Continue
-          </Link>
-          <p className="text-xs text-gray-500 mt-4">Didn&apos;t receive the code? <a href="#" className="text-purple-400">Resend</a></p>
+          <h2 className="font-display text-2xl font-bold mb-2">Confirm your email</h2>
+          <p className="text-sm text-gray-400 mb-6">
+            We sent you a confirmation link. Open it to activate your account, then sign in.
+          </p>
+
+          <input
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            className="input-field mb-4"
+          />
+          <button onClick={handleResend} disabled={resending}
+                  className="btn-primary w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2">
+            {resending ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending...</> : 'Resend confirmation email'}
+          </button>
+          <button onClick={() => router.push('/login')}
+                  className="btn-ghost w-full py-3 rounded-xl text-sm mt-3">
+            I&apos;ve confirmed — go to sign in
+          </button>
+          <p className="text-xs text-gray-500 mt-4">Didn&apos;t get it? Check your spam folder.</p>
+        </div>
+        <div className="mt-4">
+          <Link href="/" className="text-purple-400 text-sm">← Back to home</Link>
         </div>
       </div>
     </div>

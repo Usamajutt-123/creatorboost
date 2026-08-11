@@ -24,6 +24,33 @@ export function getCountryFlag(countryCode: string) {
   return String.fromCodePoint(...codePoints);
 }
 
+/** Local-time YYYY-MM-DD key (avoids the UTC bucket mismatch). */
+export function localDayKey(date: Date | string | number): string {
+  const d = typeof date === 'string' || typeof date === 'number' ? new Date(date) : date;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** True for http(s) URLs only (used to validate campaign destinations). */
+export function isValidHttpUrl(value: string): boolean {
+  try {
+    const u = new URL(value);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/** Midnight of N days ago, in local time, as a Date. */
+export function daysAgoStart(days: number): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - days);
+  return d;
+}
+
 export function timeAgo(date: Date | string) {
   const d = typeof date === 'string' ? new Date(date) : date;
   const seconds = Math.floor((Date.now() - d.getTime()) / 1000);

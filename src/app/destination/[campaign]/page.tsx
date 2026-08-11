@@ -19,32 +19,25 @@ export default function DestinationPage() {
             const slugOrId = params.campaign;
             const supabase = createClient();
 
-            // Try to find by slug first, then by id
-            let { data } = await supabase
+            // Try to find by slug first, then by id (active + not deleted).
+            const { data: bySlug } = await supabase
                 .from('campaigns')
-                .select('*, creator:profiles(full_name, level, avatar_url)')
+                .select('*')
                 .eq('slug', slugOrId)
                 .eq('status', 'active')
+                .is('deleted_at', null)
                 .maybeSingle();
+            let data = bySlug;
 
-            if (!data) {
-                const r = await supabase
+            if (!data && slugOrId.length === 36) {
+                const { data: byId } = await supabase
                     .from('campaigns')
-                    .select('*, creator:profiles(full_name, level, avatar_url)')
+                    .select('*')
                     .eq('id', slugOrId)
                     .eq('status', 'active')
+                    .is('deleted_at', null)
                     .maybeSingle();
-                data = r.data;
-            }
-
-            if (!data) {
-                // Try without status filter in case it's a draft (still let user get to destination)
-                const r2 = await supabase
-                    .from('campaigns')
-                    .select('*, creator:profiles(full_name, level, avatar_url)')
-                    .eq('slug', slugOrId)
-                    .maybeSingle();
-                data = r2.data;
+                data = byId;
             }
 
             setCampaign(data);

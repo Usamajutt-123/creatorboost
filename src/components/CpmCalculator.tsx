@@ -36,7 +36,7 @@ export default function CpmCalculator() {
             <Calculator className="w-3 h-3" /> CPM Calculator
           </div>
           <h2 className="font-display text-4xl sm:text-5xl font-bold mb-4">Estimate Your <span className="gradient-text">Earnings</span></h2>
-          <p className="text-gray-400 max-w-2xl mx-auto">See how much you can earn based on your traffic, country mix, and creator level. All rates are dynamic and configured by our team.</p>
+          <p className="text-gray-400 max-w-2xl mx-auto">Illustrative example based on your inputs. All rates are dynamic, admin-configurable, and read from the database for actual earnings.</p>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6">
@@ -137,7 +137,7 @@ export default function CpmCalculator() {
         </div>
 
         <div className="mt-10 glass-strong rounded-2xl p-6 sm:p-8">
-          <h3 className="font-semibold mb-2">Real-world examples</h3>
+          <h3 className="font-semibold mb-2">Illustrative examples</h3>
           <p className="text-xs text-gray-500 mb-5">Gold creator, Tier 1 traffic, 85% quality — projected monthly revenue</p>
           <div className="grid sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {[

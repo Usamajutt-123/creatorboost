@@ -6,7 +6,7 @@ import { ArrowLeft, Edit, Copy, ExternalLink, Eye, DollarSign, TrendingUp, BarCh
 import { createClient } from '@/lib/supabase/client';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import StatCard from '@/components/StatCard';
-import { formatNumber, formatCurrency, timeAgo } from '@/lib/utils';
+import { formatNumber, formatCurrency, timeAgo, localDayKey, daysAgoStart } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export default function CampaignStatsPage() {
@@ -81,17 +81,18 @@ export default function CampaignStatsPage() {
     const week = views.filter(v => new Date(v.created_at).getTime() > now - 7 * dayMs);
     const month = views.filter(v => new Date(v.created_at).getTime() > now - 30 * dayMs);
     const validViews = views.filter(v => v.status === 'valid');
-    const invalidViews = views.filter(v => v.status === 'invalid');
-    const ctr = views.length > 0 ? (validViews.length / views.length) * 100 : 0;
+    // Note: without tracked destination clicks we cannot report a real CTR.
+    // Show the validity rate (share of views that were valid) instead.
+    const validityRate = views.length > 0 ? (validViews.length / views.length) * 100 : 0;
 
-    // Group views by day (last 14 days)
+    // Group views by day (last 14 days, local timezone)
     const days: Record<string, { views: number; valid: number; earnings: number }> = {};
     for (let i = 13; i >= 0; i--) {
-        const d = new Date(now - i * dayMs).toISOString().substring(0, 10);
+        const d = localDayKey(daysAgoStart(i));
         days[d] = { views: 0, valid: 0, earnings: 0 };
     }
     views.forEach(v => {
-        const d = new Date(v.created_at).toISOString().substring(0, 10);
+        const d = localDayKey(v.created_at);
         if (days[d]) {
             days[d].views += 1;
             if (v.status === 'valid') days[d].valid += 1;
@@ -112,14 +113,14 @@ export default function CampaignStatsPage() {
         <>
             <DashboardTopbar
                 title={campaign.name}
-                subtitle={`Campaign statistics Ā· created ${timeAgo(campaign.created_at)}`}
+                subtitle={`Campaign statistics · created ${timeAgo(campaign.created_at)}`}
             />
             <div className="p-4 sm:p-6 space-y-6">
                 <div className="flex flex-wrap items-center gap-2">
                     <Link href="/dashboard/campaigns" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white">
                         <ArrowLeft className="w-4 h-4" /> Back
                     </Link>
-                    <Link href={`/dashboard/campaigns/edit/${campaign.id}`} className="btn-ghost px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
+                    <Link href={`/dashboard/campaigns/${campaign.id}/edit`} className="btn-ghost px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
                         <Edit className="w-3.5 h-3.5" /> Edit
                     </Link>
                     <button onClick={copyLink} className="btn-ghost px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
@@ -147,7 +148,7 @@ export default function CampaignStatsPage() {
                     <StatCard label="Today" value={formatNumber(today.length)} change="Last 24h" icon={Calendar} color="blue" />
                     <StatCard label="This Week" value={formatNumber(week.length)} change="Last 7 days" icon={Calendar} color="cyan" />
                     <StatCard label="This Month" value={formatNumber(month.length)} change="Last 30 days" icon={Calendar} color="purple" />
-                    <StatCard label="CTR" value={`${ctr.toFixed(1)}%`} change="Click-through" icon={TrendingUp} color="pink" />
+                    <StatCard label="Valid Rate" value={`${validityRate.toFixed(1)}%`} change="Of all views" icon={TrendingUp} color="pink" />
                 </div>
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -170,7 +171,7 @@ export default function CampaignStatsPage() {
                                         <div
                                             className="w-full bg-gradient-to-t from-purple-500 to-blue-500 rounded-t-md transition-all hover:opacity-80"
                                             style={{ height: `${Math.max(2, heightPct)}%` }}
-                                            title={`${date}: ${data.views} views (${data.valid} valid) Ā· $${data.earnings.toFixed(4)}`}
+                                            title={`${date}: ${data.views} views (${data.valid} valid) · $${data.earnings.toFixed(4)}`}
                                         />
                                     </div>
                                     <div className="text-[9px] text-gray-500 truncate w-full text-center">{date.substring(5)}</div>

@@ -1,218 +1,455 @@
 /**
- * CreatorBoost Earnings Engine
+ * CreatorBoost Earnings Engine (secure rewrite)
  * ----------------------------------------------------------------
- * All values (CPM, payout %, level multiplier) are pulled from
- * the database. NO values are hardcoded. The admin controls
- * everything from the dashboard.
+ * FINANCIAL SAFETY RULE
+ * The client is NEVER trusted for:
+ *   creator identity, campaign ownership, CPM, country, earning amount,
+ *   fraud score, valid status, or balance.
  *
- * Formula:
- *   earnings = (validViews / 1000) × cpm × levelMultiplier
- *   cpm = country_tier.cpm_default (admin-editable)
+ * The only inputs accepted from the request are:
+ *   campaignId (or slug), deviceFingerprint, userAgent, tasksCompleted,
+ *   idempotencyKey — and even those are re-validated server-side.
+ *
+ * Country is resolved from the visitor IP server-side. Fraud signals are
+ * produced server-side. Earnings, caps, and idempotency are enforced here
+ * and, additionally, guarded in the database.
  */
 
+import { createHash } from 'node:crypto';
 import { createAdminClient } from './supabase/server';
+import { getCountryFromIP } from './geo';
+import { assessFraud, hashIp, type FraudAssessment } from './fraud';
 
-export type ViewInput = {
-  campaignId: string;
-  creatorId: string;
-  countryCode: string;
-  isVpn?: boolean;
-  isProxy?: boolean;
-  isBot?: boolean;
-  isEmulator?: boolean;
-  fraudScore?: number;
+export type ValidatedCampaign = {
+  id: string;
+  creator_id: string;
+  status: string;
+  slug: string;
+  deleted_at: string | null;
+  expires_at: string | null;
 };
 
-export type EarningsResult = {
+export type RecordViewInput = {
+  campaign: ValidatedCampaign;      // fetched + validated by the caller
+  visitorIp?: string | null;
+  userAgent?: string | null;
+  deviceFingerprint?: string | null;
+  tasksCompleted?: string[];
+  idempotencyKey?: string | null;
+  // Optional: the currently-authenticated user, for self-view detection.
+  sessionUserId?: string | null;
+};
+
+export type RecordViewResult = {
   valid: boolean;
   reason?: string;
   cpm: number;
   levelMultiplier: number;
   earning: number; // per view
+  countryCode: string | null;
+  fraudScore: number;
+  duplicate: boolean;
+  existingId?: string | null;
 };
 
+type Caps = {
+  maxEarningsPerView: number;
+  maxViewsPerDevicePerDay: number;
+  maxViewsPerIpPerDay: number;
+  creatorDailyEarningCap: number;
+  campaignDailyEarningCap: number;
+  platformDailyEarningCap: number;
+  duplicateIpWindowHours: number;
+  duplicateDeviceBlock: boolean;
+  sensitivity: string;
+  vpnBlockEnabled: boolean;
+};
+
+const SENSITIVITY_THRESHOLDS: Record<string, number> = { low: 90, medium: 75, high: 60, strict: 40 };
+
+async function loadCaps(supabase: ReturnType<typeof createAdminClient>): Promise<Caps> {
+  const { data } = await supabase.from('platform_settings').select('*').eq('id', 1).maybeSingle();
+  return {
+    maxEarningsPerView: Number(data?.max_earnings_per_view ?? 1.0),
+    maxViewsPerDevicePerDay: Number(data?.max_views_per_device_per_day ?? 20),
+    maxViewsPerIpPerDay: Number(data?.max_views_per_ip_per_day ?? 200),
+    creatorDailyEarningCap: Number(data?.creator_daily_earning_cap ?? 500),
+    campaignDailyEarningCap: Number(data?.campaign_daily_earning_cap ?? 200),
+    platformDailyEarningCap: Number(data?.platform_daily_earning_cap ?? 10000),
+    duplicateIpWindowHours: Number(data?.duplicate_ip_window_hours ?? 24),
+    duplicateDeviceBlock: data?.duplicate_device_block ?? true,
+    sensitivity: data?.fraud_detection_sensitivity ?? 'medium',
+    vpnBlockEnabled: data?.vpn_block_enabled ?? true,
+  };
+}
+
+function sanitizeCountry(code: string | null): string | null {
+  return code && /^[A-Z]{2}$/.test(code.toUpperCase()) ? code.toUpperCase() : null;
+}
+
 /**
- * Compute earnings for a single view.
- * Returns invalid reasons if view should be filtered out.
+ * Pure per-view earning formula, used by the engine and unit-tested.
+ * earning = min((cpm * levelMultiplier) / 1000, maxEarningsPerView)
  */
-export async function computeViewEarnings(view: ViewInput): Promise<EarningsResult> {
+export function computePerViewEarning(cpm: number, levelMultiplier: number, maxEarningsPerView: number): number {
+  const raw = (Number(cpm) * Number(levelMultiplier)) / 1000;
+  return Math.min(Number.isFinite(raw) && raw > 0 ? raw : 0, Number(maxEarningsPerView) || 1);
+}
+
+/**
+ * Compute per-view earnings from a SERVER-derived country + fraud result.
+ * Never accepts a country from the client.
+ */
+export async function computeViewEarnings(opts: {
+  creatorId: string;
+  countryCode: string | null;
+  fraud: FraudAssessment;
+}): Promise<{
+  valid: boolean;
+  reason?: string;
+  cpm: number;
+  levelMultiplier: number;
+  earning: number;
+}> {
   const supabase = createAdminClient();
+  const caps = await loadCaps(supabase);
 
-  // 1. Pull platform settings + fraud config
-  const { data: settings } = await supabase
-    .from('platform_settings')
-    .select('*')
-    .eq('id', 1)
-    .single();
-
-  const sensitivity = settings?.fraud_detection_sensitivity ?? 'medium';
-
-  // 2. Hard fraud blocks (always invalid)
-  if (view.isBot) return { valid: false, reason: 'bot', cpm: 0, levelMultiplier: 0, earning: 0 };
-  if (settings?.vpn_block_enabled && (view.isVpn || view.isProxy)) {
-    return { valid: false, reason: view.isVpn ? 'vpn' : 'proxy', cpm: 0, levelMultiplier: 0, earning: 0 };
+  // 1. Hard fraud blocks
+  if (opts.fraud.isBot) return { valid: false, reason: 'bot', cpm: 0, levelMultiplier: 1, earning: 0 };
+  if (caps.vpnBlockEnabled && (opts.fraud.isVpn || opts.fraud.isProxy)) {
+    return { valid: false, reason: opts.fraud.isVpn ? 'vpn' : 'proxy', cpm: 0, levelMultiplier: 1, earning: 0 };
   }
-  if (view.isEmulator) return { valid: false, reason: 'emulator', cpm: 0, levelMultiplier: 0, earning: 0 };
+  if (opts.fraud.isEmulator) return { valid: false, reason: 'emulator', cpm: 0, levelMultiplier: 1, earning: 0 };
 
-  // 3. Score-based filtering by sensitivity
-  const thresholds: Record<string, number> = { low: 90, medium: 75, high: 60, strict: 40 };
-  const score = view.fraudScore ?? 0;
-  if (score >= thresholds[sensitivity]) {
-    return { valid: false, reason: 'abnormal_traffic', cpm: 0, levelMultiplier: 0, earning: 0 };
+  // 2. Score-based filtering by sensitivity
+  const threshold = SENSITIVITY_THRESHOLDS[caps.sensitivity] ?? 75;
+  if (opts.fraud.fraudScore >= threshold) {
+    return { valid: false, reason: 'abnormal_traffic', cpm: 0, levelMultiplier: 1, earning: 0 };
   }
 
-  // 4. Lookup country tier CPM (admin-configurable)
-  const { data: country } = await supabase
-    .from('country_tiers')
-    .select('cpm_default, tier, active')
-    .eq('country_code', view.countryCode?.toUpperCase())
-    .single();
-
-  let cpm = country?.cpm_default ?? 0.5; // conservative fallback
-
-  if (!country || !country.active) {
-    // Unknown / inactive country = tier 3 default
-    const { data: tier3 } = await supabase
+  // 3. Country tier CPM (admin-configurable). Unknown/inactive country ->
+  //    conservative Tier-3 default (NEVER highest CPM).
+  const country = sanitizeCountry(opts.countryCode);
+  let cpm = 0.5; // conservative floor
+  if (country) {
+    const { data: row } = await supabase
       .from('country_tiers')
-      .select('cpm_default')
-      .eq('tier', 'tier_3')
-      .limit(1)
-      .single();
-    cpm = tier3?.cpm_default ?? 0.5;
+      .select('cpm_default, active')
+      .eq('country_code', country)
+      .maybeSingle();
+    if (row && row.active) cpm = Number(row.cpm_default);
   }
+  if (cpm <= 0) cpm = 0.5;
 
-  // 5. Lookup creator's level multiplier
+  // 4. Creator level multiplier
   const { data: profile } = await supabase
     .from('profiles')
     .select('level')
-    .eq('id', view.creatorId)
-    .single();
-
+    .eq('id', opts.creatorId)
+    .maybeSingle();
   const { data: levelRow } = await supabase
     .from('creator_levels')
     .select('cpm_multiplier')
     .eq('level', profile?.level ?? 'bronze')
-    .single();
+    .maybeSingle();
+  const levelMultiplier = Number(levelRow?.cpm_multiplier ?? 1.0);
 
-  const levelMultiplier = levelRow?.cpm_multiplier ?? 1.0;
-
-  // 6. Compute per-view earning
-  // Earnings per single view = (cpm * levelMultiplier) / 1000
-  const earning = (cpm * levelMultiplier) / 1000;
+  // 5. Per-view earning with a hard per-view cap
+  const earning = computePerViewEarning(cpm, levelMultiplier, caps.maxEarningsPerView);
 
   return { valid: true, cpm, levelMultiplier, earning };
 }
 
+async function sumEarningsSince(supabase: ReturnType<typeof createAdminClient>, creatorId: string, sinceIso: string) {
+  const { data } = await supabase
+    .from('earnings')
+    .select('amount')
+    .eq('creator_id', creatorId)
+    .gte('created_at', sinceIso);
+  return (data || []).reduce((s, e) => s + Number(e.amount || 0), 0);
+}
+
 /**
- * Record a view and credit earnings to creator.
- * Returns the persisted view record.
+ * Record a view and (if eligible) credit the creator. Fully server-driven.
  */
-export async function recordView(view: ViewInput & {
-  visitorIp?: string;
-  userAgent?: string;
-  deviceFingerprint?: string;
-  tasksCompleted?: any[];
-}) {
+export async function recordView(input: RecordViewInput): Promise<RecordViewResult> {
   const supabase = createAdminClient();
+  const creatorId = input.campaign.creator_id;
+  const ipHash = hashIp(input.visitorIp);
+  const campaignId = input.campaign.id;
+  const idemKey = input.idempotencyKey?.trim() || null;
 
-  // 1. Compute earnings
-  const result = await computeViewEarnings(view);
-
-  // 2. Check for duplicate device/IP within window
-  if (result.valid && view.deviceFingerprint) {
-    const { data: settings } = await supabase
-      .from('platform_settings')
-      .select('duplicate_ip_window_hours, duplicate_device_block')
-      .single();
-
-    if (settings?.duplicate_device_block) {
-      const window = settings.duplicate_ip_window_hours ?? 24;
-      const { data: existing } = await supabase
-        .from('views')
-        .select('id, created_at, campaign_id')
-        .eq('creator_id', view.creatorId)
-        .eq('device_fingerprint', view.deviceFingerprint)
-        .gte('created_at', new Date(Date.now() - window * 3600_000).toISOString())
-        .limit(1);
-      if (existing && existing.length > 0) {
-        return { ...result, valid: false, reason: 'duplicate_device' as const, persisted: null };
-      }
+  // ---------------------------------------------------------------
+  // 0. Idempotency: a replayed request with the same key returns the
+  //    original outcome WITHOUT creating another earning. A DB unique
+  //    index (views.creator_id + idempotency_key) backs this up.
+  // ---------------------------------------------------------------
+  if (idemKey) {
+    const { data: existing } = await supabase
+      .from('views')
+      .select('id, status, invalid_reason, cpm_rate, earnings, fraud_score, country_code')
+      .eq('creator_id', creatorId)
+      .eq('idempotency_key', idemKey)
+      .maybeSingle();
+    if (existing) {
+      return {
+        valid: existing.status === 'valid',
+        reason: existing.invalid_reason ?? undefined,
+        cpm: Number(existing.cpm_rate || 0),
+        levelMultiplier: 1,
+        earning: Number(existing.earnings || 0),
+        countryCode: existing.country_code,
+        fraudScore: Number(existing.fraud_score || 0),
+        duplicate: true,
+        existingId: existing.id,
+      };
     }
   }
 
-  // 3. Insert view
+  // ---------------------------------------------------------------
+  // 1. Campaign lifecycle guards (defense-in-depth; caller already checks)
+  // ---------------------------------------------------------------
+  if (input.campaign.status !== 'active') {
+    return invalidResult('campaign_inactive');
+  }
+  if (input.campaign.deleted_at) return invalidResult('campaign_deleted');
+  if (input.campaign.expires_at && new Date(input.campaign.expires_at).getTime() < Date.now()) {
+    return invalidResult('campaign_expired');
+  }
+
+  // Self-view detection: the authenticated campaign owner farming their own
+  // traffic is not eligible for payment.
+  if (input.sessionUserId && input.sessionUserId === creatorId) {
+    return invalidResult('self_view');
+  }
+
+  // ---------------------------------------------------------------
+  // 2. Server-side country + fraud
+  // ---------------------------------------------------------------
+  const countryCode = sanitizeCountry(await getCountryFromIP(input.visitorIp));
+  const fraud = await assessFraud({
+    ip: input.visitorIp ?? undefined,
+    userAgent: input.userAgent ?? undefined,
+    fingerprint: input.deviceFingerprint ?? undefined,
+    campaignId,
+    creatorId,
+  });
+
+  // ---------------------------------------------------------------
+  // 3. Earnings decision
+  // ---------------------------------------------------------------
+  const decision = await computeViewEarnings({ creatorId, countryCode, fraud });
+  const now = Date.now();
+  const dayStart = new Date(now - 86400_000).toISOString();
+  const caps = await loadCaps(supabase);
+
+  // Cap: views per device per day
+  if (decision.valid && input.deviceFingerprint) {
+    const { count } = await supabase
+      .from('views')
+      .select('id', { count: 'exact', head: true })
+      .eq('creator_id', creatorId)
+      .eq('device_fingerprint', input.deviceFingerprint.trim())
+      .gte('created_at', dayStart);
+    if ((count ?? 0) >= caps.maxViewsPerDevicePerDay) {
+      const r = invalidResult('device_limit');
+      r.cpm = decision.cpm; r.levelMultiplier = decision.levelMultiplier;
+      return r;
+    }
+  }
+
+  // Cap: views per IP per day
+  if (decision.valid && ipHash) {
+    const { count } = await supabase
+      .from('views')
+      .select('id', { count: 'exact', head: true })
+      .eq('creator_id', creatorId)
+      .eq('ip_hash', ipHash)
+      .gte('created_at', dayStart);
+    if ((count ?? 0) >= caps.maxViewsPerIpPerDay) {
+      const r = invalidResult('ip_limit');
+      r.cpm = decision.cpm; r.levelMultiplier = decision.levelMultiplier;
+      return r;
+    }
+  }
+
+  // Earnings caps (daily)
+  if (decision.valid && decision.earning > 0) {
+    const creatorToday = await sumEarningsSince(supabase, creatorId, dayStart);
+    if (creatorToday + decision.earning > caps.creatorDailyEarningCap) {
+      const r = invalidResult('creator_daily_cap');
+      r.cpm = decision.cpm; r.levelMultiplier = decision.levelMultiplier;
+      return r;
+    }
+    const { data: campAgg } = await supabase
+      .from('campaigns')
+      .select('total_earnings')
+      .eq('id', campaignId)
+      .maybeSingle();
+    // approximate daily campaign earnings via ledger
+    const { data: campToday } = await supabase
+      .from('earnings')
+      .select('amount')
+      .eq('campaign_id', campaignId)
+      .gte('created_at', dayStart);
+    const campDaily = (campToday || []).reduce((s, e) => s + Number(e.amount || 0), 0);
+    if (campDaily + decision.earning > caps.campaignDailyEarningCap) {
+      const r = invalidResult('campaign_daily_cap');
+      r.cpm = decision.cpm; r.levelMultiplier = decision.levelMultiplier;
+      return r;
+    }
+    void campAgg;
+    const { data: platToday } = await supabase
+      .from('earnings')
+      .select('amount')
+      .eq('type', 'view_earning')
+      .gte('created_at', dayStart);
+    const platformToday = (platToday || []).reduce((s, e) => s + Number(e.amount || 0), 0);
+    if (platformToday + decision.earning > caps.platformDailyEarningCap) {
+      const r = invalidResult('platform_daily_cap');
+      r.cpm = decision.cpm; r.levelMultiplier = decision.levelMultiplier;
+      return r;
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // 4. Duplicate device within window (only when device dup blocking on)
+  // ---------------------------------------------------------------
+  if (decision.valid && caps.duplicateDeviceBlock && input.deviceFingerprint) {
+    const since = new Date(now - caps.duplicateIpWindowHours * 3600_000).toISOString();
+    const { data: dup } = await supabase
+      .from('views')
+      .select('id')
+      .eq('creator_id', creatorId)
+      .eq('device_fingerprint', input.deviceFingerprint.trim())
+      .gte('created_at', since)
+      .limit(1);
+    if (dup && dup.length > 0) {
+      const r = invalidResult('duplicate_device');
+      r.cpm = decision.cpm; r.levelMultiplier = decision.levelMultiplier;
+      return r;
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // 5. Persist the view
+  // ---------------------------------------------------------------
   const { data: inserted, error } = await supabase
     .from('views')
     .insert({
-      campaign_id: view.campaignId,
-      creator_id: view.creatorId,
-      visitor_ip: view.visitorIp,
-      country_code: view.countryCode?.toUpperCase(),
-      device_fingerprint: view.deviceFingerprint,
-      user_agent: view.userAgent,
-      is_vpn: view.isVpn ?? false,
-      is_proxy: view.isProxy ?? false,
-      is_bot: view.isBot ?? false,
-      is_emulator: view.isEmulator ?? false,
-      fraud_score: view.fraudScore ?? 0,
-      status: result.valid ? 'valid' : 'invalid',
-      invalid_reason: result.reason ?? null,
-      cpm_rate: result.cpm,
-      earnings: result.earning,
-      tasks_completed: view.tasksCompleted ?? [],
-      validated_at: result.valid ? new Date().toISOString() : null,
+      campaign_id: campaignId,
+      creator_id: creatorId,
+      visitor_ip: input.visitorIp || null,
+      ip_hash: ipHash,
+      country_code: countryCode,
+      device_fingerprint: input.deviceFingerprint?.trim() || null,
+      user_agent: input.userAgent || null,
+      is_vpn: fraud.isVpn,
+      is_proxy: fraud.isProxy,
+      is_bot: fraud.isBot,
+      is_emulator: fraud.isEmulator,
+      fraud_score: fraud.fraudScore,
+      status: decision.valid ? 'valid' : 'invalid',
+      invalid_reason: decision.valid ? null : (decision.reason ?? 'other'),
+      cpm_rate: decision.cpm,
+      earnings: decision.valid ? decision.earning : 0,
+      tasks_completed: input.tasksCompleted ?? [],
+      validated_at: decision.valid ? new Date().toISOString() : null,
+      idempotency_key: idemKey,
     })
     .select()
-    .single();
+    .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    // Unique idempotency violation -> another request won the race.
+    if (typeof error.code === 'string' && error.code === '23505') {
+      return invalidResult('duplicate_request');
+    }
+    console.error('[earnings] view insert failed', error);
+    return invalidResult('internal');
+  }
 
-  // 4. If valid → record earning + update aggregates
-  if (result.valid) {
-    await supabase.from('earnings').insert({
-      creator_id: view.creatorId,
-      campaign_id: view.campaignId,
+  // ---------------------------------------------------------------
+  // 6. If valid -> earnings ledger + counters + referral commission
+  // ---------------------------------------------------------------
+  if (decision.valid && inserted) {
+    const earningId = crypto.randomUUID();
+    const { error: eErr } = await supabase.from('earnings').insert({
+      id: earningId,
+      creator_id: creatorId,
+      campaign_id: campaignId,
       view_id: inserted.id,
       type: 'view_earning',
-      amount: result.earning,
-      description: `View earning @ $${result.cpm.toFixed(2)} CPM × ${result.levelMultiplier}x level`,
+      amount: decision.earning,
+      description: `View earning @ $${decision.cpm.toFixed(2)} CPM × ${decision.levelMultiplier}x level`,
     });
-
-    // Update campaign & profile aggregates
+    if (!eErr) {
+      await supabase.rpc('increment_view_counters', {
+        p_campaign_id: campaignId,
+        p_creator_id: creatorId,
+        p_earning: decision.earning,
+        p_valid: true,
+      });
+      await maybeCreditReferral(supabase, creatorId, decision.earning);
+    }
+  } else if (inserted) {
     await supabase.rpc('increment_view_counters', {
-      p_campaign_id: view.campaignId,
-      p_creator_id: view.creatorId,
-      p_earning: result.earning,
-      p_valid: true,
-    });
-  } else {
-    await supabase.rpc('increment_view_counters', {
-      p_campaign_id: view.campaignId,
-      p_creator_id: view.creatorId,
+      p_campaign_id: campaignId,
+      p_creator_id: creatorId,
       p_earning: 0,
       p_valid: false,
     });
   }
 
-  return { ...result, persisted: inserted };
+  return {
+    valid: decision.valid,
+    reason: decision.valid ? undefined : (decision.reason ?? 'other'),
+    cpm: decision.cpm,
+    levelMultiplier: decision.levelMultiplier,
+    earning: decision.valid ? decision.earning : 0,
+    countryCode,
+    fraudScore: fraud.fraudScore,
+    duplicate: false,
+  };
 }
 
-/**
- * Calculate total platform profit.
- * Profit = ad_revenue - creator_payouts
- */
-export async function getPlatformProfit(periodDays = 30) {
-  const supabase = createAdminClient();
-  const since = new Date(Date.now() - periodDays * 86400_000).toISOString();
+function invalidResult(reason: string): RecordViewResult {
+  return { valid: false, reason, cpm: 0, levelMultiplier: 1, earning: 0, countryCode: null, fraudScore: 0, duplicate: false };
+}
 
-  const [{ data: payouts }, { data: adRevenue }] = await Promise.all([
-    supabase.from('earnings').select('amount').eq('type', 'view_earning').gte('created_at', since),
-    supabase.from('ad_networks').select('total_revenue, monthly_revenue'),
-  ]);
+/** Credit the referrer a % commission on a valid view earning. */
+async function maybeCreditReferral(
+  supabase: ReturnType<typeof createAdminClient>,
+  creatorId: string,
+  earning: number,
+): Promise<void> {
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('referred_by')
+      .eq('id', creatorId)
+      .maybeSingle();
+    if (!profile?.referred_by) return;
 
-  const totalPayouts = payouts?.reduce((s, e) => s + Number(e.amount), 0) ?? 0;
-  const totalAdRevenue = adRevenue?.reduce((s, a) => s + Number(a.total_revenue), 0) ?? 0;
-  const profit = totalAdRevenue - totalPayouts;
+    const { data: settings } = await supabase
+      .from('platform_settings')
+      .select('referral_percentage')
+      .eq('id', 1)
+      .maybeSingle();
+    const pct = Number(settings?.referral_percentage ?? 10) / 100;
+    const commission = earning * pct;
+    if (commission <= 0) return;
 
-  return { totalPayouts, totalAdRevenue, profit, margin: totalAdRevenue > 0 ? (profit / totalAdRevenue) * 100 : 0 };
+    // Prevent self-referral (should not exist, but guard anyway)
+    if (profile.referred_by === creatorId) return;
+
+    const { error } = await supabase.rpc('credit_referral_commission', {
+      p_referrer_id: profile.referred_by,
+      p_amount: commission,
+      p_creator_id: creatorId,
+    });
+    if (error) console.error('[earnings] referral credit failed', error);
+  } catch (e) {
+    console.error('[earnings] referral lookup failed', e);
+  }
 }
