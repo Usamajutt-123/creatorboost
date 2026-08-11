@@ -61,12 +61,39 @@ git push -u origin main
 ### 2.2 Import on Vercel
 1. Go to [vercel.com](https://vercel.com) → New Project
 2. Import your GitHub repo
-3. Add environment variables:
+3. Add environment variables (see `.env.example`):
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY` — server-side only, never exposed to the browser
    - `NEXT_PUBLIC_SITE_URL` = `https://yourdomain.com`
+   - `NEXT_PUBLIC_SUPPORT_EMAIL` (optional)
+   - `SUPPORT_EMAIL_WEBHOOK_URL` (optional)
+   - `CRON_SECRET` (required for the earnings-release cron)
+   - `IP_GEO_SERVICE_URL` / `IP_GEO_SERVICE_TOKEN` (optional, server-side country lookup)
+   - `SUPABASE_FRAUD_FN_ENABLED=true` (optional, enables the `fraud-check` edge function)
 4. Deploy
+
+### 2.2.1 Apply database migrations
+The repo ships migrations `0001`–`0006`. Apply them in order to a fresh
+Supabase project (this brings schema, RLS, RPCs and the earnings lifecycle
+into alignment):
+
+```bash
+supabase link --project-ref YOUR_REF
+supabase db push
+```
+
+Optionally deploy the fraud edge function:
+```bash
+supabase functions deploy fraud-check
+supabase secrets set IPQUALITYSCORE_KEY=your-key
+```
+
+### 2.2.2 Scheduled earnings release (cron)
+Matured pending earnings are released into creators' available balance by
+`POST /api/cron/release-earnings`. Configure a scheduler (Vercel Cron /
+GitHub Actions) to call it with the `x-cron-secret` header set to `CRON_SECRET`
+(e.g. every hour).
 
 ### 2.3 Custom domain
 1. Vercel → Settings → Domains → Add your domain

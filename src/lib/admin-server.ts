@@ -169,11 +169,23 @@ export async function adminListCampaigns() {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from('campaigns')
-    .select('id, name, creator:public_profiles(full_name, email), total_views, valid_views, total_earnings, status, deleted_at, created_at')
+    .select('id, slug, name, creator_id, total_views, valid_views, total_earnings, status, deleted_at, created_at')
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(200);
-  return data || [];
+  const rows = data || [];
+
+  // Attach public creator info (PostgREST cannot embed a join to a view).
+  const creatorIds = [...new Set(rows.map((c: any) => c.creator_id))];
+  let profiles: Record<string, { full_name: string; email: string }> = {};
+  if (creatorIds.length) {
+    const { data: p } = await supabase
+      .from('public_profiles')
+      .select('id, full_name')
+      .in('id', creatorIds);
+    profiles = (p || []).reduce((acc: any, x: any) => { acc[x.id] = { full_name: x.full_name, email: '' }; return acc; }, {});
+  }
+  return rows.map((c: any) => ({ ...c, creator: profiles[c.creator_id] || null }));
 }
 
 // ------------------------------------------------------------------
@@ -184,10 +196,21 @@ export async function adminListWithdrawals() {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from('withdrawals')
-    .select('*, user:public_profiles(full_name, email)')
+    .select('*')
     .order('created_at', { ascending: false })
     .limit(200);
-  return data || [];
+  const rows = data || [];
+
+  const userIds = [...new Set(rows.map((w: any) => w.user_id))];
+  let profiles: Record<string, { full_name: string; email: string }> = {};
+  if (userIds.length) {
+    const { data: p } = await supabase
+      .from('public_profiles')
+      .select('id, full_name')
+      .in('id', userIds);
+    profiles = (p || []).reduce((acc: any, x: any) => { acc[x.id] = { full_name: x.full_name, email: '' }; return acc; }, {});
+  }
+  return rows.map((w: any) => ({ ...w, user: profiles[w.user_id] || null }));
 }
 
 export async function adminApproveWithdrawal(id: string) {
