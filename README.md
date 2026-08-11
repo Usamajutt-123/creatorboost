@@ -56,6 +56,10 @@ npm install
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+NEXT_PUBLIC_SITE_URL=https://yourdomain.com
+CRON_SECRET=generate-a-long-random-string
+RESEND_API_KEY=re_xxx            # optional — transactional email
+IP_GEO_PROVIDER=ipwhois          # optional — server-side country lookup
 ```
 
 3. Run the database migration:

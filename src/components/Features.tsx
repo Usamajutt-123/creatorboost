@@ -7,7 +7,7 @@ export default function Features() {
         <div className="text-center mb-16">
           <div className="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3">Features</div>
           <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">Everything you need to <span className="gradient-text">monetize</span></h2>
-          <p className="text-gray-400 max-w-2xl mx-auto">Powerful tools designed for modern creators. From unlock campaigns to AI fraud detection, we&apos;ve got you covered.</p>
+          <p className="text-gray-400 max-w-2xl mx-auto">Powerful tools designed for modern creators. From unlock campaigns to server-side fraud detection, we&apos;ve got you covered.</p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {FEATURES.map((f, i) => (

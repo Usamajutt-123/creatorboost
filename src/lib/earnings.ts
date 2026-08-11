@@ -17,8 +17,11 @@
 
 import { createHash } from 'node:crypto';
 import { createAdminClient } from './supabase/server';
-import { getCountryFromIP } from './geo';
+import { getCountryFromIP, sanitizeCountryCode } from './geo';
 import { assessFraud, hashIp, type FraudAssessment } from './fraud';
+import { computePerViewEarning, computeReferralCommission } from './finance';
+
+export { computePerViewEarning, computeReferralCommission, computeWithdrawalFee } from './finance';
 
 export type ValidatedCampaign = {
   id: string;
@@ -83,18 +86,7 @@ async function loadCaps(supabase: ReturnType<typeof createAdminClient>): Promise
   };
 }
 
-function sanitizeCountry(code: string | null): string | null {
-  return code && /^[A-Z]{2}$/.test(code.toUpperCase()) ? code.toUpperCase() : null;
-}
-
-/**
- * Pure per-view earning formula, used by the engine and unit-tested.
- * earning = min((cpm * levelMultiplier) / 1000, maxEarningsPerView)
- */
-export function computePerViewEarning(cpm: number, levelMultiplier: number, maxEarningsPerView: number): number {
-  const raw = (Number(cpm) * Number(levelMultiplier)) / 1000;
-  return Math.min(Number.isFinite(raw) && raw > 0 ? raw : 0, Number(maxEarningsPerView) || 1);
-}
+// (Pure financial helpers live in ./finance.ts and are re-exported above.)
 
 /**
  * Compute per-view earnings from a SERVER-derived country + fraud result.
@@ -129,7 +121,7 @@ export async function computeViewEarnings(opts: {
 
   // 3. Country tier CPM (admin-configurable). Unknown/inactive country ->
   //    conservative Tier-3 default (NEVER highest CPM).
-  const country = sanitizeCountry(opts.countryCode);
+  const country = sanitizeCountryCode(opts.countryCode);
   let cpm = 0.5; // conservative floor
   if (country) {
     const { data: row } = await supabase
@@ -141,12 +133,15 @@ export async function computeViewEarnings(opts: {
   }
   if (cpm <= 0) cpm = 0.5;
 
-  // 4. Creator level multiplier
+  // 4. Creator account status: banned/suspended creators earn nothing.
   const { data: profile } = await supabase
     .from('profiles')
-    .select('level')
+    .select('level, status')
     .eq('id', opts.creatorId)
     .maybeSingle();
+  if (profile && (profile.status === 'banned' || profile.status === 'suspended')) {
+    return { valid: false, reason: 'account_blocked', cpm: 0, levelMultiplier: 1, earning: 0 };
+  }
   const { data: levelRow } = await supabase
     .from('creator_levels')
     .select('cpm_multiplier')
@@ -226,7 +221,7 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
   // ---------------------------------------------------------------
   // 2. Server-side country + fraud
   // ---------------------------------------------------------------
-  const countryCode = sanitizeCountry(await getCountryFromIP(input.visitorIp));
+  const countryCode = sanitizeCountryCode(await getCountryFromIP(input.visitorIp));
   const fraud = await assessFraud({
     ip: input.visitorIp ?? undefined,
     userAgent: input.userAgent ?? undefined,
@@ -339,7 +334,8 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
     .insert({
       campaign_id: campaignId,
       creator_id: creatorId,
-      visitor_ip: input.visitorIp || null,
+      // visitor_ip is an INET column — only store valid IPs (never 'unknown').
+      visitor_ip: input.visitorIp && input.visitorIp !== 'unknown' ? input.visitorIp : null,
       ip_hash: ipHash,
       country_code: countryCode,
       device_fingerprint: input.deviceFingerprint?.trim() || null,
@@ -370,35 +366,27 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
   }
 
   // ---------------------------------------------------------------
-  // 6. If valid -> earnings ledger + counters + referral commission
+  // 6. Credit atomically: earnings ledger + counters in one RPC.
+  //    The RPC re-validates view ownership and caps server-side.
   // ---------------------------------------------------------------
-  if (decision.valid && inserted) {
-    const earningId = crypto.randomUUID();
-    const { error: eErr } = await supabase.from('earnings').insert({
-      id: earningId,
-      creator_id: creatorId,
-      campaign_id: campaignId,
-      view_id: inserted.id,
-      type: 'view_earning',
-      amount: decision.earning,
-      description: `View earning @ $${decision.cpm.toFixed(2)} CPM × ${decision.levelMultiplier}x level`,
-    });
-    if (!eErr) {
-      await supabase.rpc('increment_view_counters', {
-        p_campaign_id: campaignId,
-        p_creator_id: creatorId,
-        p_earning: decision.earning,
-        p_valid: true,
-      });
-      await maybeCreditReferral(supabase, creatorId, decision.earning);
-    }
-  } else if (inserted) {
-    await supabase.rpc('increment_view_counters', {
+  if (inserted) {
+    const description = `View earning @ $${decision.cpm.toFixed(2)} CPM × ${decision.levelMultiplier}x level`;
+    const { error: cErr } = await supabase.rpc('credit_view_earning', {
+      p_view_id: inserted.id,
       p_campaign_id: campaignId,
       p_creator_id: creatorId,
-      p_earning: 0,
-      p_valid: false,
+      p_valid: decision.valid,
+      p_cpm: decision.cpm,
+      p_earning: decision.valid ? decision.earning : 0,
+      p_level_multiplier: decision.levelMultiplier,
+      p_description: description,
     });
+    if (cErr) {
+      console.error('[earnings] credit_view_earning failed', cErr);
+      // The view is recorded; earnings are safe because the RPC is atomic.
+    } else if (decision.valid && decision.earning > 0) {
+      await maybeCreditReferral(supabase, creatorId, decision.earning, inserted.id);
+    }
   }
 
   return {
@@ -417,11 +405,12 @@ function invalidResult(reason: string): RecordViewResult {
   return { valid: false, reason, cpm: 0, levelMultiplier: 1, earning: 0, countryCode: null, fraudScore: 0, duplicate: false };
 }
 
-/** Credit the referrer a % commission on a valid view earning. */
+/** Credit the referrer a % commission on a valid view earning (idempotent per view). */
 async function maybeCreditReferral(
   supabase: ReturnType<typeof createAdminClient>,
   creatorId: string,
   earning: number,
+  viewId: string,
 ): Promise<void> {
   try {
     const { data: profile } = await supabase
@@ -436,8 +425,8 @@ async function maybeCreditReferral(
       .select('referral_percentage')
       .eq('id', 1)
       .maybeSingle();
-    const pct = Number(settings?.referral_percentage ?? 10) / 100;
-    const commission = earning * pct;
+    const pct = Number(settings?.referral_percentage ?? 10);
+    const commission = computeReferralCommission(earning, pct);
     if (commission <= 0) return;
 
     // Prevent self-referral (should not exist, but guard anyway)
@@ -447,6 +436,7 @@ async function maybeCreditReferral(
       p_referrer_id: profile.referred_by,
       p_amount: commission,
       p_creator_id: creatorId,
+      p_view_id: viewId,
     });
     if (error) console.error('[earnings] referral credit failed', error);
   } catch (e) {

@@ -27,10 +27,10 @@ export default function Hero() {
               Trusted by 12,000+ creators
             </span>
             <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-[11px] sm:text-xs font-medium text-yellow-300">
-              <Star className="w-3 h-3 fill-yellow-300" /> 4.9 / 5.0 rating
+              <Star className="w-3 h-3 fill-yellow-300" /> Unlock campaigns for creators
             </span>
             <span className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-[11px] sm:text-xs font-medium text-blue-300">
-              <ShieldCheck className="w-3 h-3" /> AI fraud protection
+              <ShieldCheck className="w-3 h-3" /> Server-side fraud protection
             </span>
           </div>
 
@@ -57,7 +57,7 @@ export default function Hero() {
           {/* Subtitle */}
           <p className="w-full max-w-full pr-4 text-[15px] sm:text-lg leading-relaxed text-gray-400 mb-8">
             CreatorBoost helps creators monetize their audience through smart unlock campaigns. Create campaigns, share your link, and earn money for every{' '}
-            <strong className="text-white font-semibold">1000 valid views</strong>. Powered by AI fraud detection and dynamic CPM rates.
+            <strong className="text-white font-semibold">1000 valid views</strong>. Powered by server-side fraud detection and dynamic, admin-configurable CPM rates.
           </p>
 
           {/* CTA row */}
@@ -83,10 +83,10 @@ export default function Hero() {
           {/* Stats strip */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mr-9 sm:gap-3 max-w-2xl">
             {[
-              { v: '$2.4M+', l: 'Revenue Paid', i: '💰' },
-              { v: '180+', l: 'Countries', i: '🌍' },
-              { v: '12K+', l: 'Active Creators', i: '⚡' },
-              { v: '$6', l: 'Avg CPM (T1)', i: '🛡️' },
+              { v: 'Tier 1–3', l: 'Country CPM tiers', i: '💰' },
+              { v: '$0.5–$6', l: 'CPM range (admin-set)', i: '🌍' },
+              { v: '24h', l: 'Default holding period', i: '⚡' },
+              { v: 'Server', l: 'Every view verified', i: '🛡️' },
             ].map(s => (
               <div
                 key={s.l}
@@ -141,13 +141,11 @@ export default function Hero() {
               </div>
             </div>
 
-            {/* Revenue chart */}
+            {/* Revenue chart (illustrative example) */}
             <div className="glass rounded-xl p-3 sm:p-4 h-44 sm:h-48 relative overflow-hidden">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] sm:text-xs font-semibold text-gray-300">Revenue</span>
-                <span className="text-[10px] text-green-400 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> Live
-                </span>
+                <span className="text-[10px] text-gray-500">Illustrative example</span>
               </div>
               <HeroChart />
             </div>

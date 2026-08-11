@@ -25,11 +25,16 @@ export default function AdminCampaignsPage() {
 
   useEffect(() => { load(); }, []);
 
-  const action = async (id: string, a: 'pause' | 'resume' | 'delete') => {
+  const action = async (id: string, a: 'pause' | 'resume' | 'delete' | 'restore') => {
     setBusy(id);
     try {
       await adminCampaignAction(id, a);
-      toast.success(a === 'delete' ? 'Campaign deleted' : a === 'pause' ? 'Campaign paused' : 'Campaign resumed');
+      toast.success(
+        a === 'delete' ? 'Campaign deleted'
+        : a === 'restore' ? 'Campaign restored (paused)'
+        : a === 'pause' ? 'Campaign paused'
+        : 'Campaign resumed'
+      );
       load();
     } catch (e: any) {
       toast.error(e.message || 'Action failed');
@@ -82,17 +87,31 @@ export default function AdminCampaignsPage() {
                     <td className="py-3 text-gray-400">{c.creator?.full_name || '—'}</td>
                     <td className="py-3">{formatNumber(c.total_views)}</td>
                     <td className="py-3 text-green-400">{formatCurrency(c.total_earnings)}</td>
-                    <td className="py-3"><span className={`badge status-${c.status}`}>{c.status}</span></td>
+                    <td className="py-3">
+                      {c.deleted_at ? (
+                        <span className="badge status-rejected">deleted</span>
+                      ) : (
+                        <span className={`badge status-${c.status}`}>{c.status}</span>
+                      )}
+                    </td>
                     <td className="py-3">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <a href={`/c/${c.slug}`} target="_blank" rel="noopener noreferrer" className="btn-ghost px-2 py-1 rounded text-xs flex items-center gap-1"><ExternalLink className="w-3 h-3" /> View</a>
-                        {c.status === 'paused' ? (
-                          <button onClick={() => action(c.id, 'resume')} disabled={busy === c.id} className="btn-ghost px-2 py-1 rounded text-xs flex items-center gap-1 text-green-400"><Play className="w-3 h-3" /> Resume</button>
-                        ) : (
-                          <button onClick={() => action(c.id, 'pause')} disabled={busy === c.id} className="btn-ghost px-2 py-1 rounded text-xs flex items-center gap-1 text-yellow-400"><Pause className="w-3 h-3" /> Pause</button>
+                        {!c.deleted_at && (
+                          <a href={`/c/${c.slug}`} target="_blank" rel="noopener noreferrer" className="btn-ghost px-2 py-1 rounded text-xs flex items-center gap-1"><ExternalLink className="w-3 h-3" /> View</a>
                         )}
-                        <button onClick={() => { if (confirm('Delete this campaign?')) action(c.id, 'delete'); }} disabled={busy === c.id} className="btn-ghost px-2 py-1 rounded text-xs flex items-center gap-1 text-red-400"><Trash2 className="w-3 h-3" /> Delete</button>
-                        <Link href={`/dashboard/campaigns/${c.id}`} className="btn-ghost px-2 py-1 rounded text-xs">Stats</Link>
+                        {c.deleted_at ? (
+                          <button onClick={() => { if (confirm('Restore this campaign?')) action(c.id, 'restore'); }} disabled={busy === c.id} className="btn-ghost px-2 py-1 rounded text-xs flex items-center gap-1 text-green-400"><Play className="w-3 h-3" /> Restore</button>
+                        ) : (
+                          <>
+                            {c.status === 'paused' ? (
+                              <button onClick={() => action(c.id, 'resume')} disabled={busy === c.id} className="btn-ghost px-2 py-1 rounded text-xs flex items-center gap-1 text-green-400"><Play className="w-3 h-3" /> Resume</button>
+                            ) : (
+                              <button onClick={() => action(c.id, 'pause')} disabled={busy === c.id} className="btn-ghost px-2 py-1 rounded text-xs flex items-center gap-1 text-yellow-400"><Pause className="w-3 h-3" /> Pause</button>
+                            )}
+                            <button onClick={() => { if (confirm('Delete this campaign?')) action(c.id, 'delete'); }} disabled={busy === c.id} className="btn-ghost px-2 py-1 rounded text-xs flex items-center gap-1 text-red-400"><Trash2 className="w-3 h-3" /> Delete</button>
+                            <Link href={`/dashboard/campaigns/${c.id}`} className="btn-ghost px-2 py-1 rounded text-xs">Stats</Link>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

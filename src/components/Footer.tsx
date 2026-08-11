@@ -93,7 +93,7 @@ export default function Footer() {
               <span className="font-display text-xl sm:text-2xl font-bold">Creator<span className="gradient-text">Boost</span></span>
             </Link>
             <p className="text-sm text-gray-400 max-w-md mb-5">
-              The modern creator monetization platform. Earn from every valid view with smart unlock campaigns, AI fraud detection, and dynamic CPM rates configured by you.
+              The modern creator monetization platform. Earn from every valid view with smart unlock campaigns, server-side fraud detection, and dynamic CPM rates configured by you.
             </p>
             <div className="flex flex-wrap gap-2">
               {socials.map(({ Icon, href, label }) => (

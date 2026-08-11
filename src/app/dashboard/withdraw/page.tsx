@@ -6,6 +6,8 @@ import DashboardTopbar from '@/components/DashboardTopbar';
 import { createClient } from '@/lib/supabase/client';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
+import { requestWithdrawalAction } from '@/lib/withdraw-actions';
+import { computeWithdrawalFee } from '@/lib/finance';
 
 type MethodConfig = {
   id: number;
@@ -54,27 +56,27 @@ export default function WithdrawPage() {
 
   const selectedMethodConfig = methods.find(m => m.method === method);
 
+  const feePct = selectedMethodConfig?.fee_percentage || 0;
+  const amtNum = parseFloat(amount) || 0;
+  const feePreview = computeWithdrawalFee(amtNum, feePct);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = parseFloat(amount);
     if (!amt || amt < minWithdraw) { toast.error(`Minimum withdrawal is $${minWithdraw}`); return; }
-    if (amt > (profile?.available_balance || 0)) { toast.error('Insufficient balance'); return; }
+    const total = amt + computeWithdrawalFee(amt, feePct);
+    if (total > (profile?.available_balance || 0)) { toast.error(`Insufficient balance (${formatCurrency(total)} incl. fee)`); return; }
     if (!account.trim()) { toast.error('Please enter your account details'); return; }
 
     setLoading(true);
-    const supabase = createClient();
-    const { data, error } = await supabase.rpc('request_withdrawal', {
-      p_user_id: profile.id,
-      p_amount: amt,
-      p_method: method,
-      p_account_details: { account },
-    });
+    // Server action -> RPC (auth.uid() enforced in DB) + notification email.
+    const res = await requestWithdrawalAction({ amount: amt, method, account });
 
     setLoading(false);
-    if (error) { toast.error(error.message); return; }
-    if (data && !data.success) { toast.error(data.error || 'Failed'); return; }
+    if (!res.success) { toast.error(res.error || 'Failed'); return; }
     toast.success('Withdrawal request submitted!');
     setAmount(''); setAccount('');
+    const supabase = createClient();
     const { data: w } = await supabase.from('withdrawals').select('*').eq('user_id', profile.id).order('created_at', { ascending: false });
     setHistory(w || []);
     const { data: p } = await supabase.from('profiles').select('*').eq('id', profile.id).single();
@@ -93,7 +95,12 @@ export default function WithdrawPage() {
               <div>
                 <label className="text-xs font-medium text-gray-300 block mb-1.5">Amount (USD)</label>
                 <input type="number" step="0.01" min={minWithdraw} value={amount} onChange={e => setAmount(e.target.value)} className="input-field" placeholder="Enter amount" />
-                <p className="text-xs text-gray-500 mt-1">Available: <span className="text-white font-semibold">{formatCurrency(profile?.available_balance || 0)}</span></p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Available: <span className="text-white font-semibold">{formatCurrency(profile?.available_balance || 0)}</span>
+                  {feePreview > 0 && amtNum > 0 && (
+                    <span className="block mt-0.5">Fee: <span className="text-yellow-300">{formatCurrency(feePreview)}</span> · Total deducted: {formatCurrency(amtNum + feePreview)}</span>
+                  )}
+                </p>
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-300 block mb-3">Payment Method</label>

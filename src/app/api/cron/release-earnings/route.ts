@@ -20,12 +20,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const supabase = createAdminClient();
-    const { data, error } = await supabase.rpc('release_pending_earnings');
+    // release_matured_earnings is idempotent and race-safe: it only moves
+    // earnings whose available_at has passed and marks them released, so
+    // running the job twice can never double-credit.
+    const { data, error } = await supabase.rpc('release_matured_earnings');
     if (error) {
-      console.error('[cron] release_pending_earnings failed', error);
+      console.error('[cron] release_matured_earnings failed', error);
       return NextResponse.json({ error: 'Release failed' }, { status: 500 });
     }
-    return NextResponse.json({ ok: true, released: true });
+    return NextResponse.json({ ok: true, creatorsReleased: Number(data) || 0 });
   } catch (e) {
     console.error('[cron] unexpected error', e);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });

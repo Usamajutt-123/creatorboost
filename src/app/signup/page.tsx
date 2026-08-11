@@ -1,5 +1,5 @@
 'use client';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Zap, Mail, Lock, User, Globe2 } from 'lucide-react';
@@ -10,6 +10,18 @@ function SignupContent() {
   const router = useRouter();
   const params = useSearchParams();
   const ref = params.get('ref');
+
+  // Record the referral link click (real data for the referrer's dashboard).
+  useEffect(() => {
+    if (ref && /^[a-z0-9]{4,32}$/i.test(ref)) {
+      fetch('/api/referrals/click', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: ref }),
+        keepalive: true,
+      }).catch(() => {});
+    }
+  }, [ref]);
 
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', country: 'US' });
   const [loading, setLoading] = useState(false);

@@ -6,9 +6,6 @@ import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState<any>(null);
-  const [twoFA, setTwoFA] = useState(false);
-  const [emailNotif, setEmailNotif] = useState(true);
-  const [pushNotif, setPushNotif] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -18,7 +15,6 @@ export default function SettingsPage() {
       const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       if (data) {
         setProfile(data);
-        setTwoFA(data.two_factor_enabled);
       }
     };
     load();
@@ -31,7 +27,6 @@ export default function SettingsPage() {
       full_name: profile.full_name,
       bio: profile.bio,
       country_code: profile.country_code,
-      two_factor_enabled: twoFA,
     }).eq('id', profile.id);
     if (error) { toast.error(error.message); return; }
     toast.success('Settings saved!');
@@ -51,7 +46,6 @@ export default function SettingsPage() {
             <div className="flex-1">
               <h3 className="font-semibold text-lg">{profile.full_name}</h3>
               <p className="text-sm text-gray-500 capitalize">{profile.level} Creator • Member since {new Date(profile.created_at).toLocaleDateString()}</p>
-              <button className="text-xs text-purple-400 mt-1">Change avatar</button>
             </div>
           </div>
 
@@ -85,19 +79,15 @@ export default function SettingsPage() {
 
         <div className="glass-strong rounded-2xl p-6 space-y-3">
           <h3 className="font-semibold">Security & Notifications</h3>
-          {[
-            { label: 'Two-Factor Authentication', desc: 'Add an extra layer of security', val: twoFA, set: setTwoFA },
-            { label: 'Email Notifications', desc: 'Receive updates via email', val: emailNotif, set: setEmailNotif },
-            { label: 'Push Notifications', desc: 'Real-time browser notifications', val: pushNotif, set: setPushNotif },
-          ].map(s => (
-            <div key={s.label} className="flex items-center justify-between p-3 glass rounded-xl">
-              <div>
-                <div className="text-sm font-medium">{s.label}</div>
-                <div className="text-xs text-gray-500">{s.desc}</div>
-              </div>
-              <div className={`toggle ${s.val ? 'on' : ''}`} onClick={() => s.set(!s.val)} />
-            </div>
-          ))}
+          <div className="p-3 glass rounded-xl text-xs text-gray-400 leading-relaxed">
+            <strong className="text-gray-200">Email notifications:</strong> withdrawal updates and account alerts are
+            sent to your verified email address automatically.
+          </div>
+          <div className="p-3 glass rounded-xl text-xs text-gray-400 leading-relaxed">
+            <strong className="text-gray-200">Two-factor authentication</strong> is not available yet. We will notify
+            you when it can be enabled. In the meantime, account access is protected by email verification and
+            server-side session security.
+          </div>
         </div>
 
         <button onClick={save} className="btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold text-white">Save Changes</button>

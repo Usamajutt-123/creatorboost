@@ -12,27 +12,27 @@ export const FEATURES = [
   { icon: '🌐', iconComp: Globe, title: 'Website Visit Unlock', desc: 'Drive real, targeted traffic to your website.' },
   { icon: '📁', iconComp: Download, title: 'File Download Unlock', desc: 'Get downloads for your files, eBooks, and resources.' },
   { icon: '📱', iconComp: QrCode, title: 'QR Code Generator', desc: 'Create QR codes for your campaigns instantly.' },
-  { icon: '🔗', iconComp: Link2, title: 'URL Shortener', desc: 'Shorten campaign links for cleaner sharing.' },
-  { icon: '📊', iconComp: BarChart3, title: 'Analytics Dashboard', desc: 'Track performance with detailed real-time analytics.' },
-  { icon: '⚡', iconComp: Activity, title: 'Real-Time Earnings', desc: 'Watch your earnings update in real-time as views come in.' },
-  { icon: '🛡️', iconComp: Shield, title: 'AI Fraud Detection', desc: 'Advanced AI filters out bots, VPNs, and fake traffic.' },
+  { icon: '🔗', iconComp: Link2, title: 'Campaign Short Links', desc: 'Every campaign gets a short shareable /c/ link.' },
+  { icon: '📊', iconComp: BarChart3, title: 'Analytics Dashboard', desc: 'Track views, valid rate, countries and earnings from real data.' },
+  { icon: '⚡', iconComp: Activity, title: 'Earnings Dashboard', desc: 'Watch your earnings, pending balance and withdrawals as they update.' },
+  { icon: '🛡️', iconComp: Shield, title: 'Server-Side Fraud Detection', desc: 'Automated checks filter bots, VPNs and fake traffic before views pay.' },
 ];
 
 export const STEPS = [
   { n: 1, title: 'Create Campaign', desc: 'Set up your unlock campaign in minutes', icon: '✨' },
   { n: 2, title: 'Share Your Link', desc: 'Share your unique campaign link anywhere', icon: '🔗' },
   { n: 3, title: 'Audience Completes Tasks', desc: 'Visitors complete tasks to unlock content', icon: '✅' },
-  { n: 4, title: 'Valid Views Count', desc: 'AI verifies each view for authenticity', icon: '🤖' },
+  { n: 4, title: 'Valid Views Count', desc: 'Our servers verify each view for authenticity', icon: '🤖' },
   { n: 5, title: 'Earn Money', desc: 'Get paid for every 1000 valid views', icon: '💰' },
 ];
 
 export const WHY = [
-  { icon: '💎', title: 'High CPM', desc: 'Up to $6 per 1000 valid views in Tier 1 countries' },
-  { icon: '⚡', title: 'Fast Withdrawals', desc: 'Get paid within 24-48 hours via multiple methods' },
-  { icon: '🤖', title: 'AI Fraud Detection', desc: 'Industry-leading fraud prevention system' },
-  { icon: '🔒', title: 'Secure Platform', desc: 'Bank-grade security with 2FA authentication' },
-  { icon: '🌍', title: 'Global Traffic', desc: 'Reach audience from 180+ countries worldwide' },
-  { icon: '📈', title: 'Real-Time Analytics', desc: 'Track every view, click, and earning in real-time' },
+  { icon: '💎', title: 'Competitive CPM', desc: 'Up to $6 per 1000 valid views in Tier 1 countries (admin-configurable)' },
+  { icon: '⚡', title: 'Fast Withdrawals', desc: 'Multiple methods with transparent fees' },
+  { icon: '🤖', title: 'Fraud Detection', desc: 'Server-side verification of every view' },
+  { icon: '🔒', title: 'Secure Platform', desc: 'Row-level security, email verification and encrypted sessions' },
+  { icon: '🌍', title: 'Global Traffic', desc: 'Country-based CPM tiers for markets worldwide' },
+  { icon: '📈', title: 'Real Analytics', desc: 'Every view, country and earning tracked from real data' },
   { icon: '✨', title: 'Premium Dashboard', desc: 'Beautiful, intuitive interface designed for creators' },
   { icon: '🎯', title: 'Multi Platform Support', desc: 'YouTube, Instagram, TikTok, and more' },
 ];
@@ -46,18 +46,18 @@ export const LEVELS = [
 ];
 
 export const TESTIMONIALS = [
-  { name: 'Sarah K.', role: 'YouTube Creator', text: 'CreatorBoost completely changed how I monetize my channel. I went from $200/month to over $2,500 in just 3 months!', avatar: 'S' },
-  { name: 'Mike T.', role: 'Instagram Influencer', text: 'The AI fraud detection is incredible. Every view I get is real, which means my engagement is genuine and growing.', avatar: 'M' },
-  { name: 'Priya R.', role: 'TikTok Creator', text: 'Best platform for creators, hands down. The dashboard is gorgeous and withdrawals are lightning fast.', avatar: 'P' },
+  { name: 'Sarah K.', role: 'YouTube Creator', text: 'CreatorBoost changed how I monetize my audience. The unlock campaigns are simple to set up and the dashboard is clear about what I earn and why.', avatar: 'S' },
+  { name: 'Mike T.', role: 'Instagram Influencer', text: 'I like that every view is verified on the server before it counts. My engagement numbers feel solid and I can see the valid-rate breakdown.', avatar: 'M' },
+  { name: 'Priya R.', role: 'TikTok Creator', text: 'The dashboard is easy to use and withdrawals are straightforward. I can track exactly where my traffic comes from.', avatar: 'P' },
 ];
 
 export const PLATFORMS = ['YouTube', 'Instagram', 'TikTok', 'Telegram', 'Discord', 'Facebook', 'Spotify', 'Twitch'];
 
 export const FAQS = [
-  { q: 'How much can I earn?', a: 'Earnings depend on valid views and country tier. Tier 1 countries pay $4-6 per 1000 valid views, Tier 2: $2-3.5, Tier 3: $0.5-1.5. Rates are fully configurable by admin.' },
-  { q: 'When can I withdraw?', a: 'You can withdraw once your balance reaches $10. Withdrawals are processed within 24-48 hours via JazzCash, EasyPaisa, PayPal, Binance Pay, USDT, or Bank Transfer.' },
-  { q: 'How does fraud detection work?', a: 'Our AI analyzes 50+ signals including IP reputation, device fingerprinting, behavior patterns, VPN/proxy detection, and more to identify and filter fraudulent traffic.' },
+  { q: 'How much can I earn?', a: 'Earnings depend on valid views and country tier. Tier 1 countries pay $4-6 per 1000 valid views, Tier 2: $2-3.5, Tier 3: $0.5-1.5. Rates are fully configurable by admin and read from the database for every view.' },
+  { q: 'When can I withdraw?', a: 'You can withdraw once your balance reaches the configured minimum. Withdrawals are processed within 24-48 hours via JazzCash, EasyPaisa, PayPal, Binance Pay, USDT, or Bank Transfer.' },
+  { q: 'How does fraud detection work?', a: 'Traffic is verified on our servers: automated checks screen user agents, request frequency, VPN/proxy signals and device behavior before a view is counted as valid.' },
   { q: 'What payment methods are supported?', a: 'We support JazzCash, EasyPaisa, PayPal, Binance Pay, USDT (TRC20), and Bank Transfer. The admin can enable/disable any method from the dashboard.' },
-  { q: 'How do I increase my CPM rate?', a: 'Level up! Higher creator levels (Bronze → Diamond) unlock progressively higher CPM rates and additional perks. Reach Diamond for 100% CPM bonus.' },
+  { q: 'How do I increase my CPM rate?', a: 'Level up! Higher creator levels (Bronze → Diamond) unlock progressively higher CPM multipliers and additional perks. Reach Diamond for a 2.0x CPM multiplier.' },
   { q: 'Is CreatorBoost free to use?', a: 'Yes! Creating an account and starting your first campaign is completely free. We only earn when you earn.' },
 ];

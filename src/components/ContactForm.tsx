@@ -71,8 +71,8 @@ export default function ContactForm() {
             <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-pink-500 to-red-500 flex items-center justify-center mx-auto mb-3">
               <MapPin className="w-5 h-5 text-white" />
             </div>
-            <h3 className="font-semibold text-sm mb-1">Office</h3>
-            <p className="text-xs text-gray-400">San Francisco, CA</p>
+            <h3 className="font-semibold text-sm mb-1">Help Center</h3>
+            <p className="text-xs text-gray-400">FAQs and guides at /support</p>
           </div>
         </div>
         <div className="grid lg:grid-cols-2 gap-5 sm:gap-6">
@@ -99,9 +99,9 @@ export default function ContactForm() {
             <button onClick={openWhatsApp} className="glass-strong rounded-2xl p-5 sm:p-6 w-full text-left hover:bg-white/5 transition">
               <h4 className="font-semibold mb-2 text-sm sm:text-base flex items-center gap-2">
                 <MessageCircle className="w-4 h-4 text-green-400" />
-                WhatsApp Live Chat
+                Chat on WhatsApp
               </h4>
-              <p className="text-xs text-gray-400 mb-3">Tap to chat with our team on WhatsApp. Typically replies within minutes.</p>
+              <p className="text-xs text-gray-400 mb-3">Tap to open a WhatsApp chat with our team.</p>
               <span className="inline-flex items-center gap-1.5 text-xs text-green-400 font-semibold">
                 Chat Now <ExternalLink className="w-3 h-3" />
               </span>
@@ -109,9 +109,9 @@ export default function ContactForm() {
             <div className="glass-strong rounded-2xl p-5 sm:p-6">
               <h4 className="font-semibold mb-3 text-sm sm:text-base">Support hours</h4>
               <ul className="space-y-2 text-xs sm:text-sm text-gray-300">
-                <li className="flex justify-between"><span>WhatsApp</span><span className="text-green-400 flex items-center gap-2"><span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> Online</span></li>
+                <li className="flex justify-between"><span>WhatsApp</span><span className="text-gray-400">Mon–Sat, 9am–9pm</span></li>
                 <li className="flex justify-between"><span>Email response</span><span className="text-gray-400">&lt; 24h</span></li>
-                <li className="flex justify-between"><span>Enterprise support</span><span className="text-purple-300">24/7</span></li>
+                <li className="flex justify-between"><span>Tickets</span><span className="text-purple-300">24/7 submission</span></li>
               </ul>
             </div>
             <div className="glass-strong rounded-2xl p-5 sm:p-6">

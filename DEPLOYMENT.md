@@ -69,14 +69,17 @@ git push -u origin main
    - `NEXT_PUBLIC_SUPPORT_EMAIL` (optional)
    - `SUPPORT_EMAIL_WEBHOOK_URL` (optional)
    - `CRON_SECRET` (required for the earnings-release cron)
-   - `IP_GEO_SERVICE_URL` / `IP_GEO_SERVICE_TOKEN` (optional, server-side country lookup)
+   - `IP_GEO_PROVIDER` / `IP_GEO_SERVICE_URL` / `IP_GEO_SERVICE_TOKEN` (optional, server-side country lookup — see `.env.example`)
+   - `RESEND_API_KEY` / `EMAIL_FROM` / `SUPPORT_EMAIL` (optional, transactional email)
    - `SUPABASE_FRAUD_FN_ENABLED=true` (optional, enables the `fraud-check` edge function)
+   - `ADSTERRA_API_URL` / `MONETAG_API_URL` (optional, real ad-revenue integration)
 4. Deploy
 
 ### 2.2.1 Apply database migrations
-The repo ships migrations `0001`–`0006`. Apply them in order to a fresh
-Supabase project (this brings schema, RLS, RPCs and the earnings lifecycle
-into alignment):
+The repo ships migrations `0001`–`0007`. Apply them in order to a fresh
+Supabase project (this brings schema, RLS, RPCs, the earnings lifecycle,
+withdrawal fees, anonymous support tickets and the revenue ledger into
+alignment):
 
 ```bash
 supabase link --project-ref YOUR_REF
