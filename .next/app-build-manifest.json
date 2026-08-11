@@ -262,7 +262,7 @@
       "static/chunks/7776-3ea4f947413710d0.js",
       "static/chunks/5570-585313847d879e86.js",
       "static/chunks/1048-eab60627669c3e9c.js",
-      "static/chunks/app/dashboard/campaigns/[id]/page-765e9851012fc9f6.js"
+      "static/chunks/app/dashboard/campaigns/[id]/page-7b3421f22544aa43.js"
     ],
     "/dashboard/campaigns/page": [
       "static/chunks/webpack-1de73fb2fe32bbf6.js",
@@ -272,7 +272,7 @@
       "static/chunks/7776-3ea4f947413710d0.js",
       "static/chunks/5570-585313847d879e86.js",
       "static/chunks/1048-eab60627669c3e9c.js",
-      "static/chunks/app/dashboard/campaigns/page-e355feaeceb2d637.js"
+      "static/chunks/app/dashboard/campaigns/page-fe08bf19cbf2cf93.js"
     ],
     "/dashboard/create-campaign/page": [
       "static/chunks/webpack-1de73fb2fe32bbf6.js",
@@ -283,7 +283,7 @@
       "static/chunks/7776-3ea4f947413710d0.js",
       "static/chunks/5570-585313847d879e86.js",
       "static/chunks/5809-fe56f47e07d51e2e.js",
-      "static/chunks/app/dashboard/create-campaign/page-b5edeb276b5b13ff.js"
+      "static/chunks/app/dashboard/create-campaign/page-adcd9d424ab29a7c.js"
     ],
     "/dashboard/referrals/page": [
       "static/chunks/webpack-1de73fb2fe32bbf6.js",
@@ -329,7 +329,7 @@
       "static/chunks/main-app-76ddcbf4997fd639.js",
       "static/chunks/7776-3ea4f947413710d0.js",
       "static/chunks/5570-585313847d879e86.js",
-      "static/chunks/app/dashboard/withdraw/page-80d6706bf86b063b.js"
+      "static/chunks/app/dashboard/withdraw/page-04b34126be822a54.js"
     ],
     "/admin/page": [
       "static/chunks/webpack-1de73fb2fe32bbf6.js",
@@ -349,7 +349,7 @@
       "static/chunks/ca377847-b72f3efb57bba0ae.js",
       "static/chunks/5570-585313847d879e86.js",
       "static/chunks/3884-86735d914444f388.js",
-      "static/chunks/app/dashboard/analytics/page-3314356cb21bc321.js"
+      "static/chunks/app/dashboard/analytics/page-45d9501f3461b10e.js"
     ],
     "/dashboard/notifications/page": [
       "static/chunks/webpack-1de73fb2fe32bbf6.js",
@@ -367,7 +367,7 @@
       "static/chunks/ca377847-b72f3efb57bba0ae.js",
       "static/chunks/5570-585313847d879e86.js",
       "static/chunks/3884-86735d914444f388.js",
-      "static/chunks/app/dashboard/page-dd1b62dfb33bbf11.js"
+      "static/chunks/app/dashboard/page-d82376fa8b2c3c2b.js"
     ]
   }
 }

@@ -113,7 +113,7 @@ export default function CampaignStatsPage() {
         <>
             <DashboardTopbar
                 title={campaign.name}
-                subtitle={`Campaign statistics Ā· created ${timeAgo(campaign.created_at)}`}
+                subtitle={`Campaign statistics · created ${timeAgo(campaign.created_at)}`}
             />
             <div className="p-4 sm:p-6 space-y-6">
                 <div className="flex flex-wrap items-center gap-2">
@@ -171,7 +171,7 @@ export default function CampaignStatsPage() {
                                         <div
                                             className="w-full bg-gradient-to-t from-purple-500 to-blue-500 rounded-t-md transition-all hover:opacity-80"
                                             style={{ height: `${Math.max(2, heightPct)}%` }}
-                                            title={`${date}: ${data.views} views (${data.valid} valid) Ā· $${data.earnings.toFixed(4)}`}
+                                            title={`${date}: ${data.views} views (${data.valid} valid) · $${data.earnings.toFixed(4)}`}
                                         />
                                     </div>
                                     <div className="text-[9px] text-gray-500 truncate w-full text-center">{date.substring(5)}</div>

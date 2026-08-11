@@ -120,8 +120,8 @@ export default function WithdrawPage() {
                 <input value={account} onChange={e => setAccount(e.target.value)} className="input-field" placeholder={method === 'usdt' ? 'TRC20 wallet address' : 'Your account email / phone / number'} />
                 {selectedMethodConfig && (
                   <p className="text-[10px] text-gray-500 mt-1">
-                    Min: ${selectedMethodConfig.min_amount} Â· Max: ${selectedMethodConfig.max_amount}
-                    {selectedMethodConfig.fee_percentage > 0 && ` Â· Fee: ${selectedMethodConfig.fee_percentage}%`}
+                    Min: ${selectedMethodConfig.min_amount} · Max: ${selectedMethodConfig.max_amount}
+                    {selectedMethodConfig.fee_percentage > 0 && ` · Fee: ${selectedMethodConfig.fee_percentage}%`}
                   </p>
                 )}
               </div>

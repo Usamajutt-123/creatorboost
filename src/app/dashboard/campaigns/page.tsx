@@ -117,7 +117,7 @@ export default function CampaignsPage() {
           })}
           {!campaigns.length && (
             <div className="col-span-full glass-strong rounded-2xl p-12 text-center">
-              <div className="text-5xl mb-3">ðŸ“¢</div>
+              <div className="text-5xl mb-3">📢</div>
               <h3 className="font-semibold mb-2">No campaigns yet</h3>
               <p className="text-sm text-gray-500 mb-4">Create your first unlock campaign and start earning</p>
               <Link href="/dashboard/create-campaign" className="btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold text-white inline-flex items-center gap-2">

@@ -124,7 +124,7 @@ export default function DashboardCharts() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-semibold">Earnings Overview</h3>
-              <p className="text-xs text-gray-500">Last 30 days Â· real data</p>
+              <p className="text-xs text-gray-500">Last 30 days · real data</p>
             </div>
           </div>
           <div className="h-64 sm:h-72">
@@ -181,7 +181,7 @@ export default function DashboardCharts() {
               const isPast = i < currentLevelIdx;
               return (
                 <div key={lvl} className={`p-3 rounded-xl bg-gradient-to-br ${colors[i]} ${isCurrent ? 'ring-2 ring-yellow-300 scale-105' : isPast ? 'opacity-80' : 'opacity-50'}`}>
-                  <div className="text-2xl mb-1">{['ðŸ¥‰', 'ðŸ¥ˆ', 'ðŸ¥‡', 'ðŸ’Ž', 'ðŸ‘‘'][i]}</div>
+                  <div className="text-2xl mb-1">{['🥉', '🥈', '🥇', '💎', '👑'][i]}</div>
                   <div className="text-xs font-bold text-white">{lvl}</div>
                   {isCurrent && <div className="text-[9px] text-white/90 mt-1">Current</div>}
                 </div>

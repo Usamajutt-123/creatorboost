@@ -68,7 +68,7 @@ export default function CreateCampaignPage() {
   });
 
   const toggleTask = (id: string) => {
-    // If clicking the same expanded task â†’ collapse it
+    // If clicking the same expanded task → collapse it
     if (expandedTask === id) {
       setExpandedTask(null);
       return;
@@ -297,7 +297,7 @@ export default function CreateCampaignPage() {
                         }
                         <span className="text-xs font-medium flex-1">{t.name}</span>
                         <span className={`text-xs text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-                          â–¾
+                          ▾
                         </span>
                       </button>
 

@@ -79,7 +79,7 @@ export default function AnalyticsCharts() {
     <div className="grid lg:grid-cols-2 gap-4">
       <div className="glass rounded-2xl p-5">
         <h3 className="font-semibold mb-1">Traffic Over Time</h3>
-        <p className="text-xs text-gray-500 mb-4">Last 14 days Â· real data</p>
+        <p className="text-xs text-gray-500 mb-4">Last 14 days · real data</p>
         <div className="h-64 sm:h-72">
           <Line data={trafficData} options={{
             responsive: true, maintainAspectRatio: false,
@@ -90,7 +90,7 @@ export default function AnalyticsCharts() {
       </div>
       <div className="glass rounded-2xl p-5">
         <h3 className="font-semibold mb-1">Hourly Performance</h3>
-        <p className="text-xs text-gray-500 mb-4">Last 24 hours Â· real data</p>
+        <p className="text-xs text-gray-500 mb-4">Last 24 hours · real data</p>
         <div className="h-64 sm:h-72">
           <Bar data={hourlyData} options={{
             responsive: true, maintainAspectRatio: false,
