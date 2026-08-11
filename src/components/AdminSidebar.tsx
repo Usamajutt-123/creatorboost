@@ -1,10 +1,12 @@
 'use client';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from "next/image";
 import { usePathname } from 'next/navigation';
-import { BarChart3, Users, Megaphone, Wallet, DollarSign, Network, Award, Settings, LogOut, ArrowLeft, Zap } from 'lucide-react';
+import { BarChart3, Users, Megaphone, Wallet, DollarSign, Network, Award, Settings, LogOut, ArrowLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import { serverAdminMe } from '@/lib/admin-server';
 
 const links = [
   { href: '/admin', label: 'Statistics', icon: BarChart3, exact: true },
@@ -20,6 +22,17 @@ const links = [
 export default function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [adminName, setAdminName] = useState('Admin');
+  const [adminRole, setAdminRole] = useState('');
+
+  useEffect(() => {
+    serverAdminMe().then(me => {
+      if (me.ok && me.admin) {
+        setAdminName(me.admin.full_name || me.admin.email || 'Admin');
+        setAdminRole(me.admin.role || 'admin');
+      }
+    }).catch(() => {});
+  }, []);
 
   const isActive = (href: string, exact?: boolean) => exact ? pathname === href : pathname?.startsWith(href);
   const handleLogout = async () => {
@@ -40,15 +53,18 @@ export default function AdminSidebar() {
             className="h-11 w-auto object-contain mt-1"
           />
 
-          <span className="font-display text-lg font-bold">Admin<span className="text-red-400">Panel</span></span>
+          <span className="font-display text-lg font-bold">Creator<span className="gradient-text">Boost</span> Admin</span>
         </Link>
 
         <div className="mb-4 p-3 glass rounded-xl">
           <div className="text-xs text-gray-400">Logged in as</div>
           <div className="text-sm font-semibold flex items-center gap-2 mt-1">
-            <span className="w-6 h-6 rounded-full bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center text-xs">SA</span>
-            Super Admin
+            <span className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-xs text-white">
+              {(adminName || 'A')[0]?.toUpperCase()}
+            </span>
+            <span className="truncate">{adminName}</span>
           </div>
+          <div className="text-[10px] text-gray-500 capitalize mt-1">{adminRole.replace(/_/g, ' ')}</div>
         </div>
 
         <nav className="space-y-1">

@@ -96,7 +96,7 @@ export default function CampaignsPage() {
                   <div><div className="text-gray-500">Earned</div><div className="font-semibold text-sm text-green-400">{formatCurrency(c.total_earnings)}</div></div>
                 </div>
                 <div className="flex gap-1.5 flex-wrap">
-                  <Link href={`/dashboard/campaigns/edit/${c.id}`} className="btn-ghost flex-1 py-2 rounded-lg text-xs flex items-center justify-center gap-1 min-w-0">
+                  <Link href={`/dashboard/campaigns/${c.id}/edit`} className="btn-ghost flex-1 py-2 rounded-lg text-xs flex items-center justify-center gap-1 min-w-0">
                     <Edit className="w-3 h-3" /> Edit
                   </Link>
                   <Link href={`/dashboard/campaigns/${c.id}`} className="btn-ghost flex-1 py-2 rounded-lg text-xs flex items-center justify-center gap-1 min-w-0">

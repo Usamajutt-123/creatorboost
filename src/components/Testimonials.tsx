@@ -22,10 +22,6 @@ export default function Testimonials() {
                     <div className="text-[10px] text-gray-500 truncate">{t.role}</div>
                   </div>
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <div className="text-[10px] text-gray-500">/mo</div>
-                  <div className="text-[10px] sm:text-xs font-bold text-green-400">{t.earnings}</div>
-                </div>
               </div>
             </div>
           ))}

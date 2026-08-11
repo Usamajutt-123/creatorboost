@@ -1,47 +1,82 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { recordView } from '@/lib/earnings';
 import { z } from 'zod';
+import { recordView, type ValidatedCampaign } from '@/lib/earnings';
 import { rateLimit } from '@/lib/rate-limit';
+import { createClient } from '@/lib/supabase/server';
 
+/**
+ * POST /api/views/record
+ *
+ * SECURE by design:
+ *  - The client may only submit: campaignId, deviceFingerprint, userAgent,
+ *    tasksCompleted, idempotencyKey. It CANNOT submit creatorId, countryCode,
+ *    CPM, earning amount, fraudScore, or a valid/invalid status.
+ *  - The creator, country, CPM and fraud score are all derived server-side.
+ */
 const schema = z.object({
   campaignId: z.string().uuid(),
-  creatorId: z.string().uuid(),
-  countryCode: z.string().length(2).optional(),
-  deviceFingerprint: z.string().max(200).optional(),
-  userAgent: z.string().max(500).optional(),
-  tasksCompleted: z.array(z.any()).max(20).optional(),
+  deviceFingerprint: z.string().trim().max(200).optional().or(z.literal('')),
+  userAgent: z.string().trim().max(500).optional().or(z.literal('')),
+  tasksCompleted: z.array(z.string()).max(50).optional(),
+  idempotencyKey: z.string().trim().max(100).optional().or(z.literal('')),
 });
 
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+
   try {
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '0.0.0.0';
-    const allowed = await rateLimit(`view:${ip}`, 30, 60_000);
-    if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    const allowed = await rateLimit(`view:${ip}`, 60, 60_000);
+    if (!allowed) {
+      return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 });
+    }
 
-    const body = await request.json();
-    const parsed = schema.parse(body);
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    }
 
-    // In production, use a real fraud detection service:
-    // - IPQualityScore, MaxMind, IP2Location for IP/geo
-    // - FingerprintJS for device fingerprinting
-    // - Custom ML model for behavior analysis
-    // For now, we do basic checks server-side
-    const ua = parsed.userAgent || request.headers.get('user-agent') || '';
-    const isBot = /bot|crawler|spider|headless|phantom|wget|curl/i.test(ua);
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid request', details: parsed.error.flatten() }, { status: 400 });
+    }
+    const { campaignId, deviceFingerprint, userAgent, tasksCompleted, idempotencyKey } = parsed.data;
+
+    // Optional session (for self-view detection). Visitors may be anonymous.
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Fetch + verify the campaign server-side.
+    const { data: campaign } = await supabase
+      .from('campaigns')
+      .select('id, creator_id, status, slug, deleted_at, expires_at')
+      .eq('id', campaignId)
+      .maybeSingle();
+
+    if (!campaign) {
+      return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
+    }
 
     const result = await recordView({
-      ...parsed,
+      campaign: campaign as ValidatedCampaign,
       visitorIp: ip,
-      userAgent: ua,
-      isBot,
-      fraudScore: 0, // populated by real detection service
+      userAgent: userAgent || request.headers.get('user-agent') || '',
+      deviceFingerprint: deviceFingerprint || undefined,
+      tasksCompleted: tasksCompleted || [],
+      idempotencyKey: idempotencyKey || null,
+      sessionUserId: user?.id ?? null,
     });
 
-    return NextResponse.json(result);
-  } catch (e: any) {
-    if (e.name === 'ZodError') {
-      return NextResponse.json({ error: 'Invalid request', details: e.errors }, { status: 400 });
-    }
-    return NextResponse.json({ error: e.message || 'Internal error' }, { status: 500 });
+    // Never leak internal reasons that aid fraudsters; return a safe shape.
+    return NextResponse.json({
+      valid: result.valid,
+      duplicate: result.duplicate,
+      reason: result.valid ? null : (result.reason || 'invalid'),
+      earning: result.valid ? result.earning : 0,
+    });
+  } catch (e) {
+    console.error('[views/record] unexpected error', e);
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }

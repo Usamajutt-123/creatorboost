@@ -135,7 +135,7 @@ export default function AdminCharts() {
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 glass rounded-2xl p-5">
           <h3 className="font-semibold mb-1">Platform Revenue & Profit</h3>
-          <p className="text-xs text-gray-500 mb-4">Last 7 months Â· real data</p>
+          <p className="text-xs text-gray-500 mb-4">Last 7 months · Estimated (manual revenue)</p>
           <div className="h-64 sm:h-72">
             <Line data={revenueData} options={{
               responsive: true, maintainAspectRatio: false,

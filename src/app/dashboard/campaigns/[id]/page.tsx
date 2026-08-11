@@ -119,7 +119,7 @@ export default function CampaignStatsPage() {
                     <Link href="/dashboard/campaigns" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white">
                         <ArrowLeft className="w-4 h-4" /> Back
                     </Link>
-                    <Link href={`/dashboard/campaigns/edit/${campaign.id}`} className="btn-ghost px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
+                    <Link href={`/dashboard/campaigns/${campaign.id}/edit`} className="btn-ghost px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
                         <Edit className="w-3.5 h-3.5" /> Edit
                     </Link>
                     <button onClick={copyLink} className="btn-ghost px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">

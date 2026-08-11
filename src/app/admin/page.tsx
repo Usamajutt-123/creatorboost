@@ -38,8 +38,8 @@ export default async function AdminDashboardPage() {
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Revenue" value={formatCurrency(totalAdRev)} change="Ad networks" icon={DollarSign} color="green" />
-        <StatCard label="Platform Profit" value={formatCurrency(profit)} change="After payouts" icon={TrendingUp} color="purple" />
+        <StatCard label="Total Revenue" value={formatCurrency(totalAdRev)} change="Manual/estimated" icon={DollarSign} color="green" />
+        <StatCard label="Platform Profit" value={formatCurrency(profit)} change="Est. after payouts" icon={TrendingUp} color="purple" />
         <StatCard label="Total Creators" value={formatNumber(totalCreators || 0)} change="All time" icon={Users} color="blue" />
         <StatCard label="Active Campaigns" value={formatNumber(activeCampaigns || 0)} change="Currently live" icon={Megaphone} color="pink" />
       </div>

@@ -47,9 +47,33 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (request.nextUrl.pathname.startsWith('/admin') && user) {
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-    if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
+  // Enforce account status on protected routes (banned/suspended blocked).
+  if (isProtectedRoute && user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, status')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    const blocked = profile && (profile.status === 'banned' || profile.status === 'suspended');
+    if (blocked) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      url.searchParams.set('error', 'account-suspended');
+      return NextResponse.redirect(url);
+    }
+
+    // Enforce email verification for non-admin creators.
+    const isAdmin = profile && (profile.role === 'admin' || profile.role === 'super_admin');
+    if (profile?.status === 'pending_verification' && !isAdmin &&
+        !request.nextUrl.pathname.startsWith('/verify-email')) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/verify-email';
+      return NextResponse.redirect(url);
+    }
+
+    if (request.nextUrl.pathname.startsWith('/admin') &&
+        profile?.role !== 'admin' && profile?.role !== 'super_admin') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }
