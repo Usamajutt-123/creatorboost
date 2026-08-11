@@ -433,24 +433,24 @@ $$;
 --     possible through the SECURITY DEFINER RPCs (service-role/admin).
 -- ============================================================
 DROP POLICY IF EXISTS creators_manage_own_campaigns ON campaigns;
-CREATE POLICY "creators_insert_own_campaigns" ON campaigns
-FOR INSERT
-WITH CHECK (
-  auth.uid() = creator_id
-  AND total_views = 0
-  AND valid_views = 0
-  AND invalid_views = 0
-  AND total_earnings = 0
-);
+CREATE POLICY "creators_insert_own_campaigns" ON campaigns FOR INSERT
+  WITH CHECK (
+    auth.uid() = creator_id
+    AND NEW.total_views = 0
+    AND NEW.valid_views = 0
+    AND NEW.invalid_views = 0
+    AND NEW.total_earnings = 0
+  );
+CREATE POLICY "creators_update_own_campaigns" ON campaigns FOR UPDATE
+  USING (auth.uid() = creator_id)
+  WITH CHECK (
+    auth.uid() = creator_id
+    AND NEW.total_views = OLD.total_views
+    AND NEW.valid_views = OLD.valid_views
+    AND NEW.invalid_views = OLD.invalid_views
+    AND NEW.total_earnings = OLD.total_earnings
+  );
 
-CREATE POLICY "creators_update_own_campaigns" ON campaigns
-FOR UPDATE
-USING (
-  auth.uid() = creator_id
-)
-WITH CHECK (
-  auth.uid() = creator_id
-);
 DROP POLICY IF EXISTS users_manage_own_withdrawals ON withdrawals;
 -- Users may READ their own withdrawals; creating/updating them is only
 -- possible through the request/approve/pay/reject RPCs (SECURITY DEFINER)
@@ -507,5 +507,4 @@ GRANT SELECT ON campaign_summary, campaign_daily_stats, campaign_country_stats T
 -- ============================================================
 -- (end of migration)
 -- ============================================================
-
 

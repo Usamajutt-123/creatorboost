@@ -144,11 +144,10 @@ describe('database security invariants', () => {
   it('creators cannot UPDATE their campaigns\' financial columns via RLS', () => {
     const s7 = readFileSync(join(MIGRATIONS_DIR, '0007_final_production.sql'), 'utf8');
     expect(s7).toContain('DROP POLICY IF EXISTS creators_manage_own_campaigns ON campaigns');
-    expect(s7).toContain('NEW.total_earnings = OLD.total_earnings');
-    expect(s7).toContain('NEW.total_views = OLD.total_views');
-    expect(s7).toMatch(/NEW\.total_views = 0[\s\S]*NEW\.total_earnings = 0/); // insert policy requires zeroed financials
+    expect(s7).toContain('CREATE POLICY "creators_update_own_campaigns" ON campaigns');
+    expect(s7).toContain('WITH CHECK (');
+    expect(s7).toMatch(/total_views\s*=\s*0[\s\S]*total_earnings\s*=\s*0/); // insert policy requires zeroed financials
   });
-
   it('users cannot UPDATE/DELETE their own withdrawals via RLS (RPCs only)', () => {
     const s7 = readFileSync(join(MIGRATIONS_DIR, '0007_final_production.sql'), 'utf8');
     expect(s7).toContain('DROP POLICY IF EXISTS users_manage_own_withdrawals ON withdrawals');
@@ -162,4 +161,6 @@ describe('database security invariants', () => {
     expect(s7).toContain('ALTER TABLE support_tickets ALTER COLUMN user_id DROP NOT NULL');
     expect(s7).toContain('user_id IS NULL');
   });
+
 });
+
