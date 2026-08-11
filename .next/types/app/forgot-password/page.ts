@@ -1,4 +1,4 @@
-// File: D:\latest projest\creatorboost\src\app\forgot-password\page.tsx
+// File: /home/user/creatorboost/src/app/forgot-password/page.tsx
 import * as entry from '../../../../src/app/forgot-password/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

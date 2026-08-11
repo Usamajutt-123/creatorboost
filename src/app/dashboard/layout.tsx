@@ -18,11 +18,22 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!profile) redirect('/login');
 
   const level = profile.level || 'bronze';
-  const nextLevelViews: Record<string, number> = {
-    bronze: 100_000, silver: 1_000_000, gold: 5_000_000, platinum: 10_000_000, diamond: 50_000_000,
-  };
-  const target = nextLevelViews[level] || 100_000;
-  const progress = Math.min(100, Math.round(((profile.total_views || 0) / target) * 100));
+
+  // Read level thresholds from the database (admin-configurable).
+  const { data: levels } = await supabase
+    .from('creator_levels')
+    .select('level, min_views')
+    .eq('active', true)
+    .order('min_views', { ascending: true });
+
+  const sorted = (levels || []).sort((a: any, b: any) => Number(a.min_views) - Number(b.min_views));
+  const idx = sorted.findIndex((l: any) => l.level === level);
+  const next = idx >= 0 ? sorted[idx + 1] : null;
+  const target = next ? Number(next.min_views) : Number(sorted[sorted.length - 1]?.min_views ?? 0);
+  const base = idx > 0 ? Number(sorted[idx].min_views) : 0;
+  const progress = target > base
+    ? Math.min(100, Math.round((((profile.total_views || 0) - base) / (target - base)) * 100))
+    : 100;
 
   return (
     <div className="min-h-screen pt-16 flex">

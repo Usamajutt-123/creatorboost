@@ -78,7 +78,7 @@ export default function CampaignsPage() {
         ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {campaigns.map((c: any) => {
-            const ctr = c.total_views > 0 ? ((c.valid_views / c.total_views) * 100).toFixed(1) : '0.0';
+            const validRate = c.total_views > 0 ? ((c.valid_views / c.total_views) * 100).toFixed(1) : '0.0';
             return (
               <div key={c.id} className="glass-strong rounded-2xl p-5 card-glow">
                 {c.thumbnail_url && <img src={c.thumbnail_url} alt={c.name} className="w-full h-32 object-cover rounded-xl mb-3" />}
@@ -92,7 +92,7 @@ export default function CampaignsPage() {
                 <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
                   <div><div className="text-gray-500">Views</div><div className="font-semibold text-sm">{formatNumber(c.total_views)}</div></div>
                   <div><div className="text-gray-500">Valid</div><div className="font-semibold text-sm">{formatNumber(c.valid_views)}</div></div>
-                  <div><div className="text-gray-500">CTR</div><div className="font-semibold text-sm text-blue-400">{ctr}%</div></div>
+                  <div><div className="text-gray-500">Valid</div><div className="font-semibold text-sm text-blue-400">{validRate}%</div></div>
                   <div><div className="text-gray-500">Earned</div><div className="font-semibold text-sm text-green-400">{formatCurrency(c.total_earnings)}</div></div>
                 </div>
                 <div className="flex gap-1.5 flex-wrap">

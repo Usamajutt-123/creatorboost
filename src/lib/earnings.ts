@@ -88,6 +88,15 @@ function sanitizeCountry(code: string | null): string | null {
 }
 
 /**
+ * Pure per-view earning formula, used by the engine and unit-tested.
+ * earning = min((cpm * levelMultiplier) / 1000, maxEarningsPerView)
+ */
+export function computePerViewEarning(cpm: number, levelMultiplier: number, maxEarningsPerView: number): number {
+  const raw = (Number(cpm) * Number(levelMultiplier)) / 1000;
+  return Math.min(Number.isFinite(raw) && raw > 0 ? raw : 0, Number(maxEarningsPerView) || 1);
+}
+
+/**
  * Compute per-view earnings from a SERVER-derived country + fraud result.
  * Never accepts a country from the client.
  */
@@ -146,8 +155,7 @@ export async function computeViewEarnings(opts: {
   const levelMultiplier = Number(levelRow?.cpm_multiplier ?? 1.0);
 
   // 5. Per-view earning with a hard per-view cap
-  const raw = (cpm * levelMultiplier) / 1000;
-  const earning = Math.min(raw, caps.maxEarningsPerView);
+  const earning = computePerViewEarning(cpm, levelMultiplier, caps.maxEarningsPerView);
 
   return { valid: true, cpm, levelMultiplier, earning };
 }

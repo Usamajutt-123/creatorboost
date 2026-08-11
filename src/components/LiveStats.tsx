@@ -1,9 +1,11 @@
 export default function LiveStats() {
+  // Figures shown here are illustrative examples, not audited platform
+  // metrics, until real revenue analytics are wired to live ad networks.
   const stats = [
-    { v: '$2.4M+', l: 'Revenue paid to creators', i: '💰' },
+    { v: 'Millions+', l: 'Creators monetizing their audience', i: '💰' },
     { v: '180+', l: 'Countries supported', i: '🌍' },
-    { v: '$6', l: 'Maximum CPM (Tier 1)', i: '⚡' },
-    { v: '99.7%', l: 'Fraud detection accuracy', i: '🛡️' },
+    { v: 'Tier-based', l: 'Competitive CPM (admin-configurable)', i: '⚡' },
+    { v: 'Fraud-aware', l: 'Traffic is verified on our servers', i: '🛡️' },
   ];
   return (
     <section className="relative py-14 sm:py-20">

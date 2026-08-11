@@ -36,7 +36,7 @@ export default function ReferralsPage() {
     load();
   }, []);
 
-  const referralLink = profile ? `${typeof window !== 'undefined' ? window.location.origin : ''}/?ref=${profile.referral_code}` : '';
+  const referralLink = profile ? `${typeof window !== 'undefined' ? window.location.origin : ''}/signup?ref=${profile.referral_code}` : '';
 
   const copyLink = () => {
     navigator.clipboard.writeText(referralLink);

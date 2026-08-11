@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Line, Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Filler, Legend } from 'chart.js';
 import { createClient } from '@/lib/supabase/client';
+import { localDayKey, daysAgoStart } from '@/lib/utils';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Filler, Legend);
 
 const fontOpts = { family: 'Inter', size: 11 };
@@ -26,14 +27,14 @@ export default function AnalyticsCharts() {
         .eq('creator_id', user.id)
         .gte('created_at', since);
 
-      // Build daily (last 14 days)
+      // Build daily (last 14 days, local timezone)
       const dayMap: Record<string, { valid: number; invalid: number }> = {};
       for (let i = 13; i >= 0; i--) {
-        const d = new Date(Date.now() - i * 86400_000).toISOString().substring(0, 10);
+        const d = localDayKey(daysAgoStart(i));
         dayMap[d] = { valid: 0, invalid: 0 };
       }
       (views || []).forEach((v: any) => {
-        const d = new Date(v.created_at).toISOString().substring(0, 10);
+        const d = localDayKey(v.created_at);
         if (dayMap[d]) {
           if (v.status === 'valid') dayMap[d].valid++;
           else if (v.status === 'invalid') dayMap[d].invalid++;

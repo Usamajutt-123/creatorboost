@@ -7,6 +7,7 @@ import {
   Tooltip, Filler, Legend,
 } from 'chart.js';
 import { createClient } from '@/lib/supabase/client';
+import { localDayKey, daysAgoStart } from '@/lib/utils';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Filler, Legend);
 
@@ -43,14 +44,14 @@ export default function DashboardCharts() {
 
       setProfile(p);
 
-      // Earnings per day (30 days)
+      // Earnings per day (30 days, local timezone)
       const dayMap: Record<string, number> = {};
       for (let i = 29; i >= 0; i--) {
-        const d = new Date(Date.now() - i * 86400_000).toISOString().substring(0, 10);
+        const d = localDayKey(daysAgoStart(i));
         dayMap[d] = 0;
       }
       (earningsRows || []).forEach((e: any) => {
-        const d = new Date(e.created_at).toISOString().substring(0, 10);
+        const d = localDayKey(e.created_at);
         if (dayMap[d] !== undefined) dayMap[d] += Number(e.amount);
       });
       const dayLabels = Object.keys(dayMap);

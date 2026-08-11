@@ -40,7 +40,7 @@ export default function EarningsCalculator() {
         <div className="text-center mb-12">
           <div className="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3">Earnings Calculator</div>
           <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">Project Your <span className="gradient-text">Annual Revenue</span></h2>
-          <p className="text-gray-400 max-w-2xl mx-auto">Compare earnings across tiers, plan your growth, and see where each level takes you.</p>
+          <p className="text-gray-400 max-w-2xl mx-auto">Illustrative projections only. Actual rates are configured by the platform and vary by country and creator level.</p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {tiers.map(t => (

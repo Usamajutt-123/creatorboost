@@ -1,4 +1,4 @@
-// File: D:\latest projest\creatorboost\src\app\dashboard\campaigns\[id]\page.tsx
+// File: /home/user/creatorboost/src/app/dashboard/campaigns/[id]/page.tsx
 import * as entry from '../../../../../../src/app/dashboard/campaigns/[id]/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

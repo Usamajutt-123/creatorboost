@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { z } from 'zod';
 import { recordView, type ValidatedCampaign } from '@/lib/earnings';
 import { rateLimit } from '@/lib/rate-limit';
 import { createClient } from '@/lib/supabase/server';
+import { recordViewSchema } from '@/lib/view-schema';
 
 /**
  * POST /api/views/record
@@ -12,14 +12,8 @@ import { createClient } from '@/lib/supabase/server';
  *    tasksCompleted, idempotencyKey. It CANNOT submit creatorId, countryCode,
  *    CPM, earning amount, fraudScore, or a valid/invalid status.
  *  - The creator, country, CPM and fraud score are all derived server-side.
+ *  - Unknown/financial fields are rejected (strict schema).
  */
-const schema = z.object({
-  campaignId: z.string().uuid(),
-  deviceFingerprint: z.string().trim().max(200).optional().or(z.literal('')),
-  userAgent: z.string().trim().max(500).optional().or(z.literal('')),
-  tasksCompleted: z.array(z.string()).max(50).optional(),
-  idempotencyKey: z.string().trim().max(100).optional().or(z.literal('')),
-});
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
@@ -37,7 +31,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
     }
 
-    const parsed = schema.safeParse(body);
+    const parsed = recordViewSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid request', details: parsed.error.flatten() }, { status: 400 });
     }

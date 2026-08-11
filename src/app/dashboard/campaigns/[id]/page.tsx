@@ -6,7 +6,7 @@ import { ArrowLeft, Edit, Copy, ExternalLink, Eye, DollarSign, TrendingUp, BarCh
 import { createClient } from '@/lib/supabase/client';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import StatCard from '@/components/StatCard';
-import { formatNumber, formatCurrency, timeAgo } from '@/lib/utils';
+import { formatNumber, formatCurrency, timeAgo, localDayKey, daysAgoStart } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export default function CampaignStatsPage() {
@@ -81,17 +81,18 @@ export default function CampaignStatsPage() {
     const week = views.filter(v => new Date(v.created_at).getTime() > now - 7 * dayMs);
     const month = views.filter(v => new Date(v.created_at).getTime() > now - 30 * dayMs);
     const validViews = views.filter(v => v.status === 'valid');
-    const invalidViews = views.filter(v => v.status === 'invalid');
-    const ctr = views.length > 0 ? (validViews.length / views.length) * 100 : 0;
+    // Note: without tracked destination clicks we cannot report a real CTR.
+    // Show the validity rate (share of views that were valid) instead.
+    const validityRate = views.length > 0 ? (validViews.length / views.length) * 100 : 0;
 
-    // Group views by day (last 14 days)
+    // Group views by day (last 14 days, local timezone)
     const days: Record<string, { views: number; valid: number; earnings: number }> = {};
     for (let i = 13; i >= 0; i--) {
-        const d = new Date(now - i * dayMs).toISOString().substring(0, 10);
+        const d = localDayKey(daysAgoStart(i));
         days[d] = { views: 0, valid: 0, earnings: 0 };
     }
     views.forEach(v => {
-        const d = new Date(v.created_at).toISOString().substring(0, 10);
+        const d = localDayKey(v.created_at);
         if (days[d]) {
             days[d].views += 1;
             if (v.status === 'valid') days[d].valid += 1;
@@ -147,7 +148,7 @@ export default function CampaignStatsPage() {
                     <StatCard label="Today" value={formatNumber(today.length)} change="Last 24h" icon={Calendar} color="blue" />
                     <StatCard label="This Week" value={formatNumber(week.length)} change="Last 7 days" icon={Calendar} color="cyan" />
                     <StatCard label="This Month" value={formatNumber(month.length)} change="Last 30 days" icon={Calendar} color="purple" />
-                    <StatCard label="CTR" value={`${ctr.toFixed(1)}%`} change="Click-through" icon={TrendingUp} color="pink" />
+                    <StatCard label="Valid Rate" value={`${validityRate.toFixed(1)}%`} change="Of all views" icon={TrendingUp} color="pink" />
                 </div>
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -1,4 +1,4 @@
-// File: D:\latest projest\creatorboost\src\app\api\views\record\route.ts
+// File: /home/user/creatorboost/src/app/api/views/record/route.ts
 import * as entry from '../../../../../../src/app/api/views/record/route.js'
 import type { NextRequest } from 'next/server.js'
 

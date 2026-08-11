@@ -20,7 +20,7 @@ export default function CountryCpmTable() {
         <div className="text-center mb-12">
           <div className="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3">Country CPM</div>
           <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">Dynamic rates for <span className="gradient-text">every market</span></h2>
-          <p className="text-gray-400 max-w-2xl mx-auto">All CPM values are configurable by the admin. Edit any country from <code className="text-purple-300">/admin/cpm</code>.</p>
+          <p className="text-gray-400 max-w-2xl mx-auto">Illustrative example rates. All CPM values are configurable by the admin and read from the database for actual earnings. Edit any country from <code className="text-purple-300">/admin/cpm</code>.</p>
         </div>
         <div className="glass-strong rounded-2xl p-4 sm:p-5 overflow-x-auto">
           <table className="w-full text-xs sm:text-sm min-w-[640px]">

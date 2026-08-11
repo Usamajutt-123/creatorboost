@@ -6,6 +6,7 @@ import DashboardTopbar from '@/components/DashboardTopbar';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { isValidHttpUrl } from '@/lib/utils';
 
 type TaskField = { id: string; title?: string; url?: string };
 
@@ -26,15 +27,6 @@ const TASK_OPTIONS = [
 ];
 
 const CATEGORIES = ['youtube_growth', 'instagram_growth', 'tiktok_growth', 'telegram_growth', 'discord_growth', 'website_traffic', 'app_install', 'other'];
-
-function isValidUrl(value: string): boolean {
-  try {
-    const u = new URL(value);
-    return u.protocol === 'http:' || u.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
 
 export default function EditCampaignPage({ params }: { params: { id: string } }) {
   const id = params.id;
@@ -132,7 +124,7 @@ export default function EditCampaignPage({ params }: { params: { id: string } })
   const handleSubmit = async () => {
     if (!form.name) { toast.error('Campaign name is required'); return; }
     if (selectedTasks.length === 0) { toast.error('Select at least one task'); return; }
-    if (form.destination_url && !isValidUrl(form.destination_url)) { toast.error('Destination URL must be a valid http(s) URL'); return; }
+    if (form.destination_url && !isValidHttpUrl(form.destination_url)) { toast.error('Destination URL must be a valid http(s) URL'); return; }
     const customTask = selectedTasks.find(t => t.id === 'custom');
     if (customTask && (!customTask.title || !customTask.url)) {
       toast.error('Custom task requires both title and URL');

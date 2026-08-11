@@ -42,22 +42,31 @@ export function hashIp(ip: string | null | undefined): string | null {
   return createHash('sha256').update(ip.trim()).digest('hex');
 }
 
+/**
+ * Pure UA-based heuristic score (unit-tested). Returns {score, isBot, isEmulator}.
+ * A short UA is treated as suspicious; obvious bot/headless agents score high.
+ */
+export function scoreUserAgent(ua: string | null | undefined): { score: number; isBot: boolean; isEmulator: boolean } {
+  const lower = (ua || '').toLowerCase();
+  const isBotUA = BOT_RE.test(lower);
+  const isEmulator = /headless|phantom|selenium|puppeteer/i.test(lower);
+  const shortUa = !ua || ua.trim().length < 20;
+  let score = 0;
+  if (isBotUA) score = Math.max(score, 95);
+  if (isEmulator) score = Math.max(score, 85);
+  if (shortUa) score = Math.max(score, 60);
+  return { score, isBot: isBotUA || shortUa, isEmulator };
+}
+
 /** Local heuristic scoring (always runs, no external dependency). */
 function localHeuristics(input: FraudSignalInput): FraudAssessment {
-  const ua = (input.userAgent || '').toLowerCase();
   const reasons: string[] = [];
-  let score = 0;
-
-  const isBotUA = BOT_RE.test(ua);
-  const isEmulator = /headless|phantom|selenium|puppeteer/i.test(ua);
-  const shortUa = !input.userAgent || input.userAgent.trim().length < 20;
-
-  if (isBotUA) { score = Math.max(score, 95); reasons.push('bot_ua'); }
-  if (shortUa) { score = Math.max(score, 60); reasons.push('short_ua'); }
-  if (isEmulator) { score = Math.max(score, 85); reasons.push('emulator_ua'); }
+  const { score, isBot, isEmulator } = scoreUserAgent(input.userAgent);
+  if (isBot) reasons.push('bot_ua');
+  if (isEmulator) reasons.push('emulator_ua');
 
   return {
-    isBot: isBotUA || shortUa,
+    isBot,
     isVpn: false,
     isProxy: false,
     isEmulator,

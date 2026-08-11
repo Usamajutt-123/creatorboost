@@ -11,6 +11,8 @@
   --text-dim: #94a3b8;
   --brand: #8b5cf6;
   --brand-2: #3b82f6;
+  --font-inter: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-space: 'Space Grotesk', 'Inter', system-ui, sans-serif;
 }
 
 * {
