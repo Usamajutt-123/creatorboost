@@ -37,6 +37,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .single();
 
   if (!profile) redirect('/login');
+  if (profile.status === 'suspended') redirect('/account/suspended');
+  if (profile.status === 'banned') redirect('/account/banned');
 
   // Fire-and-forget welcome email (deduped by welcome_email_sent_at).
   void maybeSendWelcomeEmail(user.id, profile.email);
