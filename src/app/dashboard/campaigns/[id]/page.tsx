@@ -4,31 +4,56 @@ import { ArrowLeft, Edit, Copy, ExternalLink, Eye, DollarSign, BarChart3, Users,
 import { createClient } from '@/lib/supabase/server';
 import StatCard from '@/components/StatCard';
 import { formatNumber, formatCurrency, timeAgo, localDayKey, daysAgoStart } from '@/lib/utils';
+import { isCampaignUuid, resolveParams } from '@/lib/route-params';
 import CopyLinkButton from './CopyLinkButton';
 
 export const dynamic = 'force-dynamic';
 
-export default async function CampaignStatsPage({ params }: { params: { id: string } }) {
+export default async function CampaignStatsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await resolveParams(params);
+  if (!isCampaignUuid(id)) notFound();
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: campaign } = await supabase
+  const { data: campaign, error: campaignError } = await supabase
     .from('campaigns')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('creator_id', user.id)
-    .single();
+    .is('deleted_at', null)
+    .maybeSingle();
 
+  if (campaignError) {
+    console.error('[campaign-stats] campaign lookup failed', { id, message: campaignError.message, code: campaignError.code });
+    throw new Error('Campaign statistics could not be loaded');
+  }
   if (!campaign) notFound();
 
   // Server-side aggregation (never relies on the first N views).
-  const [{ data: summary }, { data: dailyRows }, { data: countryRows }, { data: recentViews }] = await Promise.all([
-    supabase.from('campaign_summary').select('*').eq('campaign_id', params.id).maybeSingle(),
-    supabase.from('campaign_daily_stats').select('*').eq('campaign_id', params.id),
-    supabase.from('campaign_country_stats').select('*').eq('campaign_id', params.id).order('views', { ascending: false }),
-    supabase.from('views').select('id, status, country_code, is_vpn, created_at').eq('campaign_id', params.id).order('created_at', { ascending: false }).limit(20),
+  const [
+    { data: summary, error: summaryError },
+    { data: dailyRows, error: dailyError },
+    { data: countryRows, error: countryError },
+    { data: recentViews, error: recentError },
+  ] = await Promise.all([
+    supabase.from('campaign_summary').select('*').eq('campaign_id', id).maybeSingle(),
+    supabase.from('campaign_daily_stats').select('*').eq('campaign_id', id),
+    supabase.from('campaign_country_stats').select('*').eq('campaign_id', id).order('views', { ascending: false }),
+    supabase.from('views').select('id, status, country_code, is_vpn, created_at').eq('campaign_id', id).order('created_at', { ascending: false }).limit(20),
   ]);
+
+  if (summaryError || dailyError || countryError || recentError) {
+    console.error('[campaign-stats] aggregation failed', {
+      id,
+      summary: summaryError?.message,
+      daily: dailyError?.message,
+      country: countryError?.message,
+      recent: recentError?.message,
+    });
+    throw new Error('Campaign statistics could not be loaded');
+  }
 
   const totalViews = Number(summary?.total_views ?? campaign.total_views ?? 0);
   const validViews = Number(summary?.valid_views ?? campaign.valid_views ?? 0);

@@ -20,7 +20,7 @@ describe('database security invariants', () => {
   it('migrations exist and are ordered', () => {
     expect(migrations.length).toBeGreaterThanOrEqual(7);
     expect(migrations[0]).toMatch(/^0001_/);
-    expect(migrations[migrations.length - 1]).toMatch(/^0008_/);
+    expect(migrations[migrations.length - 1]).toMatch(/^0009_/);
   });
 
   it('enables RLS on every sensitive table', () => {
@@ -171,6 +171,9 @@ describe('database security invariants', () => {
     const publicView = s8.match(/CREATE OR REPLACE VIEW public\.public_campaigns[\s\S]*?FROM public\.campaigns/);
     expect(publicView?.[0]).not.toContain('destination_url');
     expect(s8).toContain('DROP POLICY IF EXISTS public_read_active_campaigns ON campaigns');
+    const s9 = readFileSync(join(MIGRATIONS_DIR, '0009_public_campaigns_access.sql'), 'utf8');
+    expect(s9).toContain('security_invoker = false');
+    expect(s9).not.toContain('destination_url');
   });
 
   it('uses column grants and ledger uniqueness to block direct financial tampering', () => {

@@ -109,7 +109,7 @@ export default function AdminCampaignsPage() {
                               <button onClick={() => action(c.id, 'pause')} disabled={busy === c.id} className="btn-ghost px-2 py-1 rounded text-xs flex items-center gap-1 text-yellow-400"><Pause className="w-3 h-3" /> Pause</button>
                             )}
                             <button onClick={() => { if (confirm('Delete this campaign?')) action(c.id, 'delete'); }} disabled={busy === c.id} className="btn-ghost px-2 py-1 rounded text-xs flex items-center gap-1 text-red-400"><Trash2 className="w-3 h-3" /> Delete</button>
-                            <Link href={`/dashboard/campaigns/${c.id}`} className="btn-ghost px-2 py-1 rounded text-xs">Stats</Link>
+                            <Link href={`/admin/campaigns/${c.id}`} className="btn-ghost px-2 py-1 rounded text-xs">Details</Link>
                           </>
                         )}
                       </div>
