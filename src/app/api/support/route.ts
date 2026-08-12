@@ -1,113 +1,84 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { rateLimit } from '@/lib/rate-limit';
 import { getClientIp } from '@/lib/request-ip';
 import { sendTemplateEmail } from '@/lib/email';
 
 /**
- * POST /api/support
- * Stores a support ticket (authenticated or anonymous) and sends a
- * confirmation email when the email provider is configured. It never
- * claims an email was sent unless one actually was.
+ * Public contact endpoint. It validates all user input, derives an optional
+ * signed-in user from the session, and uses the server-only client to create
+ * the ticket/message pair without exposing staff-only columns to browsers.
  */
 export async function POST(req: NextRequest) {
   try {
     const ip = getClientIp(req) || 'unknown';
-
-    // Await the limiter!
-    const allowed = await rateLimit(`support:${ip}`, 5, 60_000);
-    if (!allowed) {
+    if (!await rateLimit(`support:${ip}`, 5, 60_000)) {
       return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 });
     }
 
-    let body: unknown;
+    let body: Record<string, unknown>;
     try {
-      body = await req.json();
+      body = await req.json() as Record<string, unknown>;
     } catch {
       return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
     }
-    const { first, last, email, subject, message } = (body || {}) as {
-      first?: string; last?: string; email?: string; subject?: string; message?: string;
-    };
-
-    if (!first || !last || !email || !message) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
-      return NextResponse.json({ error: 'Invalid email' }, { status: 400 });
-    }
-    if (String(message).length > 5000) {
-      return NextResponse.json({ error: 'Message too long' }, { status: 400 });
-    }
-    if (String(first).length > 100 || String(last).length > 100 || String(subject || '').length > 200) {
-      return NextResponse.json({ error: 'Field too long' }, { status: 400 });
+    // Accept both contact-page field names while normalizing them once.
+    const first = String(body.first ?? body.firstName ?? '').trim();
+    const last = String(body.last ?? body.lastName ?? '').trim();
+    const email = String(body.email ?? '').trim().toLowerCase();
+    const subject = String(body.subject ?? 'General').trim();
+    const message = String(body.message ?? '').trim();
+    if (!first || !last || !email || !message) return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: 'Invalid email' }, { status: 400 });
+    if (first.length > 100 || last.length > 100 || subject.length > 200 || message.length > 5_000) {
+      return NextResponse.json({ error: 'One or more fields are too long' }, { status: 400 });
     }
 
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    const { data: ticket, error: tErr } = await supabase.from('support_tickets').insert({
-      user_id: user?.id ?? null,
-      subject: `[${subject || 'General'}] ${first} ${last}`.slice(0, 300),
-      category: subject || 'general',
-      status: 'open',
-      priority: 'medium',
-    }).select().single();
-
-    if (tErr) {
-      console.error('[support] ticket insert error:', tErr);
-      return NextResponse.json({ error: 'Failed to create ticket' }, { status: 500 });
+    const session = await createClient();
+    const { data: { user } } = await session.auth.getUser();
+    const admin = createAdminClient();
+    const category = subject.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 50) || 'general';
+    const { data: ticket, error: ticketError } = await admin
+      .from('support_tickets')
+      .insert({ user_id: user?.id ?? null, subject: `[${subject}] ${first} ${last}`.slice(0, 300), category })
+      .select('id')
+      .single();
+    if (ticketError || !ticket) {
+      console.error('[support] ticket insert failed', ticketError);
+      return NextResponse.json({ error: 'Could not create your support request' }, { status: 500 });
     }
 
-    const msgErr = await supabase.from('ticket_messages').insert({
-      ticket_id: ticket.id,
-      user_id: user?.id ?? null,
-      message: `From: ${first} ${last} <${email}>\n\n${message}`.slice(0, 6000),
-      is_admin: false,
-    });
-    if (msgErr.error) {
-      console.error('[support] ticket message insert error:', msgErr.error);
+    const { error: messageError } = await admin
+      .from('ticket_messages')
+      .insert({ ticket_id: ticket.id, user_id: user?.id ?? null, message: `From: ${first} ${last} <${email}>\n\n${message}`.slice(0, 6_000), is_admin: false });
+    if (messageError) {
+      await admin.from('support_tickets').delete().eq('id', ticket.id);
+      console.error('[support] ticket message insert failed', messageError);
+      return NextResponse.json({ error: 'Could not save your support message' }, { status: 500 });
     }
 
-    // Optional email/webhook forwarding — only reported as "sent" if
-    // configured & successful. Provider failures never surface to users.
+    // Optional forwarding is best-effort and does not change ticket success.
     let emailSent = false;
     const webhookUrl = process.env.SUPPORT_EMAIL_WEBHOOK_URL;
     if (webhookUrl) {
       try {
-        const res = await fetch(webhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: process.env.SUPPORT_EMAIL || 'support@creatorboost.io',
-            subject,
-            message,
-            from: email,
-          }),
+        const forwarded = await fetch(webhookUrl, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: process.env.SUPPORT_EMAIL || 'support@creatorboost.io', subject, message, from: email }),
         });
-        emailSent = res.ok;
-      } catch (e) {
-        console.error('[support] webhook forwarding failed', e);
+        emailSent = forwarded.ok;
+      } catch (error) {
+        console.error('[support] webhook forwarding failed', error);
       }
     }
-
-    // Confirmation to the requester (graceful when email is not configured).
-    const confirm = await sendTemplateEmail('support_confirmation', email, {
-      name: `${first} ${last}`,
-      ticketId: ticket.id.slice(0, 8),
-      subject: subject || 'General inquiry',
-      message: String(message).slice(0, 500),
+    const confirmation = await sendTemplateEmail('support_confirmation', email, {
+      name: `${first} ${last}`, ticketId: ticket.id.slice(0, 8), subject, message: message.slice(0, 500),
     });
-    if (confirm.sent) emailSent = true;
+    emailSent ||= confirmation.sent;
 
-    return NextResponse.json({
-      success: true,
-      ticketId: ticket.id,
-      emailSent,
-      message: 'Support request received. We will respond within 24 hours.',
-    });
-  } catch (e) {
-    console.error('[support] error', e);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return NextResponse.json({ success: true, ticketId: ticket.id, emailSent, message: 'Support request received. We will respond through your contact details or ticket.' });
+  } catch (error) {
+    console.error('[support] unexpected error', error);
+    return NextResponse.json({ error: 'Could not submit your support request' }, { status: 500 });
   }
 }

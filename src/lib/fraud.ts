@@ -142,10 +142,12 @@ export async function assessFraud(input: FraudSignalInput): Promise<FraudAssessm
 
   // Optional external provider. Skipped unless explicitly enabled, so the
   // app works in environments where the function isn't deployed.
-  if (process.env.SUPABASE_FRAUD_FN_ENABLED === 'true') {
+  const fraudFunctionSecret = process.env.FRAUD_FUNCTION_SECRET;
+  if (process.env.SUPABASE_FRAUD_FN_ENABLED === 'true' && fraudFunctionSecret) {
     try {
       const supabase = createAdminClient();
       const { data, error } = await supabase.functions.invoke('fraud-check', {
+        headers: { 'x-fraud-secret': fraudFunctionSecret },
         body: {
           ip: input.ip,
           userAgent: input.userAgent,

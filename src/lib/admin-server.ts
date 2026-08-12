@@ -22,8 +22,27 @@ import { validateManualRevenueRow, type ManualRevenueInput } from '@/lib/ad-reve
 
 type Admin = { id: string; role: string };
 
+function finiteNumber(value: unknown, label: string, min = 0, max = Number.MAX_SAFE_INTEGER): number {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < min || number > max) throw new Error(`${label} is invalid`);
+  return number;
+}
+
+function safeFields(input: Record<string, unknown>, allowed: readonly string[]): Record<string, unknown> {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Invalid update payload');
+  const fields = Object.entries(input).filter(([key]) => allowed.includes(key));
+  if (!fields.length || fields.length !== Object.keys(input).length) throw new Error('Update contains unsupported fields');
+  return Object.fromEntries(fields);
+}
+
+function shortText(value: unknown, label: string, max: number, allowEmpty = false): string {
+  const text = String(value ?? '').trim();
+  if ((!allowEmpty && !text) || text.length > max) throw new Error(`${label} is invalid`);
+  return text;
+}
+
 async function requireAuth(): Promise<Admin> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
   const { data: profile } = await supabase
@@ -51,9 +70,9 @@ async function requireSuperAdmin(): Promise<Admin> {
   return admin;
 }
 
-function clientIp(): string | null {
+async function clientIp(): Promise<string | null> {
   try {
-    return getClientIpFromHeaders(headers());
+    return getClientIpFromHeaders(await headers());
   } catch {
     return null;
   }
@@ -78,7 +97,7 @@ async function audit(admin: Admin, action: string, entityType: string, entityId?
       p_entity_id: entityId || null,
       p_old_values: oldValues ? JSON.parse(JSON.stringify(oldValues)) : null,
       p_new_values: newValues ? JSON.parse(JSON.stringify(newValues)) : null,
-      p_ip: clientIp(),
+      p_ip: await clientIp(),
       p_actor_id: admin.id,
     });
   } catch (e) {
@@ -253,7 +272,10 @@ async function withdrawalUserEmail(withdrawalId: string): Promise<{ email: strin
 
 export async function adminApproveWithdrawal(id: string) {
   const admin = await requireAdmin();
-  const supabase = createAdminClient();
+  // Use the acting admin's session for the RPC. The database derives
+  // auth.uid(), verifies the role, and blocks self-processing; service-role
+  // calls have no end-user auth.uid() and must not bypass that invariant.
+  const supabase = await createClient();
   const { error } = await supabase.rpc('approve_withdrawal', { p_withdrawal_id: id, p_admin_id: admin.id });
   if (error) throw new Error(error.message);
   await audit(admin, 'withdrawal_approve', 'withdrawal', id);
@@ -267,8 +289,11 @@ export async function adminApproveWithdrawal(id: string) {
 
 export async function adminRejectWithdrawal(id: string, reason: string) {
   const admin = await requireAdmin();
-  const supabase = createAdminClient();
-  const { error } = await supabase.rpc('reject_withdrawal', { p_withdrawal_id: id, p_admin_id: admin.id, p_reason: reason });
+  const cleanReason = reason.trim();
+  if (!cleanReason) throw new Error('A rejection reason is required');
+  if (cleanReason.length > 500) throw new Error('Rejection reason is too long');
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('reject_withdrawal', { p_withdrawal_id: id, p_admin_id: admin.id, p_reason: cleanReason });
   if (error) throw new Error(error.message);
   await audit(admin, 'withdrawal_reject', 'withdrawal', id, null, { reason });
   const { email, amount } = await withdrawalUserEmail(id);
@@ -281,8 +306,11 @@ export async function adminRejectWithdrawal(id: string, reason: string) {
 
 export async function adminPayWithdrawal(id: string, txId: string) {
   const admin = await requireAdmin();
-  const supabase = createAdminClient();
-  const { error } = await supabase.rpc('pay_withdrawal', { p_withdrawal_id: id, p_admin_id: admin.id, p_tx_id: txId });
+  const cleanTxId = txId.trim();
+  if (!cleanTxId) throw new Error('A transaction ID is required to mark a withdrawal paid');
+  if (cleanTxId.length > 200) throw new Error('Transaction ID is too long');
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('pay_withdrawal', { p_withdrawal_id: id, p_admin_id: admin.id, p_tx_id: cleanTxId });
   if (error) throw new Error(error.message);
   await audit(admin, 'withdrawal_pay', 'withdrawal', id, null, { txId });
   const { email, amount } = await withdrawalUserEmail(id);
@@ -290,6 +318,55 @@ export async function adminPayWithdrawal(id: string, txId: string) {
     try { await sendTemplateEmail('withdrawal_paid', email, { amount: amount.toFixed(2), txId: txId || '' }); }
     catch (e) { console.error('[admin] withdrawal email failed', e); }
   }
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------
+// SUPPORT
+// ------------------------------------------------------------------
+export async function adminListSupportTickets() {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const { data: tickets } = await supabase
+    .from('support_tickets')
+    .select('id, user_id, subject, category, status, priority, assigned_to, created_at, updated_at')
+    .order('updated_at', { ascending: false })
+    .limit(200);
+  const rows = tickets || [];
+  const ids = rows.map((ticket: any) => ticket.id);
+  const userIds = [...new Set(rows.map((ticket: any) => ticket.user_id).filter(Boolean))];
+  const [{ data: messages }, { data: users }] = await Promise.all([
+    ids.length ? supabase.from('ticket_messages').select('id, ticket_id, user_id, message, is_admin, created_at').in('ticket_id', ids).order('created_at') : Promise.resolve({ data: [] as any[] }),
+    userIds.length ? supabase.from('public_profiles').select('id, username, full_name').in('id', userIds) : Promise.resolve({ data: [] as any[] }),
+  ]);
+  const userMap = new Map((users || []).map((user: any) => [user.id, user]));
+  const messageMap = new Map<string, any[]>();
+  for (const message of messages || []) messageMap.set(message.ticket_id, [...(messageMap.get(message.ticket_id) || []), message]);
+  return rows.map((ticket: any) => ({ ...ticket, user: ticket.user_id ? userMap.get(ticket.user_id) || null : null, messages: messageMap.get(ticket.id) || [] }));
+}
+
+export async function adminReplySupportTicket(ticketId: string, message: string, status: string = 'in_progress') {
+  const admin = await requireAdmin();
+  const cleanMessage = shortText(message, 'Support reply', 5_000);
+  if (!['open', 'in_progress', 'resolved', 'closed'].includes(status)) throw new Error('Invalid ticket status');
+  const supabase = createAdminClient();
+  const { data: ticket } = await supabase.from('support_tickets').select('id').eq('id', ticketId).maybeSingle();
+  if (!ticket) throw new Error('Support ticket not found');
+  const { error } = await supabase.from('ticket_messages').insert({ ticket_id: ticketId, user_id: admin.id, message: cleanMessage, is_admin: true });
+  if (error) throw new Error('Support reply could not be saved');
+  const { error: statusError } = await supabase.from('support_tickets').update({ status, assigned_to: admin.id }).eq('id', ticketId);
+  if (statusError) throw new Error('Support ticket status could not be updated');
+  await audit(admin, 'support_reply', 'support_ticket', ticketId, null, { status });
+  return { ok: true };
+}
+
+export async function adminSetSupportTicketStatus(ticketId: string, status: string) {
+  const admin = await requireAdmin();
+  if (!['open', 'in_progress', 'resolved', 'closed'].includes(status)) throw new Error('Invalid ticket status');
+  const supabase = createAdminClient();
+  const { error } = await supabase.from('support_tickets').update({ status, assigned_to: admin.id }).eq('id', ticketId);
+  if (error) throw new Error('Support ticket could not be updated');
+  await audit(admin, 'support_status', 'support_ticket', ticketId, null, { status });
   return { ok: true };
 }
 
@@ -380,10 +457,18 @@ export async function adminLoadAdNetworks() {
 // ------------------------------------------------------------------
 export async function adminSaveCountryUpdates(updates: { id: number; fields: Record<string, unknown> }[]) {
   const admin = await requireAdmin();
+  if (!Array.isArray(updates) || updates.length < 1 || updates.length > 500) throw new Error('Invalid country update batch');
   const supabase = createAdminClient();
-  for (const u of updates) {
-    const { error } = await supabase.from('country_tiers').update(u.fields).eq('id', u.id);
-    if (error) throw new Error(error.message);
+  for (const update of updates) {
+    const id = finiteNumber(update.id, 'Country ID', 1, 1_000_000);
+    const fields = safeFields(update.fields, ['cpm_min', 'cpm_max', 'cpm_default', 'payout_percentage', 'active']);
+    if ('cpm_min' in fields) fields.cpm_min = finiteNumber(fields.cpm_min, 'CPM minimum', 0, 10_000);
+    if ('cpm_max' in fields) fields.cpm_max = finiteNumber(fields.cpm_max, 'CPM maximum', 0, 10_000);
+    if ('cpm_default' in fields) fields.cpm_default = finiteNumber(fields.cpm_default, 'Default CPM', 0, 10_000);
+    if ('payout_percentage' in fields) fields.payout_percentage = finiteNumber(fields.payout_percentage, 'Payout percentage', 0, 100);
+    if ('active' in fields && typeof fields.active !== 'boolean') throw new Error('Country active flag is invalid');
+    const { error } = await supabase.from('country_tiers').update(fields).eq('id', id);
+    if (error) throw new Error('Country rate could not be saved');
   }
   await audit(admin, 'cpm_update', 'country_tiers', undefined, null, { count: updates.length });
   return { ok: true };
@@ -391,17 +476,35 @@ export async function adminSaveCountryUpdates(updates: { id: number; fields: Rec
 
 export async function adminAddCountry(data: Record<string, unknown>) {
   const admin = await requireAdmin();
+  const input = safeFields(data, ['country_code', 'country_name', 'tier', 'cpm_min', 'cpm_max', 'cpm_default', 'payout_percentage', 'active']);
+  const countryCode = shortText(input.country_code, 'Country code', 2).toUpperCase();
+  if (!/^[A-Z]{2}$/.test(countryCode)) throw new Error('Country code must have two letters');
+  const tier = String(input.tier || '');
+  if (!['tier_1', 'tier_2', 'tier_3', 'tier_4'].includes(tier)) throw new Error('Country tier is invalid');
+  const cpmMin = finiteNumber(input.cpm_min, 'CPM minimum', 0, 10_000);
+  const cpmMax = finiteNumber(input.cpm_max, 'CPM maximum', cpmMin, 10_000);
+  const cpmDefault = finiteNumber(input.cpm_default, 'Default CPM', cpmMin, cpmMax);
+  const payload = {
+    country_code: countryCode,
+    country_name: shortText(input.country_name, 'Country name', 100),
+    tier,
+    cpm_min: cpmMin,
+    cpm_max: cpmMax,
+    cpm_default: cpmDefault,
+    payout_percentage: finiteNumber(input.payout_percentage, 'Payout percentage', 0, 100),
+    active: typeof input.active === 'boolean' ? input.active : true,
+  };
   const supabase = createAdminClient();
-  const { error } = await supabase.from('country_tiers').insert(data);
-  if (error) throw new Error(error.message);
-  await audit(admin, 'country_add', 'country_tiers', undefined, null, data);
+  const { error } = await supabase.from('country_tiers').insert(payload);
+  if (error) throw new Error('Country could not be added');
+  await audit(admin, 'country_add', 'country_tiers', undefined, null, payload);
   return { ok: true };
 }
 
 export async function adminDeleteCountry(id: number) {
   const admin = await requireAdmin();
   const supabase = createAdminClient();
-  const { error } = await supabase.from('country_tiers').delete().eq('id', id);
+  const { error } = await supabase.from('country_tiers').delete().eq('id', finiteNumber(id, 'Country ID', 1, 1_000_000));
   if (error) throw new Error(error.message);
   await audit(admin, 'country_delete', 'country_tiers', undefined, null, { id });
   return { ok: true };
@@ -412,10 +515,27 @@ export async function adminDeleteCountry(id: number) {
 // ------------------------------------------------------------------
 export async function adminSaveLevel(id: number, data: Record<string, unknown>) {
   const admin = await requireAdmin();
+  const levelId = finiteNumber(id, 'Level ID', 1, 1_000_000);
+  const input = safeFields(data, ['name', 'min_views', 'cpm_multiplier', 'badge_color', 'priority_support', 'fast_withdrawal', 'verified_badge', 'premium_analytics']);
+  const payload: Record<string, unknown> = {};
+  if ('name' in input) payload.name = shortText(input.name, 'Level name', 50);
+  if ('min_views' in input) payload.min_views = Math.floor(finiteNumber(input.min_views, 'Minimum views', 0, 10_000_000_000));
+  if ('cpm_multiplier' in input) payload.cpm_multiplier = finiteNumber(input.cpm_multiplier, 'CPM multiplier', 0, 100);
+  if ('badge_color' in input) {
+    const color = shortText(input.badge_color, 'Badge color', 20);
+    if (!/^#[0-9a-f]{6}$/i.test(color)) throw new Error('Badge color must be a hex color');
+    payload.badge_color = color;
+  }
+  for (const field of ['priority_support', 'fast_withdrawal', 'verified_badge', 'premium_analytics'] as const) {
+    if (field in input) {
+      if (typeof input[field] !== 'boolean') throw new Error(`${field} is invalid`);
+      payload[field] = input[field];
+    }
+  }
   const supabase = createAdminClient();
-  const { error } = await supabase.from('creator_levels').update(data).eq('id', id);
-  if (error) throw new Error(error.message);
-  await audit(admin, 'level_update', 'creator_levels', undefined, null, data);
+  const { error } = await supabase.from('creator_levels').update(payload).eq('id', levelId);
+  if (error) throw new Error('Level could not be saved');
+  await audit(admin, 'level_update', 'creator_levels', undefined, null, payload);
   return { ok: true };
 }
 
@@ -424,10 +544,44 @@ export async function adminSaveLevel(id: number, data: Record<string, unknown>) 
 // ------------------------------------------------------------------
 export async function adminSaveSettings(data: Record<string, unknown>) {
   const admin = await requireAdmin();
+  const input = safeFields(data, [
+    'site_name', 'site_tagline', 'support_email', 'site_announcement', 'site_announcement_active',
+    'min_withdrawal', 'referral_percentage', 'fraud_detection_sensitivity', 'vpn_block_enabled',
+    'duplicate_device_block', 'duplicate_ip_window_hours', 'maintenance_mode', 'signup_enabled',
+    'max_earnings_per_view', 'max_views_per_device_per_day', 'max_views_per_ip_per_day',
+    'creator_daily_earning_cap', 'campaign_daily_earning_cap', 'platform_daily_earning_cap', 'earning_holding_hours',
+  ]);
+  const payload: Record<string, unknown> = {};
+  for (const field of ['site_name', 'site_tagline', 'support_email', 'site_announcement'] as const) {
+    if (field in input) payload[field] = shortText(input[field], field.replace(/_/g, ' '), field === 'site_announcement' ? 1_000 : 200, field !== 'site_name');
+  }
+  if (typeof payload.support_email === 'string' && payload.support_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.support_email)) throw new Error('Support email is invalid');
+  for (const field of ['site_announcement_active', 'vpn_block_enabled', 'duplicate_device_block', 'maintenance_mode', 'signup_enabled'] as const) {
+    if (field in input) {
+      if (typeof input[field] !== 'boolean') throw new Error(`${field} is invalid`);
+      payload[field] = input[field];
+    }
+  }
+  if ('fraud_detection_sensitivity' in input) {
+    const value = String(input.fraud_detection_sensitivity);
+    if (!['low', 'medium', 'high', 'strict'].includes(value)) throw new Error('Fraud sensitivity is invalid');
+    payload.fraud_detection_sensitivity = value;
+  }
+  const numericLimits: Record<string, [number, number, boolean]> = {
+    min_withdrawal: [0, 1_000_000, false], referral_percentage: [0, 100, false], max_earnings_per_view: [0, 1_000_000, false],
+    max_views_per_device_per_day: [0, 1_000_000, true], max_views_per_ip_per_day: [0, 10_000_000, true],
+    creator_daily_earning_cap: [0, 10_000_000, false], campaign_daily_earning_cap: [0, 10_000_000, false], platform_daily_earning_cap: [0, 1_000_000_000, false], earning_holding_hours: [0, 8_760, true], duplicate_ip_window_hours: [0, 8_760, true],
+  };
+  for (const [field, [min, max, integer]] of Object.entries(numericLimits)) {
+    if (field in input) {
+      const value = finiteNumber(input[field], field.replace(/_/g, ' '), min, max);
+      payload[field] = integer ? Math.floor(value) : value;
+    }
+  }
   const supabase = createAdminClient();
-  const { error } = await supabase.from('platform_settings').update(data).eq('id', 1);
-  if (error) throw new Error(error.message);
-  await audit(admin, 'settings_update', 'platform_settings', undefined, null, data);
+  const { error } = await supabase.from('platform_settings').update(payload).eq('id', 1);
+  if (error) throw new Error('Settings could not be saved');
+  await audit(admin, 'settings_update', 'platform_settings', undefined, null, payload);
   return { ok: true };
 }
 
@@ -441,28 +595,53 @@ export async function adminListWithdrawalMethods() {
 // Alias used by the settings page.
 export const adminLoadWithdrawalMethods = adminListWithdrawalMethods;
 
+function withdrawalMethodPayload(data: Record<string, unknown>, includeMethod: boolean): Record<string, unknown> {
+  const allowed = includeMethod
+    ? ['method', 'label', 'icon', 'enabled', 'min_amount', 'max_amount', 'fee_percentage', 'sort_order']
+    : ['label', 'icon', 'enabled', 'min_amount', 'max_amount', 'fee_percentage', 'sort_order'];
+  const input = safeFields(data, allowed);
+  const payload: Record<string, unknown> = {};
+  if (includeMethod) {
+    const method = shortText(input.method, 'Method key', 40).toLowerCase();
+    if (!/^[a-z][a-z0-9_]*$/.test(method)) throw new Error('Method key is invalid');
+    payload.method = method;
+  }
+  if ('label' in input) payload.label = shortText(input.label, 'Method label', 80);
+  if ('icon' in input) payload.icon = shortText(input.icon, 'Method icon', 20);
+  if ('enabled' in input) { if (typeof input.enabled !== 'boolean') throw new Error('Method enabled flag is invalid'); payload.enabled = input.enabled; }
+  const min = 'min_amount' in input ? finiteNumber(input.min_amount, 'Method minimum', 0.01, 1_000_000) : undefined;
+  const max = 'max_amount' in input ? finiteNumber(input.max_amount, 'Method maximum', min ?? 0.01, 10_000_000) : undefined;
+  if (min !== undefined) payload.min_amount = min;
+  if (max !== undefined) payload.max_amount = max;
+  if ('fee_percentage' in input) payload.fee_percentage = finiteNumber(input.fee_percentage, 'Method fee', 0, 100);
+  if ('sort_order' in input) payload.sort_order = Math.floor(finiteNumber(input.sort_order, 'Sort order', 0, 10_000));
+  return payload;
+}
+
 export async function adminSaveWithdrawalMethod(id: number, data: Record<string, unknown>) {
   const admin = await requireAdmin();
+  const payload = withdrawalMethodPayload(data, false);
   const supabase = createAdminClient();
-  const { error } = await supabase.from('withdrawal_method_config').update(data).eq('id', id);
-  if (error) throw new Error(error.message);
-  await audit(admin, 'wm_update', 'withdrawal_method_config', undefined, null, data);
+  const { error } = await supabase.from('withdrawal_method_config').update(payload).eq('id', finiteNumber(id, 'Method ID', 1, 1_000_000));
+  if (error) throw new Error('Withdrawal method could not be saved');
+  await audit(admin, 'wm_update', 'withdrawal_method_config', undefined, null, payload);
   return { ok: true };
 }
 
 export async function adminAddWithdrawalMethod(data: Record<string, unknown>) {
   const admin = await requireAdmin();
+  const payload = withdrawalMethodPayload(data, true);
   const supabase = createAdminClient();
-  const { error } = await supabase.from('withdrawal_method_config').insert(data);
-  if (error) throw new Error(error.message);
-  await audit(admin, 'wm_add', 'withdrawal_method_config', undefined, null, data);
+  const { error } = await supabase.from('withdrawal_method_config').insert(payload);
+  if (error) throw new Error('Withdrawal method could not be added');
+  await audit(admin, 'wm_add', 'withdrawal_method_config', undefined, null, payload);
   return { ok: true };
 }
 
 export async function adminDeleteWithdrawalMethod(id: number) {
   const admin = await requireAdmin();
   const supabase = createAdminClient();
-  const { error } = await supabase.from('withdrawal_method_config').delete().eq('id', id);
+  const { error } = await supabase.from('withdrawal_method_config').delete().eq('id', finiteNumber(id, 'Method ID', 1, 1_000_000));
   if (error) throw new Error(error.message);
   await audit(admin, 'wm_delete', 'withdrawal_method_config', undefined, null, { id });
   return { ok: true };
@@ -473,8 +652,9 @@ export async function adminDeleteWithdrawalMethod(id: number) {
 // ------------------------------------------------------------------
 export async function adminToggleAdNetwork(id: number, status: string) {
   const admin = await requireAdmin();
+  if (!['active', 'paused', 'inactive'].includes(status)) throw new Error('Invalid ad network status');
   const supabase = createAdminClient();
-  const { error } = await supabase.from('ad_networks').update({ status }).eq('id', id);
+  const { error } = await supabase.from('ad_networks').update({ status }).eq('id', finiteNumber(id, 'Ad network ID', 1, 1_000_000));
   if (error) throw new Error(error.message);
   await audit(admin, 'ad_network_status', 'ad_networks', undefined, null, { status });
   return { ok: true };

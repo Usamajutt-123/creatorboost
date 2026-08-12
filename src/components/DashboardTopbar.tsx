@@ -1,7 +1,8 @@
 'use client';
 import { useState } from 'react';
-import { Bell, Search, Menu, LogOut } from 'lucide-react';
+import { Bell, Menu, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
 export default function DashboardTopbar({ title, subtitle, onMenu, fullName, email, avatar }: {
@@ -49,14 +50,9 @@ export default function DashboardTopbar({ title, subtitle, onMenu, fullName, ema
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="hidden md:flex items-center gap-2 px-3 py-2 glass rounded-lg text-sm">
-            <Search className="w-4 h-4 text-gray-500" />
-            <input className="bg-transparent outline-none text-sm w-40 placeholder-gray-500" placeholder="Search..." />
-          </div>
-          <button className="relative p-2 glass rounded-lg hover:bg-white/5">
+          <Link href="/dashboard/notifications" aria-label="Open notifications" className="relative p-2 glass rounded-lg hover:bg-white/5">
             <Bell className="w-5 h-5 text-gray-300" />
-            <span className="absolute top-0 right-0 w-2 h-2 bg-pink-500 rounded-full shadow-[0_0_10px_#ec4899]" />
-          </button>
+          </Link>
           <div className="relative">
             <button onClick={() => setOpen(!open)} className="flex items-center gap-2 pl-2 pr-1 py-1 border-l border-white/10 hover:bg-white/5 rounded-lg">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-sm font-bold">

@@ -3,10 +3,10 @@ import { Zap, Youtube, ThumbsUp, PlayCircle, Instagram, Music2, Send, MessageCir
 export const FEATURES = [
   { icon: '💰', iconComp: Zap, title: 'Earn by CPM', desc: 'Get paid for every 1000 valid views from real users worldwide.' },
   { icon: '▶️', iconComp: Youtube, title: 'YouTube Subscribe Unlock', desc: 'Grow your YouTube subscribers through unlock campaigns.' },
-  { icon: '👍', iconComp: ThumbsUp, title: 'YouTube Like Unlock', desc: 'Boost engagement on your videos with verified likes.' },
+  { icon: '👍', iconComp: ThumbsUp, title: 'YouTube Like Unlock', desc: 'Send visitors to your configured YouTube task URL as part of an unlock campaign.' },
   { icon: '🎬', iconComp: PlayCircle, title: 'Watch Video Unlock', desc: 'Increase watch time and views on your video content.' },
-  { icon: '📷', iconComp: Instagram, title: 'Instagram Follow Unlock', desc: 'Gain real Instagram followers interested in your content.' },
-  { icon: '🎵', iconComp: Music2, title: 'TikTok Follow Unlock', desc: 'Build your TikTok presence with genuine followers.' },
+  { icon: '📷', iconComp: Instagram, title: 'Instagram Follow Unlock', desc: 'Use your exact Instagram URL as an unlock task.' },
+  { icon: '🎵', iconComp: Music2, title: 'TikTok Follow Unlock', desc: 'Direct visitors to the TikTok URL you configure.' },
   { icon: '✈️', iconComp: Send, title: 'Telegram Join Unlock', desc: 'Grow your Telegram channels and groups quickly.' },
   { icon: '💬', iconComp: MessageCircle, title: 'Discord Join Unlock', desc: 'Expand your Discord community with active members.' },
   { icon: '🌐', iconComp: Globe, title: 'Website Visit Unlock', desc: 'Drive real, targeted traffic to your website.' },

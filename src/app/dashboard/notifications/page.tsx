@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import { timeAgo } from '@/lib/utils';
@@ -14,7 +15,7 @@ const ICONS: Record<string, { icon: string; color: string }> = {
 };
 
 export default async function NotificationsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
@@ -34,15 +35,15 @@ export default async function NotificationsPage() {
       <div className="p-4 sm:p-6 space-y-3">
         {notifs?.map(n => {
           const meta = ICONS[n.type] || ICONS.system;
-          return (
-            <div key={n.id} className="glass rounded-xl p-4 flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0 text-xl">{meta.icon}</div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-sm">{n.title}</h4>
-                <p className="text-xs text-gray-400 mt-0.5">{n.message}</p>
-                <p className="text-xs text-gray-500 mt-1">{timeAgo(n.created_at)}</p>
-              </div>
-            </div>
+          const safeLink = typeof n.link === 'string' && n.link.startsWith('/') && !n.link.startsWith('//') ? n.link : null;
+          const content = <>
+            <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0 text-xl">{meta.icon}</div>
+            <div className="flex-1 min-w-0"><h4 className="font-semibold text-sm">{n.title}</h4><p className="text-xs text-gray-400 mt-0.5">{n.message}</p><p className="text-xs text-gray-500 mt-1">{timeAgo(n.created_at)}</p></div>
+          </>;
+          return safeLink ? (
+            <Link key={n.id} href={safeLink} className="glass rounded-xl p-4 flex items-start gap-3 hover:bg-white/5 transition">{content}</Link>
+          ) : (
+            <div key={n.id} className="glass rounded-xl p-4 flex items-start gap-3">{content}</div>
           );
         })}
         {!notifs?.length && (

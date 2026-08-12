@@ -26,7 +26,7 @@ export default function SettingsPage() {
     const { error } = await supabase.from('profiles').update({
       full_name: profile.full_name,
       bio: profile.bio,
-      country_code: profile.country_code,
+      country_code: profile.country_code || null,
     }).eq('id', profile.id);
     if (error) { toast.error(error.message); return; }
     toast.success('Settings saved!');
@@ -66,7 +66,7 @@ export default function SettingsPage() {
               <label className="text-xs font-medium text-gray-300 block mb-1.5">Country</label>
               <select value={profile.country_code || ''} onChange={e => setProfile({ ...profile, country_code: e.target.value })} className="input-field">
                 <option value="">Select...</option>
-                {['US','GB','DE','FR','CA','AU','IN','PK','BR','MX','JP','OTHER'].map(c => <option key={c} value={c}>{c}</option>)}
+                {['US','GB','DE','FR','CA','AU','IN','PK','BR','MX','JP'].map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>

@@ -7,7 +7,7 @@ export default function Levels() {
         <div className="text-center mb-16">
           <div className="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-3">Creator Levels</div>
           <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">Level up to unlock <span className="gradient-text">higher CPM</span></h2>
-          <p className="text-gray-400 max-w-2xl mx-auto">The more valid views you generate, the higher your tier. Each level unlocks better rates and exclusive benefits.</p>
+          <p className="text-gray-400 max-w-2xl mx-auto">Default level examples are shown below. Live thresholds, multipliers, and benefits are configured by the platform administrator and applied server-side.</p>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-10 sm:mb-12">
           {LEVELS.map((l, i) => (

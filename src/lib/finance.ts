@@ -9,7 +9,11 @@
  */
 export function computePerViewEarning(cpm: number, levelMultiplier: number, maxEarningsPerView: number): number {
   const raw = (Number(cpm) * Number(levelMultiplier)) / 1000;
-  return Math.min(Number.isFinite(raw) && raw > 0 ? raw : 0, Number(maxEarningsPerView) || 1);
+  const parsedCap = Number(maxEarningsPerView);
+  // Zero is a legitimate operator setting: it pauses view payouts. Do not
+  // turn it into the old implicit $1 fallback.
+  const cap = Number.isFinite(parsedCap) ? Math.max(0, parsedCap) : 1;
+  return Math.min(Number.isFinite(raw) && raw > 0 ? raw : 0, cap);
 }
 
 /**

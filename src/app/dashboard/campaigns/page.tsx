@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Edit, BarChart3, Trash2, Copy, ExternalLink, Pause, Play } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { deleteCampaignAction, setCampaignStatusAction } from '@/lib/campaign-actions';
 import { toast } from 'sonner';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import { formatNumber, formatCurrency } from '@/lib/utils';
@@ -30,25 +31,22 @@ export default function CampaignsPage() {
 
   const togglePause = async (id: string, current: string) => {
     setBusy(id);
-    const supabase = createClient();
     const newStatus = current === 'paused' ? 'active' : 'paused';
-    const { error } = await supabase.from('campaigns').update({ status: newStatus }).eq('id', id);
+    const result = await setCampaignStatusAction(id, newStatus);
     setBusy(null);
-    if (error) { toast.error(error.message); return; }
+    if (!result.success) { toast.error(result.error || 'Campaign could not be updated'); return; }
     toast.success(newStatus === 'paused' ? 'Campaign paused' : 'Campaign resumed');
-    load();
+    void load();
   };
 
   const deleteCampaign = async (id: string) => {
-    if (!confirm('Delete this campaign? This cannot be undone.')) return;
+    if (!confirm('Deactivate and remove this campaign from your list?')) return;
     setBusy(id);
-    const supabase = createClient();
-    // Soft delete
-    const { error } = await supabase.from('campaigns').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+    const result = await deleteCampaignAction(id);
     setBusy(null);
-    if (error) { toast.error(error.message); return; }
-    toast.success('Campaign deleted');
-    load();
+    if (!result.success) { toast.error(result.error || 'Campaign could not be deleted'); return; }
+    toast.success('Campaign deactivated');
+    void load();
   };
 
   const copyLink = (slug: string) => {

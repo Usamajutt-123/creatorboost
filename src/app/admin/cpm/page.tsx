@@ -117,7 +117,7 @@ export default function CpmAdminPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-display text-2xl font-bold">CPM Rate Management</h2>
-          <p className="text-sm text-gray-500">Configure creator payouts per 1000 valid views. All values are dynamic and apply instantly.</p>
+          <p className="text-sm text-gray-500">Configure trusted CPM inputs per 1000 eligible views. Changes are applied to newly accounted views.</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => { setLoading(true); load(); }} className="btn-ghost px-3 py-2 rounded-lg text-xs flex items-center gap-1.5"><RefreshCw className="w-3.5 h-3.5" /> Refresh</button>
@@ -181,7 +181,6 @@ export default function CpmAdminPage() {
                     <th className="text-left py-2 font-medium">CPM Default</th>
                     <th className="text-left py-2 font-medium">CPM Min</th>
                     <th className="text-left py-2 font-medium">CPM Max</th>
-                    <th className="text-left py-2 font-medium">Payout %</th>
                     <th className="text-left py-2 font-medium">Status</th>
                     <th className="text-right py-2 font-medium">Actions</th>
                   </tr>
@@ -195,7 +194,6 @@ export default function CpmAdminPage() {
                         <td className="py-2.5"><input type="number" step="0.01" value={row.cpm_default} onChange={e => updateField(c.id, 'cpm_default', parseFloat(e.target.value))} className="input-field py-1.5 text-xs w-24" /></td>
                         <td className="py-2.5"><input type="number" step="0.01" value={row.cpm_min} onChange={e => updateField(c.id, 'cpm_min', parseFloat(e.target.value))} className="input-field py-1.5 text-xs w-20" /></td>
                         <td className="py-2.5"><input type="number" step="0.01" value={row.cpm_max} onChange={e => updateField(c.id, 'cpm_max', parseFloat(e.target.value))} className="input-field py-1.5 text-xs w-20" /></td>
-                        <td className="py-2.5"><input type="number" step="0.5" value={row.payout_percentage} onChange={e => updateField(c.id, 'payout_percentage', parseFloat(e.target.value))} className="input-field py-1.5 text-xs w-20" /></td>
                         <td className="py-2.5"><span className={`badge ${row.active ? 'status-active' : 'status-rejected'}`}>{row.active ? 'Active' : 'Inactive'}</span></td>
                         <td className="py-2.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
@@ -206,7 +204,7 @@ export default function CpmAdminPage() {
                       </tr>
                     );
                   })}
-                  {!g.items.length && <tr><td colSpan={7} className="py-4 text-center text-gray-500 text-xs">No countries in this tier</td></tr>}
+                  {!g.items.length && <tr><td colSpan={6} className="py-4 text-center text-gray-500 text-xs">No countries in this tier</td></tr>}
                 </tbody>
               </table>
             </div>

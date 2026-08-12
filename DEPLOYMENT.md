@@ -29,7 +29,7 @@ supabase db push
 ### 1.3 Deploy Edge Function (fraud detection)
 ```bash
 supabase functions deploy fraud-check
-supabase secrets set IPQUALITYSCORE_KEY=your-key-here
+supabase secrets set IPQUALITYSCORE_KEY=your-key-here FRAUD_FUNCTION_SECRET=generate-a-long-random-string
 ```
 
 Get a free IPQualityScore key at [ipqualityscore.com](https://www.ipqualityscore.com).
@@ -65,18 +65,19 @@ git push -u origin main
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY` — server-side only, never exposed to the browser
+   - `UNLOCK_TOKEN_SECRET` (recommended dedicated secret for short-lived destination unlock cookies)
    - `NEXT_PUBLIC_SITE_URL` = `https://yourdomain.com`
    - `NEXT_PUBLIC_SUPPORT_EMAIL` (optional)
    - `SUPPORT_EMAIL_WEBHOOK_URL` (optional)
    - `CRON_SECRET` (required for the earnings-release cron)
    - `IP_GEO_PROVIDER` / `IP_GEO_SERVICE_URL` / `IP_GEO_SERVICE_TOKEN` (optional, server-side country lookup — see `.env.example`)
    - `RESEND_API_KEY` / `EMAIL_FROM` / `SUPPORT_EMAIL` (optional, transactional email)
-   - `SUPABASE_FRAUD_FN_ENABLED=true` (optional, enables the `fraud-check` edge function)
+   - `SUPABASE_FRAUD_FN_ENABLED=true` and `FRAUD_FUNCTION_SECRET` (optional, enables the protected `fraud-check` edge function)
    - `ADSTERRA_API_URL` / `MONETAG_API_URL` (optional, real ad-revenue integration)
 4. Deploy
 
 ### 2.2.1 Apply database migrations
-The repo ships migrations `0001`–`0007`. Apply them in order to a fresh
+The repo ships migrations `0001`–`0008`. Apply them in order to a fresh
 Supabase project (this brings schema, RLS, RPCs, the earnings lifecycle,
 withdrawal fees, anonymous support tickets and the revenue ledger into
 alignment):
@@ -89,14 +90,14 @@ supabase db push
 Optionally deploy the fraud edge function:
 ```bash
 supabase functions deploy fraud-check
-supabase secrets set IPQUALITYSCORE_KEY=your-key
+supabase secrets set IPQUALITYSCORE_KEY=your-key FRAUD_FUNCTION_SECRET=generate-a-long-random-string
 ```
 
 ### 2.2.2 Scheduled earnings release (cron)
 Matured pending earnings are released into creators' available balance by
-`POST /api/cron/release-earnings`. Configure a scheduler (Vercel Cron /
-GitHub Actions) to call it with the `x-cron-secret` header set to `CRON_SECRET`
-(e.g. every hour).
+`/api/cron/release-earnings`. `vercel.json` schedules it hourly in Vercel;
+Vercel sends `Authorization: Bearer $CRON_SECRET`. External schedulers may use
+`POST` or `GET` with either that header or `x-cron-secret: $CRON_SECRET`.
 
 ### 2.3 Custom domain
 1. Vercel → Settings → Domains → Add your domain

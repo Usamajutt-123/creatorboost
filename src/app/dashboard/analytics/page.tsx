@@ -8,7 +8,7 @@ import { Eye, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
 export const dynamic = 'force-dynamic';
 
 export default async function AnalyticsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
@@ -19,7 +19,7 @@ export default async function AnalyticsPage() {
     .single();
 
   // Last 30 days
-  const since = new Date(Date.now() - 30 * 86400_000).toISOString();
+  const since = new Date(new Date().getTime() - 30 * 86400_000).toISOString();
   const { data: daily } = await supabase
     .from('views')
     .select('created_at, status, country_code, earnings')

@@ -11,7 +11,7 @@ export default function DashboardPreview() {
         <div className="text-center mb-16">
           <div className="inline-block px-3 py-1 rounded-full glass text-xs font-medium text-purple-300 mb-4">Creator Dashboard</div>
           <h2 className="font-display text-4xl sm:text-5xl font-bold mb-4">A dashboard that <span className="gradient-text">just works</span></h2>
-          <p className="text-gray-400 max-w-2xl mx-auto">Track every view, valid rate, country and earning from real data. Beautiful, intuitive, and built for scale.</p>
+          <p className="text-gray-400 max-w-2xl mx-auto">An illustrative preview of the creator dashboard. Signed-in dashboards load their campaign and earnings data from the database.</p>
         </div>
         <div className="relative">
           <div className="absolute -inset-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-3xl opacity-20 blur-2xl" />
@@ -20,7 +20,7 @@ export default function DashboardPreview() {
               <div className="w-3 h-3 rounded-full bg-red-400" />
               <div className="w-3 h-3 rounded-full bg-yellow-400" />
               <div className="w-3 h-3 rounded-full bg-green-400" />
-              <div className="ml-2 text-xs text-gray-500 font-mono">creatorboost.io/dashboard</div>
+              <div className="ml-2 text-xs text-gray-500 font-mono">Illustrative dashboard preview</div>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
               {[
@@ -47,7 +47,7 @@ export default function DashboardPreview() {
                     data={{
                       labels: Array.from({ length: 30 }, (_, i) => `Day ${i + 1}`),
                       datasets: [{
-                        data: Array.from({ length: 30 }, () => Math.floor(Math.random() * 80) + 20),
+                        data: [24, 31, 28, 36, 42, 39, 48, 45, 52, 49, 58, 62, 56, 65, 61, 70, 68, 74, 71, 79, 76, 83, 80, 88, 85, 91, 89, 96, 93, 100],
                         borderColor: '#8b5cf6',
                         backgroundColor: (ctx: any) => { const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200); g.addColorStop(0, 'rgba(139,92,246,0.4)'); g.addColorStop(1, 'rgba(139,92,246,0)'); return g; },
                         fill: true, tension: 0.4, borderWidth: 2, pointRadius: 0,

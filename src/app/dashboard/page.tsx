@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import StatCard from '@/components/StatCard';
@@ -8,7 +9,7 @@ import { DollarSign, TrendingUp, Eye, Zap, Wallet, Clock, BarChart3, Users } fro
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
@@ -19,7 +20,9 @@ export default async function DashboardPage() {
     .single();
 
   // Earnings: today vs yesterday (real change %)
-  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const currentTime = new Date();
+  const nowMs = currentTime.getTime();
+  const todayStart = new Date(currentTime); todayStart.setHours(0, 0, 0, 0);
   const yesterdayStart = new Date(todayStart.getTime() - 86400_000);
   const todayIso = todayStart.toISOString();
   const yesterdayIso = yesterdayStart.toISOString();
@@ -27,7 +30,7 @@ export default async function DashboardPage() {
   const [{ data: todayEarnings }, { data: yesterdayEarnings }, { data: weekEarnings }] = await Promise.all([
     supabase.from('earnings').select('amount').eq('creator_id', user.id).gte('created_at', todayIso),
     supabase.from('earnings').select('amount').eq('creator_id', user.id).gte('created_at', yesterdayIso).lt('created_at', todayIso),
-    supabase.from('earnings').select('amount').eq('creator_id', user.id).gte('created_at', new Date(Date.now() - 7 * 86400_000).toISOString()),
+    supabase.from('earnings').select('amount').eq('creator_id', user.id).gte('created_at', new Date(nowMs - 7 * 86400_000).toISOString()),
   ]);
 
   const todayTotal = todayEarnings?.reduce((s, e) => s + Number(e.amount), 0) ?? 0;
@@ -54,8 +57,8 @@ export default async function DashboardPage() {
     : null;
 
   // Week view trend (real)
-  const priorWeekStart = new Date(Date.now() - 14 * 86400_000).toISOString();
-  const weekStart = new Date(Date.now() - 7 * 86400_000).toISOString();
+  const priorWeekStart = new Date(nowMs - 14 * 86400_000).toISOString();
+  const weekStart = new Date(nowMs - 7 * 86400_000).toISOString();
   const [{ count: priorWeek }, { count: currentWeek }] = await Promise.all([
     supabase.from('views').select('id', { count: 'exact', head: true }).eq('creator_id', user.id).gte('created_at', priorWeekStart).lt('created_at', weekStart),
     supabase.from('views').select('id', { count: 'exact', head: true }).eq('creator_id', user.id).gte('created_at', weekStart),
@@ -107,7 +110,7 @@ export default async function DashboardPage() {
         <div className="glass rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold">Recent Campaigns</h3>
-            <a href="/dashboard/campaigns" className="text-xs text-purple-400">View all →</a>
+            <Link href="/dashboard/campaigns" className="text-xs text-purple-400">View all →</Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -131,7 +134,7 @@ export default async function DashboardPage() {
                   </tr>
                 ))}
                 {!campaigns?.length && (
-                  <tr><td colSpan={5} className="py-6 text-center text-gray-500 text-sm">No campaigns yet. <a href="/dashboard/create-campaign" className="text-purple-400">Create one →</a></td></tr>
+                  <tr><td colSpan={5} className="py-6 text-center text-gray-500 text-sm">No campaigns yet. <Link href="/dashboard/create-campaign" className="text-purple-400">Create one →</Link></td></tr>
                 )}
               </tbody>
             </table>

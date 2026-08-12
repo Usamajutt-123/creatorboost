@@ -122,16 +122,20 @@ export async function computeViewEarnings(opts: {
   // 3. Country tier CPM (admin-configurable). Unknown/inactive country ->
   //    conservative Tier-3 default (NEVER highest CPM).
   const country = sanitizeCountryCode(opts.countryCode);
-  let cpm = 0.5; // conservative floor
+  let cpm = 0.5; // conservative floor only for unknown/inactive countries
   if (country) {
     const { data: row } = await supabase
       .from('country_tiers')
       .select('cpm_default, active')
       .eq('country_code', country)
       .maybeSingle();
-    if (row && row.active) cpm = Number(row.cpm_default);
+    // CPM = 0 is a valid operator-controlled pause and must result in a
+    // zero-value valid view, not a fallback premium/low-tier payout.
+    if (row && row.active) {
+      const configured = Number(row.cpm_default);
+      cpm = Number.isFinite(configured) && configured >= 0 ? configured : 0;
+    }
   }
-  if (cpm <= 0) cpm = 0.5;
 
   // 4. Creator account status: banned/suspended creators earn nothing.
   const { data: profile } = await supabase
@@ -182,14 +186,14 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
   if (idemKey) {
     const { data: existing } = await supabase
       .from('views')
-      .select('id, status, invalid_reason, cpm_rate, earnings, fraud_score, country_code')
+      .select('id, status, invalid_reason, cpm_rate, earnings, fraud_score, country_code, accounted_at')
       .eq('creator_id', creatorId)
       .eq('idempotency_key', idemKey)
       .maybeSingle();
     if (existing) {
       return {
-        valid: existing.status === 'valid',
-        reason: existing.invalid_reason ?? undefined,
+        valid: existing.status === 'valid' && Boolean(existing.accounted_at),
+        reason: existing.accounted_at ? (existing.invalid_reason ?? undefined) : 'accounting_pending',
         cpm: Number(existing.cpm_rate || 0),
         levelMultiplier: 1,
         earning: Number(existing.earnings || 0),
@@ -234,6 +238,12 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
   // 3. Earnings decision
   // ---------------------------------------------------------------
   const decision = await computeViewEarnings({ creatorId, countryCode, fraud });
+  // The database performs a final serialized cap/status check while it
+  // accounts the view. These values are updated from that authoritative RPC
+  // response before we return anything to the route handler.
+  let finalValid = decision.valid;
+  let finalReason: string | undefined = decision.valid ? undefined : (decision.reason ?? 'other');
+  let finalEarning = decision.valid ? decision.earning : 0;
   const now = Date.now();
   const dayStart = new Date(now - 86400_000).toISOString();
   const caps = await loadCaps(supabase);
@@ -371,7 +381,7 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
   // ---------------------------------------------------------------
   if (inserted) {
     const description = `View earning @ $${decision.cpm.toFixed(2)} CPM × ${decision.levelMultiplier}x level`;
-    const { error: cErr } = await supabase.rpc('credit_view_earning', {
+    const { data: credit, error: cErr } = await supabase.rpc('credit_view_earning', {
       p_view_id: inserted.id,
       p_campaign_id: campaignId,
       p_creator_id: creatorId,
@@ -383,18 +393,32 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
     });
     if (cErr) {
       console.error('[earnings] credit_view_earning failed', cErr);
-      // The view is recorded; earnings are safe because the RPC is atomic.
+      // Never report a payout-eligible view when the protected accounting
+      // transaction did not complete.
+      finalValid = false;
+      finalReason = 'accounting_unavailable';
+      finalEarning = 0;
+    } else if (credit && typeof credit === 'object' && 'valid' in credit) {
+      const result = credit as { valid?: boolean; reason?: string; earning?: number };
+      finalValid = result.valid === true;
+      finalReason = finalValid ? undefined : (result.reason || 'invalid_traffic');
+      finalEarning = finalValid ? Number(result.earning ?? decision.earning) : 0;
+      if (finalValid && finalEarning > 0) {
+        await maybeCreditReferral(supabase, creatorId, finalEarning, inserted.id);
+      }
     } else if (decision.valid && decision.earning > 0) {
+      // Compatibility with a database that has not yet applied migration
+      // 0008. Production deployments use the structured response above.
       await maybeCreditReferral(supabase, creatorId, decision.earning, inserted.id);
     }
   }
 
   return {
-    valid: decision.valid,
-    reason: decision.valid ? undefined : (decision.reason ?? 'other'),
+    valid: finalValid,
+    reason: finalReason,
     cpm: decision.cpm,
     levelMultiplier: decision.levelMultiplier,
-    earning: decision.valid ? decision.earning : 0,
+    earning: finalEarning,
     countryCode,
     fraudScore: fraud.fraudScore,
     duplicate: false,

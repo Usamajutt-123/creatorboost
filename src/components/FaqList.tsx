@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { Search } from 'lucide-react';
 
 const FAQS = [
-  { q: 'How much can I earn?', a: 'Earnings depend on valid views and country tier. Tier 1 countries pay $4-6 per 1000 valid views, Tier 2: $2-3.5, Tier 3: $0.5-1.5. Rates are fully configurable by admin.' },
-  { q: 'When can I withdraw?', a: 'You can withdraw once your balance reaches the configured minimum. Withdrawals are processed within 24-48 hours via JazzCash, EasyPaisa, PayPal, Binance Pay, USDT, or Bank Transfer.' },
+  { q: 'How much can I earn?', a: 'Earnings depend on server-validated traffic, country CPM configuration, creator level, and earning caps. Your dashboard displays recorded ledger values.' },
+  { q: 'When can I withdraw?', a: 'You can request a withdrawal once your available balance reaches the configured minimum and method limits. Requests remain pending until reviewed and paid by an authorized administrator.' },
   { q: 'How does fraud detection work?', a: 'Traffic is verified on our servers: automated checks screen user agents, request frequency, IP reputation, VPN/proxy signals and device behavior before a view is counted as valid.' },
   { q: 'What payment methods are supported?', a: 'We support JazzCash, EasyPaisa, PayPal, Binance Pay, USDT (TRC20), and Bank Transfer. The admin can enable/disable any method from the dashboard.' },
   { q: 'How do I increase my CPM rate?', a: 'Level up! Higher creator levels (Bronze → Diamond) unlock progressively higher CPM multipliers and additional perks. Reach Diamond for a 2.0x CPM multiplier.' },
@@ -30,8 +30,8 @@ export default function FaqList() {
           placeholder="Search for answers..."
           aria-label="Search frequently asked questions"
         />
-        <span className="btn-primary px-6 py-3 rounded-xl text-sm font-semibold text-white flex items-center gap-2 cursor-default">
-          <Search className="w-4 h-4" /> Search
+        <span className="glass px-4 py-3 rounded-xl text-sm text-gray-400 flex items-center gap-2" aria-hidden="true">
+          <Search className="w-4 h-4" />
         </span>
       </div>
       <h3 className="font-semibold mb-4">Frequently Asked Questions</h3>

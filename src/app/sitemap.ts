@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://creatorboost.io';
-  const staticRoutes = ['', '/login', '/signup', '/support', '/terms', '/privacy'].map(route => ({
+  const staticRoutes = ['', '/about', '/blog', '/contact', '/support', '/terms', '/privacy'].map(route => ({
     url: `${baseUrl}${route}`,
     lastModified: new Date(),
     changeFrequency: 'weekly' as const,
@@ -15,13 +15,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Campaign routes are best-effort: if the DB is unavailable (e.g. during
   // build without env), fall back to static routes rather than failing.
   let campaignRoutes: MetadataRoute.Sitemap = [];
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return staticRoutes;
+  }
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: campaigns } = await supabase
-      .from('campaigns')
+      .from('public_campaigns')
       .select('slug, updated_at')
-      .eq('status', 'active')
-      .is('deleted_at', null)
       .limit(1000);
     campaignRoutes = (campaigns || []).map(c => ({
       url: `${baseUrl}/c/${c.slug}`,

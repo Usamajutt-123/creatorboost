@@ -40,7 +40,7 @@ export default function WithdrawPage() {
       setProfile(p);
       const { data: w } = await supabase.from('withdrawals').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
       setHistory(w || []);
-      const { data: settings } = await supabase.from('platform_settings').select('min_withdrawal').single();
+      const { data: settings } = await supabase.from('public_platform_settings').select('min_withdrawal').single();
       if (settings) setMinWithdraw(settings.min_withdrawal);
       // Only show enabled methods
       const { data: m } = await supabase
@@ -64,6 +64,10 @@ export default function WithdrawPage() {
     e.preventDefault();
     const amt = parseFloat(amount);
     if (!amt || amt < minWithdraw) { toast.error(`Minimum withdrawal is $${minWithdraw}`); return; }
+    if (!selectedMethodConfig) { toast.error('Choose an available payment method'); return; }
+    if (amt < Number(selectedMethodConfig.min_amount)) { toast.error(`Minimum for ${selectedMethodConfig.label} is $${selectedMethodConfig.min_amount}`); return; }
+    if (amt > Number(selectedMethodConfig.max_amount)) { toast.error(`Maximum for ${selectedMethodConfig.label} is $${selectedMethodConfig.max_amount}`); return; }
+    if (!Number.isInteger(amt * 100)) { toast.error('Use no more than two decimal places'); return; }
     const total = amt + computeWithdrawalFee(amt, feePct);
     if (total > (profile?.available_balance || 0)) { toast.error(`Insufficient balance (${formatCurrency(total)} incl. fee)`); return; }
     if (!account.trim()) { toast.error('Please enter your account details'); return; }
