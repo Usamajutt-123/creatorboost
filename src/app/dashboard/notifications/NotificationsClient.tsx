@@ -22,7 +22,29 @@ type Item = {
   link: string | null;
   read: boolean;
   created_at: string;
+  metadata?: Record<string, unknown> | null;
 };
+
+const ANNOUNCEMENT_ICONS: Record<string, string> = {
+  announcement: '📣',
+  important: '⚠️',
+  maintenance: '🛠️',
+  update: '✨',
+};
+
+function iconForNotification(item: Item) {
+  if (item.type === 'announcement') {
+    const subtype = typeof item.metadata?.announcement_type === 'string' ? item.metadata.announcement_type : 'announcement';
+    return ANNOUNCEMENT_ICONS[subtype] || ANNOUNCEMENT_ICONS.announcement;
+  }
+  return ICONS[item.type] || ICONS.system;
+}
+
+function announcementLabel(item: Item) {
+  if (item.type !== 'announcement' || typeof item.metadata?.announcement_type !== 'string') return null;
+  const value = item.metadata.announcement_type;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
 
 export default function NotificationsClient({ initial, loadError }: { initial: Item[]; loadError: string | null }) {
   const [items, setItems] = useState(initial);
@@ -59,19 +81,23 @@ export default function NotificationsClient({ initial, loadError }: { initial: I
       </div>
       {error && <div className="glass rounded-xl p-4 text-sm text-red-400">{error}</div>}
       {items.map(n => {
-        const icon = ICONS[n.type] || ICONS.system;
+        const icon = iconForNotification(n);
+        const label = announcementLabel(n);
         const safeLink = typeof n.link === 'string' && n.link.startsWith('/') && !n.link.startsWith('//') ? n.link : null;
         const body = (
           <>
             <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0 text-xl">{icon}</div>
             <div className="flex-1 min-w-0">
-              <h4 className="font-semibold text-sm">{n.title}</h4>
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="font-semibold text-sm">{n.title}</h4>
+                {label && <span className="badge text-[10px] text-purple-200 bg-purple-400/10 border border-purple-400/20">{label}</span>}
+              </div>
               <p className="text-xs text-gray-400 mt-0.5">{n.message}</p>
               <p className="text-xs text-gray-500 mt-1">{timeAgo(n.created_at)}</p>
             </div>
             {!n.read && (
               <button
-                onClick={(e) => { e.preventDefault(); markOne(n.id); }}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); markOne(n.id); }}
                 className="text-[10px] text-purple-300 flex-shrink-0"
               >
                 Mark read
@@ -81,7 +107,14 @@ export default function NotificationsClient({ initial, loadError }: { initial: I
         );
         const cls = `glass rounded-xl p-4 flex items-start gap-3 ${n.read ? 'opacity-70' : 'ring-1 ring-purple-500/30'}`;
         return safeLink ? (
-          <Link key={n.id} href={safeLink} className={`${cls} hover:bg-white/5 transition`}>{body}</Link>
+          <Link
+            key={n.id}
+            href={safeLink}
+            onClick={() => { if (!n.read) markOne(n.id); }}
+            className={`${cls} hover:bg-white/5 transition`}
+          >
+            {body}
+          </Link>
         ) : (
           <div key={n.id} className={cls}>{body}</div>
         );

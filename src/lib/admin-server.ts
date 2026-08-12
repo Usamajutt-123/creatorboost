@@ -15,6 +15,7 @@
  */
 
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { getClientIpFromHeaders } from '@/lib/request-ip';
 import { sendTemplateEmail } from '@/lib/email';
@@ -671,4 +672,212 @@ export async function adminToggleAdNetwork(id: number, status: string) {
   if (error) throw new Error(error.message);
   await audit(admin, 'ad_network_status', 'ad_networks', undefined, null, { status });
   return { ok: true };
+}
+
+// ------------------------------------------------------------------
+// ADMIN ANNOUNCEMENTS
+// ------------------------------------------------------------------
+
+export type AdminAnnouncementType = 'announcement' | 'important' | 'maintenance' | 'update';
+export type AdminAnnouncementAudience =
+  | 'all_creators'
+  | 'active_creators'
+  | 'suspended_creators'
+  | 'banned_creators'
+  | 'specific_creators';
+
+const ANNOUNCEMENT_TYPES: readonly AdminAnnouncementType[] = [
+  'announcement', 'important', 'maintenance', 'update',
+];
+const ANNOUNCEMENT_AUDIENCES: readonly AdminAnnouncementAudience[] = [
+  'all_creators', 'active_creators', 'suspended_creators', 'banned_creators', 'specific_creators',
+];
+
+function isUuid(value: unknown): value is string {
+  return typeof value === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function normalizeAnnouncementIds(value: unknown): string[] {
+  if (value == null) return [];
+  if (!Array.isArray(value) || value.length > 10_000 || value.some(id => !isUuid(id))) {
+    throw new Error('Announcement recipients are invalid');
+  }
+  return [...new Set(value)];
+}
+
+function validateAnnouncementAudience(value: unknown): AdminAnnouncementAudience {
+  if (typeof value !== 'string' || !ANNOUNCEMENT_AUDIENCES.includes(value as AdminAnnouncementAudience)) {
+    throw new Error('Announcement audience is invalid');
+  }
+  return value as AdminAnnouncementAudience;
+}
+
+function validateAnnouncementType(value: unknown): AdminAnnouncementType {
+  if (typeof value !== 'string' || !ANNOUNCEMENT_TYPES.includes(value as AdminAnnouncementType)) {
+    throw new Error('Announcement type is invalid');
+  }
+  return value as AdminAnnouncementType;
+}
+
+function validateAnnouncementKey(value: unknown): string {
+  const key = shortText(value, 'Announcement idempotency key', 100);
+  if (key.length < 16 || !/^[A-Za-z0-9_-]+$/.test(key)) {
+    throw new Error('Announcement idempotency key is invalid');
+  }
+  return key;
+}
+
+function announcementAudienceFilter(audience: AdminAnnouncementAudience) {
+  switch (audience) {
+    case 'active_creators': return { status: 'active' };
+    case 'suspended_creators': return { status: 'suspended' };
+    case 'banned_creators': return { status: 'banned' };
+    default: return null;
+  }
+}
+
+/** Count exactly the profiles the delivery function will target. */
+export async function adminGetAnnouncementRecipientCount(
+  audienceValue: string,
+  recipientIdsValue: string[] = [],
+): Promise<number> {
+  await requireAdmin();
+  const audience = validateAnnouncementAudience(audienceValue);
+  const recipientIds = normalizeAnnouncementIds(recipientIdsValue);
+  if (audience === 'specific_creators' && recipientIds.length === 0) return 0;
+
+  const supabase = createAdminClient();
+  let query = supabase
+    .from('profiles')
+    .select('id', { count: 'exact', head: true })
+    .eq('role', 'creator');
+
+  const status = announcementAudienceFilter(audience);
+  if (status) query = query.eq('status', status.status);
+  if (audience === 'specific_creators') query = query.in('id', recipientIds);
+
+  const { count, error } = await query;
+  if (error) throw new Error('Recipient count could not be calculated');
+  return count ?? 0;
+}
+
+/** Search creator profiles for the specific-recipient picker. */
+export async function adminListAnnouncementCreators(search = '') {
+  await requireAdmin();
+  const term = search.trim().replace(/[^a-zA-Z0-9@._+\\-\\s]/g, '').slice(0, 80);
+  const supabase = createAdminClient();
+  let query = supabase
+    .from('profiles')
+    .select('id, username, full_name, email, status')
+    .eq('role', 'creator')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (term) {
+    query = query.or(`username.ilike.%${term}%,full_name.ilike.%${term}%,email.ilike.%${term}%`);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error('Creators could not be loaded');
+  return data || [];
+}
+
+export async function adminListAnnouncements() {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('announcements')
+    .select('id, title, body, type, audience, recipient_count, created_at, sent_at, sent_by, status, idempotency_key')
+    .not('idempotency_key', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (error) throw new Error('Announcement history could not be loaded');
+
+  const rows = data || [];
+  const senderIds = [...new Set(rows.map((row: any) => row.sent_by).filter(Boolean))];
+  const senderById: Record<string, { full_name: string | null; email: string | null }> = {};
+  if (senderIds.length) {
+    const { data: senders } = await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .in('id', senderIds);
+    for (const sender of senders || []) {
+      senderById[sender.id] = { full_name: sender.full_name, email: sender.email };
+    }
+  }
+
+  return rows.map((row: any) => ({
+    ...row,
+    sender: row.sent_by ? senderById[row.sent_by] || null : null,
+  }));
+}
+
+type AdminAnnouncementInput = {
+  title: unknown;
+  message: unknown;
+  type: unknown;
+  audience: unknown;
+  recipientIds?: unknown;
+  idempotencyKey: unknown;
+};
+
+/**
+ * Send one announcement through the atomic, service-role-only database
+ * function. The caller's role is checked here and again inside SQL.
+ */
+export async function adminSendAnnouncement(input: AdminAnnouncementInput) {
+  const admin = await requireAdmin();
+  if (!input || typeof input !== 'object') throw new Error('Announcement payload is invalid');
+
+  const title = shortText(input.title, 'Announcement title', 200);
+  const message = shortText(input.message, 'Announcement message', 2_000);
+  const type = validateAnnouncementType(input.type);
+  const audience = validateAnnouncementAudience(input.audience);
+  const recipientIds = normalizeAnnouncementIds(input.recipientIds);
+  if (audience === 'specific_creators' && recipientIds.length === 0) {
+    throw new Error('Select at least one creator');
+  }
+  const idempotencyKey = validateAnnouncementKey(input.idempotencyKey);
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.rpc('send_admin_announcement', {
+    p_admin_id: admin.id,
+    p_title: title,
+    p_message: message,
+    p_type: type,
+    p_audience: audience,
+    p_recipient_ids: audience === 'specific_creators' ? recipientIds : [],
+    p_idempotency_key: idempotencyKey,
+  });
+  if (error) {
+    console.error('[admin] announcement send failed', error);
+    throw new Error('Announcement could not be sent');
+  }
+
+  const result = (data || {}) as {
+    ok?: boolean;
+    duplicate?: boolean;
+    announcement_id?: string;
+    recipient_count?: number;
+    status?: string;
+  };
+  if (!result.ok || !result.announcement_id) throw new Error('Announcement could not be sent');
+
+  if (!result.duplicate) {
+    await audit(admin, 'announcement_send', 'announcement', result.announcement_id, null, {
+      title,
+      type,
+      audience,
+      recipient_count: Number(result.recipient_count || 0),
+    });
+  }
+  revalidatePath('/admin/announcements');
+  return {
+    ok: true,
+    duplicate: Boolean(result.duplicate),
+    announcementId: result.announcement_id,
+    recipientCount: Number(result.recipient_count || 0),
+    status: result.status || 'sent',
+  };
 }

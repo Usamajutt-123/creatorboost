@@ -20,7 +20,7 @@ describe('database security invariants', () => {
   it('migrations exist and are ordered', () => {
     expect(migrations.length).toBeGreaterThanOrEqual(7);
     expect(migrations[0]).toMatch(/^0001_/);
-    expect(migrations[migrations.length - 1]).toMatch(/^0010_/);
+    expect(migrations[migrations.length - 1]).toMatch(/^0011_/);
   });
 
   it('enables RLS on every sensitive table', () => {
