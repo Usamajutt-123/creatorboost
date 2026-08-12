@@ -20,6 +20,7 @@ import { createAdminClient } from './supabase/server';
 import { getCountryFromIP, sanitizeCountryCode } from './geo';
 import { assessFraud, hashIp, type FraudAssessment } from './fraud';
 import { computePerViewEarning, computeReferralCommission } from './finance';
+import { parseActiveCpm } from './cpm';
 
 export { computePerViewEarning, computeReferralCommission, computeWithdrawalFee } from './finance';
 
@@ -119,22 +120,21 @@ export async function computeViewEarnings(opts: {
     return { valid: false, reason: 'abnormal_traffic', cpm: 0, levelMultiplier: 1, earning: 0 };
   }
 
-  // 3. Country tier CPM (admin-configurable). Unknown/inactive country ->
-  //    conservative Tier-3 default (NEVER highest CPM).
-  const country = sanitizeCountryCode(opts.countryCode);
-  let cpm = 0.5; // conservative floor only for unknown/inactive countries
-  if (country) {
-    const { data: row } = await supabase
-      .from('country_tiers')
-      .select('cpm_default, active')
-      .eq('country_code', country)
-      .maybeSingle();
-    // CPM = 0 is a valid operator-controlled pause and must result in a
-    // zero-value valid view, not a fallback premium/low-tier payout.
-    if (row && row.active) {
-      const configured = Number(row.cpm_default);
-      cpm = Number.isFinite(configured) && configured >= 0 ? configured : 0;
-    }
+  // 3. Active platform CPM (admin-configurable, single source of truth).
+  //    Country is recorded for analytics only. A missing/inactive row yields
+  //    $0 — never a hardcoded fallback rate.
+  let cpm = 0;
+  const { data: cpmRow } = await supabase
+    .from('cpm_settings')
+    .select('cpm, is_active')
+    .eq('id', 1)
+    .maybeSingle();
+  if (cpmRow) {
+    cpm = parseActiveCpm(cpmRow);
+  } else {
+    const { data: rpcCpm } = await supabase.rpc('get_active_cpm');
+    const parsed = Number(rpcCpm);
+    cpm = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
   }
 
   // 4. Creator account status: banned/suspended creators earn nothing.

@@ -1,9 +1,9 @@
 'use client';
 import { useState } from 'react';
-import { Bell, Menu, LogOut } from 'lucide-react';
+import { Menu, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import NotificationBell from '@/components/NotificationBell';
 
 export default function DashboardTopbar({ title, subtitle, onMenu, fullName, email, avatar }: {
   title: string;
@@ -50,9 +50,7 @@ export default function DashboardTopbar({ title, subtitle, onMenu, fullName, ema
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
-          <Link href="/dashboard/notifications" aria-label="Open notifications" className="relative p-2 glass rounded-lg hover:bg-white/5">
-            <Bell className="w-5 h-5 text-gray-300" />
-          </Link>
+          <NotificationBell />
           <div className="relative">
             <button onClick={() => setOpen(!open)} className="flex items-center gap-2 pl-2 pr-1 py-1 border-l border-white/10 hover:bg-white/5 rounded-lg">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-sm font-bold">

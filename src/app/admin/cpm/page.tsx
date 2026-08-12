@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Save, Info, Edit, Check, X, Plus, Globe, RefreshCw } from 'lucide-react';
 import { adminLoadCountries, adminLoadLevels, adminLoadSettings, adminSaveCountryUpdates, adminAddCountry, adminDeleteCountry, adminSaveLevel, adminSaveSettings } from '@/lib/admin-server';
+import { getCpmSettingsAction, updateCpmAction } from '@/lib/cpm-actions';
 
 const TIERS = [
   { key: 'tier_1', name: 'Tier 1', color: 'from-green-500/15 to-emerald-500/15', desc: 'High-value countries' },
@@ -22,15 +23,39 @@ export default function CpmAdminPage() {
   const [referralPct, setReferralPct] = useState(10);
   const [addingCountry, setAddingCountry] = useState(false);
   const [newCountry, setNewCountry] = useState({ code: '', name: '', tier: 'tier_3', cpm_default: 1.0, cpm_min: 0.5, cpm_max: 1.5 });
+  const [globalCpm, setGlobalCpm] = useState('5');
+  const [minCpm, setMinCpm] = useState('0');
+  const [maxCpm, setMaxCpm] = useState('100');
+  const [cpmMeta, setCpmMeta] = useState<{ updatedAt?: string; updatedBy?: string | null; unauthorized?: boolean; loadError?: string }>({});
+  const [savingCpm, setSavingCpm] = useState(false);
+  const [cpmMessage, setCpmMessage] = useState<string | null>(null);
+  const [cpmError, setCpmError] = useState<string | null>(null);
+  const [pageLoading, setPageLoading] = useState(true);
 
   const load = async () => {
     try {
-      const [c, l, s] = await Promise.all([adminLoadCountries(), adminLoadLevels(), adminLoadSettings()]);
+      const [c, l, s, cpm] = await Promise.all([adminLoadCountries(), adminLoadLevels(), adminLoadSettings(), getCpmSettingsAction()]);
       setCountries(c as Country[]);
       setLevels(l);
       if (s) setReferralPct(Number(s.referral_percentage));
+      if (cpm.ok) {
+        setGlobalCpm(String(cpm.settings.cpm ?? ''));
+        setMinCpm(String(cpm.settings.min_cpm ?? ''));
+        setMaxCpm(String(cpm.settings.max_cpm ?? ''));
+        setCpmMeta({
+          updatedAt: String(cpm.settings.updated_at || ''),
+          updatedBy: cpm.updatedByName,
+        });
+        setCpmError(null);
+      } else {
+        setCpmMeta({ unauthorized: cpm.error.includes('Admin') || cpm.error.includes('authenticated'), loadError: cpm.error });
+        setCpmError(cpm.error);
+      }
     } catch (e: any) {
       toast.error(e.message || 'Failed to load CPM data');
+      setCpmError(e.message || 'Failed to load CPM data');
+    } finally {
+      setPageLoading(false);
     }
   };
   useEffect(() => { load(); }, []);
@@ -112,6 +137,36 @@ export default function CpmAdminPage() {
 
   const grouped = TIERS.map(t => ({ ...t, items: countries.filter(c => c.tier === t.key) }));
 
+  const saveGlobalCpm = async () => {
+    setSavingCpm(true);
+    setCpmMessage(null);
+    setCpmError(null);
+    try {
+      const result = await updateCpmAction({
+        cpm: Number(globalCpm),
+        minCpm: Number(minCpm),
+        maxCpm: Number(maxCpm),
+      });
+      if (!result.ok) {
+        setCpmError(result.error);
+        toast.error(result.error);
+        return;
+      }
+      setGlobalCpm(String(result.cpm));
+      setMinCpm(String(result.minCpm));
+      setMaxCpm(String(result.maxCpm));
+      setCpmMeta(prev => ({ ...prev, updatedAt: result.updatedAt }));
+      setCpmMessage(`CPM saved at $${result.cpm.toFixed(4)} per 1000 valid views. New views use this rate immediately.`);
+      toast.success('Global CPM updated');
+      await load();
+    } catch (e: any) {
+      setCpmError(e.message || 'Database error');
+      toast.error(e.message || 'Save failed');
+    } finally {
+      setSavingCpm(false);
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -130,8 +185,47 @@ export default function CpmAdminPage() {
       <div className="glass rounded-2xl p-4 flex items-start gap-3">
         <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
         <div className="text-xs text-gray-300">
-          <strong className="text-white">Earnings formula:</strong> earning_per_view = (cpm_default × level_multiplier) / 1000.<br />
-          Changes are read from the database for every new view — no values are hardcoded.
+          <strong className="text-white">Earnings formula:</strong> earning_per_view = (active_CPM × level_multiplier) / 1000.<br />
+          The global CPM below is the single source of truth. New valid views use it immediately. Already credited earnings are not recalculated.
+        </div>
+      </div>
+
+      <div className="glass-strong rounded-2xl p-5 space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="font-semibold">Global CPM (source of truth)</h3>
+            <p className="text-xs text-gray-500">1000 valid views = current CPM. Stored as NUMERIC in the database.</p>
+          </div>
+          {pageLoading && <span className="text-xs text-gray-500">Loading…</span>}
+        </div>
+        {cpmMeta.unauthorized && (
+          <p className="text-sm text-red-400">You are not authorized to manage CPM.</p>
+        )}
+        {cpmError && <p className="text-sm text-red-400">{cpmError}</p>}
+        {cpmMessage && <p className="text-sm text-green-400">{cpmMessage}</p>}
+        <div className="grid sm:grid-cols-3 gap-3">
+          <div>
+            <label className="text-[10px] text-gray-500 block mb-1">CPM ($ / 1000 views)</label>
+            <input type="number" step="0.000001" min="0" value={globalCpm} onChange={e => setGlobalCpm(e.target.value)} className="input-field" />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-500 block mb-1">Min CPM</label>
+            <input type="number" step="0.000001" min="0" value={minCpm} onChange={e => setMinCpm(e.target.value)} className="input-field" />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-500 block mb-1">Max CPM</label>
+            <input type="number" step="0.000001" min="0" value={maxCpm} onChange={e => setMaxCpm(e.target.value)} className="input-field" />
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-400">
+          <div>
+            <div>Current CPM: <strong className="text-white">${Number(globalCpm || 0).toFixed(4)}</strong></div>
+            <div>Last updated: {cpmMeta.updatedAt ? new Date(cpmMeta.updatedAt).toLocaleString() : '—'}</div>
+            <div>Updated by: {cpmMeta.updatedBy || '—'}</div>
+          </div>
+          <button onClick={saveGlobalCpm} disabled={savingCpm || pageLoading || cpmMeta.unauthorized} className="btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50">
+            {savingCpm ? 'Saving…' : 'Save Changes'}
+          </button>
         </div>
       </div>
 

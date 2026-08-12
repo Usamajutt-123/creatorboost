@@ -20,7 +20,7 @@ describe('database security invariants', () => {
   it('migrations exist and are ordered', () => {
     expect(migrations.length).toBeGreaterThanOrEqual(7);
     expect(migrations[0]).toMatch(/^0001_/);
-    expect(migrations[migrations.length - 1]).toMatch(/^0009_/);
+    expect(migrations[migrations.length - 1]).toMatch(/^0010_/);
   });
 
   it('enables RLS on every sensitive table', () => {
@@ -184,6 +184,15 @@ describe('database security invariants', () => {
     expect(s8).toContain('REVOKE ALL ON TABLE withdrawals FROM anon, authenticated');
     expect(s8).toContain('REVOKE EXECUTE ON FUNCTION public.credit_view_earning');
     expect(s8).toContain('FROM PUBLIC, anon, authenticated');
+  });
+
+  it('defines a single-row NUMERIC cpm_settings table with RLS', () => {
+    const s10 = readFileSync(join(MIGRATIONS_DIR, '0010_cpm_notifications.sql'), 'utf8');
+    expect(s10).toContain('CREATE TABLE IF NOT EXISTS public.cpm_settings');
+    expect(s10).toContain('cpm NUMERIC(12, 6)');
+    expect(s10).toContain('ALTER TABLE public.cpm_settings ENABLE ROW LEVEL SECURITY');
+    expect(s10).toContain('CREATE TABLE IF NOT EXISTS public.cpm_change_log');
+    expect(s10).toContain('REVOKE ALL ON TABLE public.cpm_settings FROM PUBLIC, anon, authenticated');
   });
 
   it('validates task URLs and serializes mature earning release', () => {

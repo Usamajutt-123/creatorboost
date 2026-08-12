@@ -105,6 +105,7 @@ function defaultResponders() {
   supabaseState.responders = {
     'platform_settings:maybeSingle': () => ({ data: PLATFORM_SETTINGS, error: null }),
     'platform_settings:single': () => ({ data: PLATFORM_SETTINGS, error: null }),
+    'cpm_settings:maybeSingle': () => ({ data: { cpm: 5, is_active: true }, error: null }),
     'country_tiers:maybeSingle': () => ({ data: { cpm_default: 5, active: true }, error: null }),
     'profiles:maybeSingle': (q: any) => {
       const hasStatus = q.filters.some(([op, k]: any) => k === 'status');

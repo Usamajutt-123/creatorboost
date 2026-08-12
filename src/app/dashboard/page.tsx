@@ -44,17 +44,9 @@ export default async function DashboardPage() {
 
   const validRate = profile?.total_views ? Math.round(((profile.valid_views || 0) / profile.total_views) * 100) : 0;
 
-  // Real average CPM from the most recent valid views.
-  const { data: recentCpm } = await supabase
-    .from('views')
-    .select('cpm_rate')
-    .eq('creator_id', user.id)
-    .eq('status', 'valid')
-    .order('created_at', { ascending: false })
-    .limit(50);
-  const avgCpm = recentCpm && recentCpm.length
-    ? recentCpm.reduce((s, v) => s + Number(v.cpm_rate || 0), 0) / recentCpm.length
-    : null;
+  // Live platform CPM (same source the earning engine uses).
+  const { data: publicCpm } = await supabase.from('public_cpm').select('cpm').maybeSingle();
+  const currentCpm = publicCpm?.cpm != null ? Number(publicCpm.cpm) : null;
 
   // Week view trend (real)
   const priorWeekStart = new Date(nowMs - 14 * 86400_000).toISOString();
@@ -95,7 +87,7 @@ export default async function DashboardPage() {
           <StatCard label="Total Earnings" value={formatCurrency(profile?.total_earnings || 0)} change={`Week: ${formatCurrency(weekTotal)}`} icon={DollarSign} color="purple" />
           <StatCard label="Today's Earnings" value={formatCurrency(todayTotal)} change={todayChangeLabel} icon={TrendingUp} color="blue" />
           <StatCard label="Valid Views" value={formatNumber(profile?.valid_views || 0)} change={`${validRate}% valid rate`} icon={Eye} color="green" />
-          <StatCard label="Avg CPM" value={avgCpm ? `$${avgCpm.toFixed(2)}` : '$0.00'} change={`${profile?.level || 'bronze'} tier`} icon={Zap} color="pink" />
+          <StatCard label="Current CPM" value={currentCpm != null ? `$${currentCpm.toFixed(2)}` : '—'} change="Per 1000 valid views" icon={Zap} color="pink" />
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
