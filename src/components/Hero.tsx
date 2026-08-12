@@ -24,7 +24,7 @@ export default function Hero() {
                 <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400" />
               </span>
-              Trusted by 12,000+ creators
+              Built for creator campaigns
             </span>
             <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-[11px] sm:text-xs font-medium text-yellow-300">
               <Star className="w-3 h-3 fill-yellow-300" /> Unlock campaigns for creators
@@ -84,7 +84,7 @@ export default function Hero() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mr-9 sm:gap-3 max-w-2xl">
             {[
               { v: 'Tier 1–3', l: 'Country CPM tiers', i: '💰' },
-              { v: '$0.5–$6', l: 'CPM range (admin-set)', i: '🌍' },
+              { v: 'Dynamic', l: 'Admin-set CPM rates', i: '🌍' },
               { v: '24h', l: 'Default holding period', i: '⚡' },
               { v: 'Server', l: 'Every view verified', i: '🛡️' },
             ].map(s => (
@@ -117,6 +117,7 @@ export default function Hero() {
               </div>
             </div>
 
+            <div className="text-[10px] text-gray-500 mb-2">Illustrative dashboard preview — not live platform data</div>
             {/* Top KPI cards */}
             <div className="grid grid-cols-2 gap-2.5 sm:gap-3 mb-3 sm:mb-4">
               <div className="glass rounded-xl p-3 sm:p-4 stat-card">
@@ -172,7 +173,7 @@ export default function Hero() {
                 <Zap className="w-3.5 h-3.5 text-white" />
               </div>
               <div className="leading-tight">
-                <div className="text-[10px] text-gray-400">+ $24.50 just earned</div>
+                <div className="text-[10px] text-gray-400">Example earnings event</div>
                 <div className="text-[10px] font-semibold text-white">YT Subscribe Boost</div>
               </div>
             </div>

@@ -1,0 +1,6 @@
+# Supabase CLI configuration. Link this checkout to the production project
+# before running `supabase db push`; no project credentials are committed.
+project_id = "creatorboost"
+
+[functions.fraud-check]
+verify_jwt = true

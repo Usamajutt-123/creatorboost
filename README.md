@@ -1,6 +1,6 @@
 # CreatorBoost
 
-> **Premium SaaS platform for creator monetization** — earn from every valid view with smart unlock campaigns, AI fraud detection, and dynamic CPM management.
+> **Creator monetization platform** — smart unlock campaigns, server-side traffic checks, and dynamic CPM management.
 
 ![CreatorBoost Banner](https://img.shields.io/badge/Next.js-14-black) ![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green) ![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue) ![Tailwind](https://img.shields.io/badge/Tailwind-3.4-38bdf8)
 
@@ -8,15 +8,15 @@
 
 ## 🎯 Overview
 
-CreatorBoost is a **complete, production-ready** creator monetization platform. Unlike basic Sub4Unlock clones, every aspect of the business is configurable from the admin dashboard — including **all CPM rates, payout percentages, level multipliers, fraud detection sensitivity, and ad network weights**.
+CreatorBoost is a creator monetization platform with protected campaign, traffic, earnings, referral, withdrawal, and administrative workflows. Administrators configure CPM rates, level multipliers, fraud sensitivity, withdrawal methods, and platform limits from protected server actions.
 
 ### What's included
 
 - 🎨 **Premium SaaS UI** — Dark mode, glassmorphism, purple/blue neon gradients (Stripe/Vercel/Linear-style)
 - ⚡ **Full-stack Next.js 14** — App Router, server components, edge-ready
-- 🔐 **Authentication** — Email + Google OAuth + 2FA (Supabase Auth)
+- 🔐 **Authentication** — Email verification, password reset, and optional Google OAuth through Supabase Auth
 - 📊 **Creator Dashboard** — Real-time earnings, analytics charts, level progression
-- 🛡️ **AI Fraud Detection** — 50+ signals including VPN/proxy/bot/emulator detection
+- 🛡️ **Server-side fraud checks** — user-agent, VPN/proxy provider, duplicate, rate, and cap checks
 - 💰 **Dynamic Earnings Engine** — No hardcoded values; everything is admin-controlled
 - 🌍 **Country Tier System** — Tier 1/2/3 with admin-editable CPM per country
 - 💎 **5 Creator Levels** — Bronze → Diamond with configurable CPM multipliers
@@ -56,6 +56,7 @@ npm install
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+UNLOCK_TOKEN_SECRET=generate-a-long-random-string  # recommended for destination unlock cookies
 NEXT_PUBLIC_SITE_URL=https://yourdomain.com
 CRON_SECRET=generate-a-long-random-string
 RESEND_API_KEY=re_xxx            # optional — transactional email
@@ -81,7 +82,7 @@ This creates all tables, RLS policies, triggers, and helper functions.
 
 ```bash
 supabase functions deploy fraud-check
-supabase secrets set IPQUALITYSCORE_KEY=your-key
+supabase secrets set IPQUALITYSCORE_KEY=your-key FRAUD_FUNCTION_SECRET=generate-a-long-random-string
 ```
 
 ### 3. Run locally

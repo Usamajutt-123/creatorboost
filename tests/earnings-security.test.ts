@@ -21,6 +21,10 @@ describe('Earnings formula (financial math)', () => {
     expect(Number.isFinite(computePerViewEarning(Number.NaN, 1, 1))).toBe(true);
   });
 
+  it('honors a zero per-view cap instead of silently falling back to a dollar cap', () => {
+    expect(computePerViewEarning(5, 1, 0)).toBe(0);
+  });
+
   // Test 1: client cannot choose earning amount (amount is always derived & capped)
   it('earning is derived from cpm/multiplier, never client-supplied', () => {
     // There is no client-supplied amount anywhere in the formula.

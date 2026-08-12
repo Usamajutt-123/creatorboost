@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from "next/image";
-import { usePathname } from 'next/navigation';
 import { Zap, Menu, X, ArrowRight, Sparkles } from 'lucide-react';
 
 const NAV_LINKS = [
@@ -17,7 +16,6 @@ const NAV_LINKS = [
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
-  const pathname = usePathname();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -32,9 +30,6 @@ export default function Navbar() {
     document.body.style.overflow = open ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [open]);
-
-  // Close on route change
-  useEffect(() => { setOpen(false); }, [pathname]);
 
   // Close on Escape
   useEffect(() => {

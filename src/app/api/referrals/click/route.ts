@@ -7,7 +7,8 @@ import { getClientIp } from '@/lib/request-ip';
  * POST /api/referrals/click
  * Records a referral link click ({ code }) when the code exists.
  * Used by /signup?ref=CODE so the "Link Clicks" counter is real data.
- * Anonymous insert is allowed by RLS; the code is validated server-side.
+ * The endpoint uses the server-only client; the database does not expose
+ * referral-click rows or visitor IPs to anonymous browsers.
  */
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req) || 'unknown';

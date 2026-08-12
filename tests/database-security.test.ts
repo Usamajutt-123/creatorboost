@@ -20,7 +20,7 @@ describe('database security invariants', () => {
   it('migrations exist and are ordered', () => {
     expect(migrations.length).toBeGreaterThanOrEqual(7);
     expect(migrations[0]).toMatch(/^0001_/);
-    expect(migrations[migrations.length - 1]).toMatch(/^0007_/);
+    expect(migrations[migrations.length - 1]).toMatch(/^0008_/);
   });
 
   it('enables RLS on every sensitive table', () => {
@@ -160,6 +160,34 @@ describe('database security invariants', () => {
     const s7 = readFileSync(join(MIGRATIONS_DIR, '0007_final_production.sql'), 'utf8');
     expect(s7).toContain('ALTER TABLE support_tickets ALTER COLUMN user_id DROP NOT NULL');
     expect(s7).toContain('user_id IS NULL');
+  });
+
+  it('new sensitive tables enable RLS and public campaigns never expose destinations', () => {
+    const s8 = readFileSync(join(MIGRATIONS_DIR, '0008_production_repair.sql'), 'utf8');
+    for (const table of ['withdrawal_method_config', 'referral_clicks', 'audit_log']) {
+      expect(s8).toContain(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`);
+    }
+    expect(s8).toContain('CREATE OR REPLACE VIEW public.public_campaigns');
+    const publicView = s8.match(/CREATE OR REPLACE VIEW public\.public_campaigns[\s\S]*?FROM public\.campaigns/);
+    expect(publicView?.[0]).not.toContain('destination_url');
+    expect(s8).toContain('DROP POLICY IF EXISTS public_read_active_campaigns ON campaigns');
+  });
+
+  it('uses column grants and ledger uniqueness to block direct financial tampering', () => {
+    const s8 = readFileSync(join(MIGRATIONS_DIR, '0008_production_repair.sql'), 'utf8');
+    expect(s8).toContain('uq_earnings_view_earning');
+    expect(s8).toContain('accounted_at');
+    expect(s8).toContain('GRANT UPDATE (username, full_name, avatar_url, bio, country_code) ON TABLE profiles TO authenticated');
+    expect(s8).toContain('REVOKE ALL ON TABLE withdrawals FROM anon, authenticated');
+    expect(s8).toContain('REVOKE EXECUTE ON FUNCTION public.credit_view_earning');
+    expect(s8).toContain('FROM PUBLIC, anon, authenticated');
+  });
+
+  it('validates task URLs and serializes mature earning release', () => {
+    const s8 = readFileSync(join(MIGRATIONS_DIR, '0008_production_repair.sql'), 'utf8');
+    expect(s8).toContain('Every campaign task needs a valid http(s) URL');
+    expect(s8).toContain('FOR UPDATE SKIP LOCKED');
+    expect(s8).toContain('ON CONFLICT DO NOTHING RETURNING id INTO v_earning_id');
   });
 
 });

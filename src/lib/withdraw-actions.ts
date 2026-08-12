@@ -26,7 +26,7 @@ export async function requestWithdrawalAction(input: WithdrawalRequestInput): Pr
   fee?: number;
   total?: number;
 }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: 'Not authenticated' };
 
