@@ -1,5 +1,12 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import {
+  isAccountRestrictionPath,
+  isAuthEntryPath,
+  isProtectedAppPath,
+  isVerifyEmailPath,
+  resolveAccountGate,
+} from '@/lib/account-status';
 
 function loginRedirect(request: NextRequest, error?: string) {
   const url = request.nextUrl.clone();
@@ -12,7 +19,10 @@ function loginRedirect(request: NextRequest, error?: string) {
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request: { headers: request.headers } });
   const pathname = request.nextUrl.pathname;
-  const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/admin');
+  const isProtectedRoute = isProtectedAppPath(pathname);
+  const isVerifyRoute = isVerifyEmailPath(pathname);
+  const isAuthEntryRoute = isAuthEntryPath(pathname);
+  const isAccountStatusRoute = isAccountRestrictionPath(pathname);
   // Public marketing pages should remain renderable in a fresh checkout. In a
   // real deployment these variables are mandatory; fail protected routes
   // closed instead of accidentally treating an absent client as a session.
@@ -37,18 +47,11 @@ export async function updateSession(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-  const isVerifyRoute = pathname === '/verify-email';
-  const isAuthEntryRoute = pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password';
-
-  if (!user) {
-    if (isProtectedRoute) return loginRedirect(request);
-    return response;
-  }
 
   // Profile status/role must be read from the server-backed session, never a
   // browser role value. Fetch it for every route where it affects a redirect.
   let profile: { role: string; status: string } | null = null;
-  if (isProtectedRoute || isVerifyRoute || isAuthEntryRoute) {
+  if (user && (isProtectedRoute || isVerifyRoute || isAuthEntryRoute || isAccountStatusRoute)) {
     const { data } = await supabase
       .from('profiles')
       .select('role, status')
@@ -57,34 +60,15 @@ export async function updateSession(request: NextRequest) {
     profile = data;
   }
 
-  if (isProtectedRoute) {
-    if (!profile) return loginRedirect(request, 'profile-unavailable');
-    if (profile.status === 'banned' || profile.status === 'suspended') return loginRedirect(request, 'account-suspended');
-    const isAdmin = profile.role === 'admin' || profile.role === 'super_admin';
-    if (profile.status === 'pending_verification' && !isAdmin) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/verify-email';
-      return NextResponse.redirect(url);
-    }
-    if (pathname.startsWith('/admin') && !isAdmin) return NextResponse.redirect(new URL('/dashboard', request.url));
-    return response;
-  }
+  const gate = resolveAccountGate({
+    pathname,
+    authenticated: Boolean(user),
+    profile,
+  });
 
-  // This branch fixes the former /verify-email -> /dashboard ->
-  // /verify-email loop for signed-in but unconfirmed users.
-  if (isVerifyRoute) {
-    if (!profile || profile.status === 'banned' || profile.status === 'suspended') return loginRedirect(request, 'account-suspended');
-    if (profile.status !== 'pending_verification' || profile.role === 'admin' || profile.role === 'super_admin') {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-    return response;
-  }
-
-  if (isAuthEntryRoute) {
-    if (profile?.status === 'pending_verification' && profile.role !== 'admin' && profile.role !== 'super_admin') {
-      return NextResponse.redirect(new URL('/verify-email', request.url));
-    }
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+  if (gate) {
+    if (gate.redirectTo === '/login') return loginRedirect(request, gate.error);
+    return NextResponse.redirect(new URL(gate.redirectTo, request.url));
   }
 
   return response;

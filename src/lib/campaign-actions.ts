@@ -30,7 +30,11 @@ async function currentActiveUser() {
     .select('id, status')
     .eq('id', user.id)
     .maybeSingle();
-  if (!profile || profile.status !== 'active') {
+  if (!profile) throw new Error('You must be signed in');
+  if (profile.status === 'suspended' || profile.status === 'banned') {
+    throw new Error('Your account cannot manage campaigns');
+  }
+  if (profile.status !== 'active') {
     throw new Error('Verify your email before managing campaigns');
   }
   return { supabase, user };
