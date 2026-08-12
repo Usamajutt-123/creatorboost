@@ -208,6 +208,18 @@ export async function adminCampaignAction(campaignId: string, action: string) {
   return { ok: true };
 }
 
+export async function adminGetCampaign(campaignId: string) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('campaigns')
+    .select('id, slug, name, description, category, status, creator_id, total_views, valid_views, invalid_views, total_earnings, tasks, task_metadata, thumbnail_url, banner_url, expires_at, deleted_at, created_at, updated_at')
+    .eq('id', campaignId)
+    .maybeSingle();
+  if (error) throw new Error('Campaign could not be loaded');
+  return data;
+}
+
 export async function adminListCampaigns() {
   await requireAdmin();
   const supabase = createAdminClient();
