@@ -24,6 +24,8 @@ ALTER TABLE profiles
   ALTER COLUMN referral_earnings TYPE NUMERIC(14,6) USING referral_earnings::NUMERIC(14,6),
   ALTER COLUMN pending_earnings TYPE NUMERIC(14,6) USING pending_earnings::NUMERIC(14,6),
   ALTER COLUMN withdrawal_hold TYPE NUMERIC(14,6) USING withdrawal_hold::NUMERIC(14,6);
+  DROP POLICY IF EXISTS creators_insert_own_campaigns ON campaigns;
+DROP POLICY IF EXISTS creators_update_own_campaigns ON campaigns;
 ALTER TABLE campaigns
   ALTER COLUMN total_earnings TYPE NUMERIC(14,6) USING total_earnings::NUMERIC(14,6);
 
