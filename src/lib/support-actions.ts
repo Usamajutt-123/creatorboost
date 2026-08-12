@@ -2,6 +2,7 @@
 
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { sendTemplateEmail } from '@/lib/email';
+import { createNotification, notifyAdmins } from '@/lib/notifications';
 
 export type SupportTicketInput = { subject: string; category: string; message: string };
 
@@ -86,6 +87,21 @@ export async function createSupportTicketAction(input: SupportTicketInput): Prom
         name: profile.full_name || 'creator', ticketId: ticket.id.slice(0, 8), subject: clean.subject, message: clean.message.slice(0, 500),
       });
     }
+    await createNotification({
+      userId: user.id,
+      type: 'system',
+      title: 'Support ticket received',
+      message: `We received "${clean.subject}". We'll reply in your inbox.`,
+      link: '/dashboard/support',
+      metadata: { ticketId: ticket.id },
+    });
+    await notifyAdmins({
+      type: 'system',
+      title: 'New support ticket',
+      message: `${profile.full_name || 'A creator'} opened "${clean.subject}".`,
+      link: '/admin/support',
+      metadata: { ticketId: ticket.id },
+    });
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Could not create your ticket' };
