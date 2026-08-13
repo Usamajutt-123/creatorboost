@@ -109,7 +109,12 @@ function defaultResponders() {
     'country_tiers:maybeSingle': () => ({ data: { cpm_default: 5, active: true }, error: null }),
     'profiles:maybeSingle': (q: any) => {
       const hasStatus = q.filters.some(([op, k]: any) => k === 'status');
-      return { data: hasStatus ? { level: 'gold', status: 'active' } : { level: 'gold', referred_by: null }, error: null };
+      return {
+        data: hasStatus
+          ? { level: 'gold', status: 'active', country_code: null }
+          : { level: 'gold', status: 'active', country_code: null, referred_by: null },
+        error: null,
+      };
     },
     'creator_levels:maybeSingle': () => ({ data: { cpm_multiplier: 1.25 }, error: null }),
     // The idempotency pre-check and the insert both resolve via maybeSingle;
@@ -217,6 +222,81 @@ describe('recordView — security guards', () => {
     expect(credit).toBeDefined();
     expect(credit.args.p_valid).toBe(false);
     expect(credit.args.p_earning).toBe(0);
+  });
+});
+
+describe('recordView — creator country CPM', () => {
+  function setCreatorCountry(code: string | null, countryRate: { cpm_default: number; active: boolean } | null) {
+    supabaseState.responders['cpm_settings:maybeSingle'] = () => ({ data: { cpm: 1, is_active: true }, error: null });
+    supabaseState.responders['profiles:maybeSingle'] = () => ({
+      data: { level: 'bronze', status: 'active', country_code: code, referred_by: null },
+      error: null,
+    });
+    supabaseState.responders['creator_levels:maybeSingle'] = () => ({ data: { cpm_multiplier: 1 }, error: null });
+    supabaseState.responders['country_tiers:maybeSingle'] = () => ({ data: countryRate, error: null });
+  }
+
+  it('pays a Pakistan creator the custom country CPM', async () => {
+    setCreatorCountry('PK', { cpm_default: 0.5, active: true });
+    const res = await recordView({ campaign: CAMPAIGN, visitorIp: '8.8.8.8' });
+    expect(res.valid).toBe(true);
+    expect(res.cpm).toBe(0.5);
+    expect(res.earning).toBeCloseTo(0.0005, 10);
+  });
+
+  it('pays a USA creator the custom country CPM', async () => {
+    setCreatorCountry('US', { cpm_default: 5, active: true });
+    const res = await recordView({ campaign: CAMPAIGN, visitorIp: '8.8.8.8' });
+    expect(res.valid).toBe(true);
+    expect(res.cpm).toBe(5);
+    expect(res.earning).toBeCloseTo(0.005, 10);
+  });
+
+  it('uses Global CPM when the creator country has no custom rate', async () => {
+    setCreatorCountry('XX', null);
+    const res = await recordView({ campaign: CAMPAIGN, visitorIp: '8.8.8.8' });
+    expect(res.valid).toBe(true);
+    expect(res.cpm).toBe(1);
+    expect(res.earning).toBeCloseTo(0.001, 10);
+  });
+
+  it('uses Global CPM when the country override is disabled', async () => {
+    setCreatorCountry('PK', { cpm_default: 0.5, active: false });
+    const res = await recordView({ campaign: CAMPAIGN, visitorIp: '8.8.8.8' });
+    expect(res.valid).toBe(true);
+    expect(res.cpm).toBe(1);
+  });
+
+  it('uses the updated country CPM on the next valid view', async () => {
+    setCreatorCountry('PK', { cpm_default: 0.5, active: true });
+    const first = await recordView({ campaign: CAMPAIGN, visitorIp: '8.8.8.8' });
+    expect(first.cpm).toBe(0.5);
+    setCreatorCountry('PK', { cpm_default: 0.75, active: true });
+    const second = await recordView({ campaign: CAMPAIGN, visitorIp: '8.8.8.8' });
+    expect(second.cpm).toBe(0.75);
+    expect(second.earning).toBeCloseTo(0.00075, 10);
+  });
+
+  it('still applies the creator level multiplier on top of country CPM', async () => {
+    setCreatorCountry('PK', { cpm_default: 0.5, active: true });
+    supabaseState.responders['creator_levels:maybeSingle'] = () => ({ data: { cpm_multiplier: 1.25 }, error: null });
+    const res = await recordView({ campaign: CAMPAIGN, visitorIp: '8.8.8.8' });
+    expect(res.cpm).toBe(0.5);
+    expect(res.levelMultiplier).toBe(1.25);
+    expect(res.earning).toBeCloseTo(0.000625, 10);
+  });
+
+  it('still zeros earnings for fraud even when a country CPM exists', async () => {
+    setCreatorCountry('US', { cpm_default: 5, active: true });
+    const { assessFraud } = await import('@/lib/fraud');
+    vi.mocked(assessFraud).mockResolvedValueOnce({
+      isBot: true, isVpn: false, isProxy: false, isEmulator: false, isTor: false,
+      isRepeat: false, fraudScore: 95, reasons: ['bot_ua'],
+    });
+    const res = await recordView({ campaign: CAMPAIGN, visitorIp: '8.8.8.8', userAgent: 'curl/8' });
+    expect(res.valid).toBe(false);
+    expect(res.reason).toBe('bot');
+    expect(res.earning).toBe(0);
   });
 });
 

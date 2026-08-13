@@ -3,6 +3,7 @@ import { computePerViewEarning } from '../src/lib/finance';
 import {
   existingEarningsRecalculatedOnCpmChange,
   parseActiveCpm,
+  resolveCreatorCpm,
   validateCpmUpdate,
 } from '../src/lib/cpm';
 
@@ -29,6 +30,32 @@ describe('CPM validation (admin source of truth)', () => {
   it('uses current CPM in the earning formula', () => {
     expect(computePerViewEarning(5, 1, 1)).toBeCloseTo(0.005, 10);
     expect(computePerViewEarning(8, 1, 1)).toBeCloseTo(0.008, 10);
+  });
+
+  it('uses a custom country CPM when the country override is active', () => {
+    expect(resolveCreatorCpm(1, { cpm_default: 0.5, active: true })).toEqual({ cpm: 0.5, source: 'country' });
+    expect(resolveCreatorCpm(1, { cpm_default: 5, active: true })).toEqual({ cpm: 5, source: 'country' });
+  });
+
+  it('falls back to Global CPM when no valid country override exists', () => {
+    expect(resolveCreatorCpm(1, null)).toEqual({ cpm: 1, source: 'global' });
+    expect(resolveCreatorCpm(1, { cpm_default: 0.5, active: false })).toEqual({ cpm: 1, source: 'global' });
+    expect(resolveCreatorCpm(1, { cpm_default: 'nope', active: true })).toEqual({ cpm: 1, source: 'global' });
+  });
+
+  it('applies an updated country CPM to future calculations only', () => {
+    const previous = resolveCreatorCpm(1, { cpm_default: 0.5, active: true });
+    const next = resolveCreatorCpm(1, { cpm_default: 0.75, active: true });
+    expect(previous.cpm).toBe(0.5);
+    expect(next.cpm).toBe(0.75);
+    expect(computePerViewEarning(previous.cpm, 1, 1)).toBeCloseTo(0.0005, 10);
+    expect(computePerViewEarning(next.cpm, 1, 1)).toBeCloseTo(0.00075, 10);
+    expect(existingEarningsRecalculatedOnCpmChange()).toBe(false);
+  });
+
+  it('still applies creator level multipliers on top of country CPM', () => {
+    const cpm = resolveCreatorCpm(1, { cpm_default: 0.5, active: true }).cpm;
+    expect(computePerViewEarning(cpm, 1.25, 1)).toBeCloseTo(0.000625, 10);
   });
 
   it('a CPM change affects only new earnings, never already credited ones', () => {

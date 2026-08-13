@@ -481,6 +481,8 @@ export async function adminSaveCountryUpdates(updates: { id: number; fields: Rec
     if (error) throw new Error('Country rate could not be saved');
   }
   await audit(admin, 'cpm_update', 'country_tiers', undefined, null, { count: updates.length });
+  revalidatePath('/admin/cpm');
+  revalidatePath('/dashboard');
   return { ok: true };
 }
 
@@ -517,6 +519,8 @@ export async function adminDeleteCountry(id: number) {
   const { error } = await supabase.from('country_tiers').delete().eq('id', finiteNumber(id, 'Country ID', 1, 1_000_000));
   if (error) throw new Error(error.message);
   await audit(admin, 'country_delete', 'country_tiers', undefined, null, { id });
+  revalidatePath('/admin/cpm');
+  revalidatePath('/dashboard');
   return { ok: true };
 }
 

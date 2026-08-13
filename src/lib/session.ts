@@ -25,7 +25,7 @@ const cache: <T extends (...args: never[]) => unknown>(fn: T) => T =
 
 /** Columns any dashboard/analytics screen renders. Replaces `select('*')`. */
 export const DASHBOARD_PROFILE_COLUMNS =
-  'id, full_name, email, role, status, level, total_earnings, available_balance, pending_earnings, referral_earnings, total_views, valid_views, invalid_views' as const;
+  'id, full_name, email, role, status, level, country_code, total_earnings, available_balance, pending_earnings, referral_earnings, total_views, valid_views, invalid_views' as const;
 
 export type DashboardProfile = {
   id: string;
@@ -34,6 +34,7 @@ export type DashboardProfile = {
   role: string;
   status: string;
   level: string | null;
+  country_code: string | null;
   total_earnings: number | null;
   available_balance: number | null;
   pending_earnings: number | null;
