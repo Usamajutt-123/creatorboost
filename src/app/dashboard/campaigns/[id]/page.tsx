@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getSessionUser } from '@/lib/session';
 import StatCard from '@/components/StatCard';
 import { formatNumber, formatCurrency, timeAgo, localDayKey, daysAgoStart } from '@/lib/utils';
+import { coerceFlowType, FLOW_LABEL, FLOW_MULTIPLIER } from '@/lib/flow';
 import { isCampaignUuid, resolveParams } from '@/lib/route-params';
 import CopyLinkButton from './CopyLinkButton';
 
@@ -22,7 +23,7 @@ export default async function CampaignStatsPage({ params }: { params: Promise<{ 
     .from('campaigns')
     // Only the columns this screen renders — `select('*')` also carried
     // destination_url into the page payload.
-    .select('id, name, slug, status, category, created_at, tasks, total_views, valid_views, invalid_views, total_earnings')
+    .select('id, name, slug, status, category, created_at, tasks, total_views, valid_views, invalid_views, total_earnings, flow_type')
     .eq('id', id)
     .eq('creator_id', user.id)
     .is('deleted_at', null)
@@ -108,6 +109,14 @@ export default async function CampaignStatsPage({ params }: { params: Promise<{ 
         <div>
           <h1 className="font-display text-2xl font-bold">{campaign.name}</h1>
           <p className="text-sm text-gray-500">Campaign statistics · created {timeAgo(campaign.created_at)}</p>
+          {(() => {
+            const flow = coerceFlowType(campaign.flow_type);
+            return (
+              <p className="text-xs text-purple-300 mt-1">
+                Flow: {FLOW_LABEL[flow]} · Verified earning multiplier: {FLOW_MULTIPLIER[flow].toFixed(2)}×
+              </p>
+            );
+          })()}
         </div>
 
         {/* Stat cards */}

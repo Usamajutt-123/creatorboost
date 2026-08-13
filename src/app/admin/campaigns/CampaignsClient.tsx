@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Pause, Play, Trash2, ExternalLink, RefreshCw, Search } from 'lucide-react';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { adminListCampaigns, adminCampaignAction } from '@/lib/admin-server';
+import { coerceFlowType, FLOW_LABEL, FLOW_MULTIPLIER } from '@/lib/flow';
 
 /**
  * The campaign list is server-rendered (see page.tsx); refresh/search and
@@ -96,7 +97,17 @@ export default function AdminCampaignsClient({
               <tbody>
                 {filtered.map((c: any) => (
                   <tr key={c.id} className="border-b border-white/5 table-row">
-                    <td className="py-3 font-medium">{c.name}</td>
+                    <td className="py-3 font-medium">
+                      {c.name}
+                      {(() => {
+                        const flow = coerceFlowType(c.flow_type);
+                        return flow === 'normal' ? null : (
+                          <span className="ml-2 badge status-active" title={`Verified multiplier ${FLOW_MULTIPLIER[flow].toFixed(2)}×`}>
+                            {FLOW_LABEL[flow]} · {FLOW_MULTIPLIER[flow].toFixed(2)}×
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td className="py-3 text-gray-400">{c.creator?.full_name || '—'}</td>
                     <td className="py-3">{formatNumber(c.total_views)}</td>
                     <td className="py-3 text-green-400">{formatCurrency(c.total_earnings)}</td>

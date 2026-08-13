@@ -21,6 +21,7 @@ import { getCountryFromIP, sanitizeCountryCode } from './geo';
 import { assessFraud, hashIp, type FraudAssessment } from './fraud';
 import { computePerViewEarning, computeReferralCommission } from './finance';
 import { parseActiveCpm, resolveCreatorCpm } from './cpm';
+import { coerceFlowType, flowMultiplierFor, type FlowType } from './flow';
 
 export { computePerViewEarning, computeReferralCommission, computeWithdrawalFee } from './finance';
 
@@ -31,6 +32,11 @@ export type ValidatedCampaign = {
   slug: string;
   deleted_at: string | null;
   expires_at: string | null;
+  /**
+   * Server-derived custom-page flow. Never trust a browser to send this —
+   * the route re-reads `campaigns.flow_type` before calling `recordView`.
+   */
+  flow_type?: FlowType | string | null;
 };
 
 export type RecordViewInput = {
@@ -42,6 +48,15 @@ export type RecordViewInput = {
   idempotencyKey?: string | null;
   // Optional: the currently-authenticated user, for self-view detection.
   sessionUserId?: string | null;
+  /**
+   * True only when the visitor delivered a valid, server-signed flow
+   * completion token whose payload matches the stored flow_type. Set by
+   * the API route AFTER verifying the HMAC + session id. Never derived
+   * from the request body directly.
+   */
+  flowCompletionVerified?: boolean;
+  /** Session id extracted from the verified completion token, used for replay-guard. */
+  flowSessionId?: string | null;
 };
 
 export type RecordViewResult = {
@@ -49,6 +64,8 @@ export type RecordViewResult = {
   reason?: string;
   cpm: number;
   levelMultiplier: number;
+  /** 1.00 / 1.25 / 1.40 — always server-controlled. */
+  flowMultiplier: number;
   earning: number; // per view
   countryCode: string | null;
   fraudScore: number;
@@ -97,27 +114,32 @@ export async function computeViewEarnings(opts: {
   creatorId: string;
   countryCode: string | null;
   fraud: FraudAssessment;
+  /** Server-verified custom-page flow multiplier (1.00 / 1.25 / 1.40). */
+  flowMultiplier?: number;
 }): Promise<{
   valid: boolean;
   reason?: string;
   cpm: number;
   levelMultiplier: number;
+  flowMultiplier: number;
   earning: number;
 }> {
   const supabase = createAdminClient();
   const caps = await loadCaps(supabase);
+  const rawFlow = Number(opts.flowMultiplier);
+  const flowMultiplier = rawFlow === 1.25 || rawFlow === 1.4 ? rawFlow : 1.0;
 
   // 1. Hard fraud blocks
-  if (opts.fraud.isBot) return { valid: false, reason: 'bot', cpm: 0, levelMultiplier: 1, earning: 0 };
+  if (opts.fraud.isBot) return { valid: false, reason: 'bot', cpm: 0, levelMultiplier: 1, flowMultiplier, earning: 0 };
   if (caps.vpnBlockEnabled && (opts.fraud.isVpn || opts.fraud.isProxy)) {
-    return { valid: false, reason: opts.fraud.isVpn ? 'vpn' : 'proxy', cpm: 0, levelMultiplier: 1, earning: 0 };
+    return { valid: false, reason: opts.fraud.isVpn ? 'vpn' : 'proxy', cpm: 0, levelMultiplier: 1, flowMultiplier, earning: 0 };
   }
-  if (opts.fraud.isEmulator) return { valid: false, reason: 'emulator', cpm: 0, levelMultiplier: 1, earning: 0 };
+  if (opts.fraud.isEmulator) return { valid: false, reason: 'emulator', cpm: 0, levelMultiplier: 1, flowMultiplier, earning: 0 };
 
   // 2. Score-based filtering by sensitivity
   const threshold = SENSITIVITY_THRESHOLDS[caps.sensitivity] ?? 75;
   if (opts.fraud.fraudScore >= threshold) {
-    return { valid: false, reason: 'abnormal_traffic', cpm: 0, levelMultiplier: 1, earning: 0 };
+    return { valid: false, reason: 'abnormal_traffic', cpm: 0, levelMultiplier: 1, flowMultiplier, earning: 0 };
   }
 
   // 3. Active platform CPM (admin-configurable Global CPM).
@@ -145,7 +167,7 @@ export async function computeViewEarnings(opts: {
     .eq('id', opts.creatorId)
     .maybeSingle();
   if (profile && (profile.status === 'banned' || profile.status === 'suspended')) {
-    return { valid: false, reason: 'account_blocked', cpm: 0, levelMultiplier: 1, earning: 0 };
+    return { valid: false, reason: 'account_blocked', cpm: 0, levelMultiplier: 1, flowMultiplier, earning: 0 };
   }
 
   const creatorCountry = sanitizeCountryCode(profile?.country_code);
@@ -164,10 +186,15 @@ export async function computeViewEarnings(opts: {
     .maybeSingle();
   const levelMultiplier = Number(levelRow?.cpm_multiplier ?? 1.0);
 
-  // 5. Per-view earning with a hard per-view cap
-  const earning = computePerViewEarning(cpm, levelMultiplier, caps.maxEarningsPerView);
+  // 5. Per-view earning with a hard per-view cap.
+  //    Order: country/global CPM -> level multiplier -> flow multiplier ->
+  //    per-view cap. Flow multiplier is 1.00 when the visitor did not
+  //    complete the verified custom-page flow (i.e. legacy `normal` or a
+  //    forged/tampered request); it is NEVER read from the client.
+  const combinedMultiplier = levelMultiplier * flowMultiplier;
+  const earning = computePerViewEarning(cpm, combinedMultiplier, caps.maxEarningsPerView);
 
-  return { valid: true, cpm, levelMultiplier, earning };
+  return { valid: true, cpm, levelMultiplier, flowMultiplier, earning };
 }
 
 async function sumEarningsSince(supabase: ReturnType<typeof createAdminClient>, creatorId: string, sinceIso: string) {
@@ -207,6 +234,7 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
         reason: existing.accounted_at ? (existing.invalid_reason ?? undefined) : 'accounting_pending',
         cpm: Number(existing.cpm_rate || 0),
         levelMultiplier: 1,
+        flowMultiplier: 1,
         earning: Number(existing.earnings || 0),
         countryCode: existing.country_code,
         fraudScore: Number(existing.fraud_score || 0),
@@ -248,7 +276,14 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
   // ---------------------------------------------------------------
   // 3. Earnings decision
   // ---------------------------------------------------------------
-  const decision = await computeViewEarnings({ creatorId, countryCode, fraud });
+  // Flow multiplier is derived exclusively from the campaign's stored
+  // flow_type. A visitor only gets 1.25× / 1.40× when the caller passes
+  // `flowCompletionVerified: true` after checking a server-signed
+  // completion token. Anything else falls back to 1.00×.
+  const storedFlow: FlowType = coerceFlowType(input.campaign.flow_type);
+  const stampedFlow: FlowType = input.flowCompletionVerified ? storedFlow : 'normal';
+  const flowMultiplier = flowMultiplierFor(stampedFlow);
+  const decision = await computeViewEarnings({ creatorId, countryCode, fraud, flowMultiplier });
   // The database performs a final serialized cap/status check while it
   // accounts the view. These values are updated from that authoritative RPC
   // response before we return anything to the route handler.
@@ -373,6 +408,10 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
       tasks_completed: input.tasksCompleted ?? [],
       validated_at: decision.valid ? new Date().toISOString() : null,
       idempotency_key: idemKey,
+      // Flow audit + replay-guard columns (migration 0014).
+      flow_type: stampedFlow,
+      flow_multiplier: decision.flowMultiplier,
+      flow_session_id: input.flowSessionId?.trim() || null,
     })
     .select()
     .maybeSingle();
@@ -391,7 +430,9 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
   //    The RPC re-validates view ownership and caps server-side.
   // ---------------------------------------------------------------
   if (inserted) {
-    const description = `View earning @ $${decision.cpm.toFixed(2)} CPM × ${decision.levelMultiplier}x level`;
+    const description = decision.flowMultiplier === 1
+      ? `View earning @ $${decision.cpm.toFixed(2)} CPM × ${decision.levelMultiplier}x level`
+      : `View earning @ $${decision.cpm.toFixed(2)} CPM × ${decision.levelMultiplier}x level × ${decision.flowMultiplier}x flow (${stampedFlow})`;
     const { data: credit, error: cErr } = await supabase.rpc('credit_view_earning', {
       p_view_id: inserted.id,
       p_campaign_id: campaignId,
@@ -429,6 +470,7 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
     reason: finalReason,
     cpm: decision.cpm,
     levelMultiplier: decision.levelMultiplier,
+    flowMultiplier: decision.flowMultiplier,
     earning: finalEarning,
     countryCode,
     fraudScore: fraud.fraudScore,
@@ -437,7 +479,7 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
 }
 
 function invalidResult(reason: string): RecordViewResult {
-  return { valid: false, reason, cpm: 0, levelMultiplier: 1, earning: 0, countryCode: null, fraudScore: 0, duplicate: false };
+  return { valid: false, reason, cpm: 0, levelMultiplier: 1, flowMultiplier: 1, earning: 0, countryCode: null, fraudScore: 0, duplicate: false };
 }
 
 /** Credit the referrer a % commission on a valid view earning (idempotent per view). */

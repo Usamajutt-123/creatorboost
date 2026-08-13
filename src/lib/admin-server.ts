@@ -244,7 +244,7 @@ export async function adminListCampaigns() {
   // second `profiles` lookup after the list comes back).
   const { data } = await supabase
     .from('campaigns')
-    .select('id, slug, name, creator_id, total_views, valid_views, total_earnings, status, deleted_at, created_at, creator:profiles!campaigns_creator_id_fkey(full_name)')
+    .select('id, slug, name, creator_id, total_views, valid_views, total_earnings, status, deleted_at, created_at, flow_type, creator:profiles!campaigns_creator_id_fkey(full_name)')
     .order('created_at', { ascending: false })
     .limit(200);
   const rows = data || [];
