@@ -13,6 +13,7 @@ import Testimonials from '@/components/Testimonials';
 import Pricing from '@/components/Pricing';
 import Faq from '@/components/Faq';
 import BlogPreview from '@/components/BlogPreview';
+import BlogPreviewSkeleton from '@/components/BlogPreviewSkeleton';
 import ContactForm from '@/components/ContactForm';
 import CtaBanner from '@/components/CtaBanner';
 import Navbar from '@/components/Navbar';
@@ -62,8 +63,10 @@ export default function Home() {
       {/* 13. FAQ */}
       <Faq />
 
-      {/* 14. Blog Preview */}
-      <BlogPreview />
+      {/* 14. Blog Preview — streamed so its database query never blocks the homepage shell. */}
+      <Suspense fallback={<BlogPreviewSkeleton />}>
+        <BlogPreview />
+      </Suspense>
 
       {/* 15. Contact Form */}
       <ContactForm />
