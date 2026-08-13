@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Menu, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { signOutClient } from '@/lib/supabase/sign-out';
 import NotificationBell from '@/components/NotificationBell';
 
 export default function DashboardTopbar({ title, subtitle, onMenu, fullName, email, avatar, userId, unreadCount }: {
@@ -21,8 +21,7 @@ export default function DashboardTopbar({ title, subtitle, onMenu, fullName, ema
   const [open, setOpen] = useState(false);
 
   const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    await signOutClient();
     router.push('/');
   };
 

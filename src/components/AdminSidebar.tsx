@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from "next/image";
 import { usePathname } from 'next/navigation';
 import { BarChart3, Users, Megaphone, Wallet, DollarSign, Network, Award, Settings, LogOut, ArrowLeft, LifeBuoy, BellRing } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { signOutClient } from '@/lib/supabase/sign-out';
 import { useRouter } from 'next/navigation';
 import { serverAdminMe } from '@/lib/admin-server';
 
@@ -21,25 +21,45 @@ const links = [
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
-export default function AdminSidebar() {
+/**
+ * `adminName`/`adminRole` are supplied by the admin layout, which has already
+ * verified the session and loaded the profile server-side (same
+ * `requireAuth()` + role check as before — nothing about who may see this
+ * sidebar changed).
+ *
+ * They used to be resolved by a `serverAdminMe()` server action fired from a
+ * mount effect. That action re-ran the auth + role verification over the
+ * network, then triggered two `setState` calls. Because this component is
+ * rendered **twice** on every admin page (the desktop rail and the mobile
+ * drawer), each admin page load paid for two redundant POSTs and four extra
+ * render passes — after the layout had already fetched exactly this data.
+ *
+ * The effect is kept only as a fallback for a caller that does not pass the
+ * props, so behaviour is unchanged anywhere else.
+ */
+export default function AdminSidebar({ adminName: adminNameProp, adminRole: adminRoleProp }: {
+  adminName?: string;
+  adminRole?: string;
+} = {}) {
   const pathname = usePathname();
   const router = useRouter();
-  const [adminName, setAdminName] = useState('Admin');
-  const [adminRole, setAdminRole] = useState('');
+  const hasServerIdentity = adminNameProp != null;
+  const [adminName, setAdminName] = useState(adminNameProp ?? 'Admin');
+  const [adminRole, setAdminRole] = useState(adminRoleProp ?? '');
 
   useEffect(() => {
+    if (hasServerIdentity) return;
     serverAdminMe().then(me => {
       if (me.ok && me.admin) {
         setAdminName(me.admin.full_name || me.admin.email || 'Admin');
         setAdminRole(me.admin.role || 'admin');
       }
     }).catch(() => {});
-  }, []);
+  }, [hasServerIdentity]);
 
   const isActive = (href: string, exact?: boolean) => exact ? pathname === href : pathname?.startsWith(href);
   const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    await signOutClient();
     router.push('/');
   };
 

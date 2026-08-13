@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Ban, LifeBuoy, Lock, LogOut, Zap } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { signOutClient } from '@/lib/supabase/sign-out';
 
 type AccountRestrictionViewProps = {
   variant: 'suspended' | 'banned';
@@ -20,8 +20,7 @@ export default function AccountRestrictionView({
   const banned = variant === 'banned';
 
   const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    await signOutClient();
     router.push('/');
     router.refresh();
   };

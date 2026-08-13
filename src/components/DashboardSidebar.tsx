@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from "next/image";
 import { usePathname } from 'next/navigation';
 import { Home, Megaphone, PlusCircle, BarChart3, Wallet, Users, Wrench, User, Bell, HelpCircle, LogOut, Zap, Shield, Settings } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { signOutClient } from '@/lib/supabase/sign-out';
 import { useRouter } from 'next/navigation';
 
 const links = [
@@ -32,8 +32,7 @@ export default function DashboardSidebar({ level, levelProgress, isAdmin, onClos
   const router = useRouter();
 
   const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    await signOutClient();
     router.push('/');
   };
 
