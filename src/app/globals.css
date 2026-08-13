@@ -342,9 +342,3 @@ body {
 .animate-float {
   animation: float 8s ease-in-out infinite;
 }
-
-select,
-option {
-  background: #111827;
-  color: white;
-}

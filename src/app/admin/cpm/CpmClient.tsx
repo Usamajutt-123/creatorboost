@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Save, Info, Edit, Check, X, Plus, Globe, RefreshCw, Search } from 'lucide-react';
+import Select from '@/components/Select';
 import { adminLoadCountries, adminLoadLevels, adminLoadSettings, adminSaveCountryUpdates, adminAddCountry, adminDeleteCountry, adminSaveLevel, adminSaveSettings } from '@/lib/admin-server';
 import { getCpmSettingsAction, updateCpmAction } from '@/lib/cpm-actions';
 
@@ -301,9 +302,12 @@ export default function CpmAdminClient({
           <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
             <input value={newCountry.code} onChange={e => setNewCountry({ ...newCountry, code: e.target.value })} className="input-field text-sm py-2" placeholder="Code (e.g. NG)" maxLength={2} />
             <input value={newCountry.name} onChange={e => setNewCountry({ ...newCountry, name: e.target.value })} className="input-field text-sm py-2 col-span-2" placeholder="Country name" />
-            <select value={newCountry.tier} onChange={e => setNewCountry({ ...newCountry, tier: e.target.value })} className="input-field text-sm py-2">
-              <option value="tier_1">Tier 1</option><option value="tier_2">Tier 2</option><option value="tier_3">Tier 3</option><option value="tier_4">Tier 4</option>
-            </select>
+            <Select value={newCountry.tier} onChange={value => setNewCountry({ ...newCountry, tier: value })} ariaLabel="Tier" triggerClassName="text-sm py-2" options={[
+              { value: 'tier_1', label: 'Tier 1' },
+              { value: 'tier_2', label: 'Tier 2' },
+              { value: 'tier_3', label: 'Tier 3' },
+              { value: 'tier_4', label: 'Tier 4' },
+            ]} />
             <input type="number" step="0.01" value={newCountry.cpm_default} onChange={e => setNewCountry({ ...newCountry, cpm_default: parseFloat(e.target.value) })} className="input-field text-sm py-2" placeholder="CPM" />
             <div className="flex gap-1">
               <button onClick={addCountry} aria-label="Confirm add country" className="btn-primary flex-1 py-2 rounded-lg text-xs font-semibold text-white"><Check className="w-3.5 h-3.5 inline" /></button>

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { LifeBuoy, BookOpen, Mail, MessageCircle, Send } from 'lucide-react';
 import DashboardTopbar from '@/components/DashboardTopbar';
+import Select from '@/components/Select';
 import { createClient } from '@/lib/supabase/client';
 import { createSupportTicketAction, loadOwnTicketMessagesAction, replyToOwnTicketAction } from '@/lib/support-actions';
 import { toast } from 'sonner';
@@ -96,13 +97,13 @@ export default function SupportClient({
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-300 block mb-1.5">Category</label>
-                <select value={category} onChange={e => setCategory(e.target.value)} className="input-field">
-                  <option value="general">General Inquiry</option>
-                  <option value="payment">Payment Issue</option>
-                  <option value="campaign">Campaign Problem</option>
-                  <option value="account">Account Issue</option>
-                  <option value="bug">Bug Report</option>
-                </select>
+                <Select value={category} onChange={value => setCategory(value)} ariaLabel="Category" options={[
+                  { value: 'general', label: 'General Inquiry' },
+                  { value: 'payment', label: 'Payment Issue' },
+                  { value: 'campaign', label: 'Campaign Problem' },
+                  { value: 'account', label: 'Account Issue' },
+                  { value: 'bug', label: 'Bug Report' },
+                ]} />
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-300 block mb-1.5">Message</label>

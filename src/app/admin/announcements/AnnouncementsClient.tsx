@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { BellRing, CheckCircle2, Eye, RefreshCw, Search, Send, Users, X } from 'lucide-react';
+import Select from '@/components/Select';
 import {
   adminGetAnnouncementRecipientCount,
   adminListAnnouncementCreators,
@@ -309,16 +310,12 @@ export default function AdminAnnouncementsClient({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="announcement-type" className="block text-xs font-semibold text-gray-300 mb-1.5">Notification type</label>
-              <select id="announcement-type" value={type} onChange={event => setType(event.target.value as AdminAnnouncementType)} className="input-field">
-                {TYPE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
+              <Select id="announcement-type" value={type} onChange={value => setType(value as AdminAnnouncementType)} options={TYPE_OPTIONS.map(option => ({ value: option.value, label: option.label }))} />
               <p className="text-[11px] text-gray-500 mt-1.5">{selectedType.hint}</p>
             </div>
             <div>
               <label htmlFor="announcement-audience" className="block text-xs font-semibold text-gray-300 mb-1.5">Audience</label>
-              <select id="announcement-audience" value={audience} onChange={event => setAudience(event.target.value as AdminAnnouncementAudience)} className="input-field">
-                {AUDIENCE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
+              <Select id="announcement-audience" value={audience} onChange={value => setAudience(value as AdminAnnouncementAudience)} options={AUDIENCE_OPTIONS.map(option => ({ value: option.value, label: option.label }))} />
               <p className="text-[11px] text-gray-500 mt-1.5">{selectedAudience.hint}</p>
             </div>
           </div>

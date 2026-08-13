@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Save, Plus, Edit, Trash2, X, Check, Power, PowerOff, RefreshCw } from 'lucide-react';
+import Select from '@/components/Select';
 import { adminLoadSettings, adminLoadWithdrawalMethods, adminSaveSettings, adminSaveWithdrawalMethod, adminAddWithdrawalMethod, adminDeleteWithdrawalMethod } from '@/lib/admin-server';
 
 type Method = { id: number; method: string; label: string; icon: string; enabled: boolean; min_amount: number; max_amount: number; fee_percentage: number; sort_order: number };
@@ -189,9 +190,12 @@ export default function AdminSettingsClient({
       <div className="glass-strong rounded-2xl p-6 space-y-4">
         <h3 className="font-semibold">Fraud Detection</h3>
         <div><label className="text-xs text-gray-400 block mb-1.5">Sensitivity</label>
-          <select value={settings.fraud_detection_sensitivity} onChange={e => setSettings({ ...settings, fraud_detection_sensitivity: e.target.value })} className="input-field">
-            <option value="low">Low</option><option value="medium">Medium (Recommended)</option><option value="high">High</option><option value="strict">Strict</option>
-          </select>
+          <Select value={settings.fraud_detection_sensitivity} onChange={value => setSettings({ ...settings, fraud_detection_sensitivity: value })} ariaLabel="Sensitivity" options={[
+            { value: 'low', label: 'Low' },
+            { value: 'medium', label: 'Medium (Recommended)' },
+            { value: 'high', label: 'High' },
+            { value: 'strict', label: 'Strict' },
+          ]} />
         </div>
         <div className="grid sm:grid-cols-3 gap-4">
           {[

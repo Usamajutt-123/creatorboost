@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import DashboardTopbar from '@/components/DashboardTopbar';
+import Select from '@/components/Select';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
@@ -76,10 +77,10 @@ export default function SettingsClient({
             </div>
             <div>
               <label className="text-xs font-medium text-gray-300 block mb-1.5">Country</label>
-              <select value={profile.country_code || ''} onChange={e => setProfile({ ...profile, country_code: e.target.value })} className="input-field">
-                <option value="">Select...</option>
-                {['US','GB','DE','FR','CA','AU','IN','PK','BR','MX','JP'].map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <Select value={profile.country_code || ''} onChange={value => setProfile({ ...profile, country_code: value })} ariaLabel="Country" options={[
+                { value: '', label: 'Select...' },
+                ...['US','GB','DE','FR','CA','AU','IN','PK','BR','MX','JP'].map(c => ({ value: c, label: c })),
+              ]} />
             </div>
           </div>
 

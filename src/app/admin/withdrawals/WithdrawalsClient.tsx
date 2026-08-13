@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Check, X, DollarSign, RefreshCw } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import Select from '@/components/Select';
 import { adminListWithdrawals, adminApproveWithdrawal, adminRejectWithdrawal, adminPayWithdrawal } from '@/lib/admin-server';
 
 /**
@@ -52,13 +53,13 @@ export default function AdminWithdrawalsClient({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-display text-2xl font-bold">Manage Withdrawals</h2>
         <div className="flex items-center gap-2">
-          <select value={filter} onChange={e => setFilter(e.target.value)} className="input-field text-sm w-auto">
-            <option value="all">All</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="paid">Paid</option>
-            <option value="rejected">Rejected</option>
-          </select>
+          <Select value={filter} onChange={value => setFilter(value)} ariaLabel="Filter by status" className="w-auto" options={[
+            { value: 'all', label: 'All' },
+            { value: 'pending', label: 'Pending' },
+            { value: 'approved', label: 'Approved' },
+            { value: 'paid', label: 'Paid' },
+            { value: 'rejected', label: 'Rejected' },
+          ]} />
           <button onClick={() => { setLoading(true); load(); }} className="btn-ghost px-3 py-2 rounded-lg text-xs flex items-center gap-1.5"><RefreshCw className="w-3.5 h-3.5" /> Refresh</button>
         </div>
       </div>
