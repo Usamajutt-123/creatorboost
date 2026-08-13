@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { isCampaignUuid } from '@/lib/route-params';
 import { slugify } from '@/lib/utils';
-import { buildCampaignWritePayload, type CampaignMutationInput } from '@/lib/campaign-payload';
+import { buildCampaignWritePayload, extractFlowPages, type CampaignMutationInput } from '@/lib/campaign-payload';
 import { createNotification } from '@/lib/notifications';
 
 export type { CampaignMutationInput };
@@ -51,6 +51,7 @@ function actionError(error: unknown): CampaignActionResult {
 export async function createCampaignAction(input: CampaignMutationInput): Promise<CampaignActionResult> {
   try {
     const payload = buildCampaignWritePayload(input);
+    const pages = extractFlowPages(payload);
     const { supabase, user } = await currentActiveUser();
     const base = slugify(payload.name).slice(0, 72) || 'campaign';
     const slug = `${base}-${randomUUID().slice(0, 8)}`;
@@ -65,6 +66,16 @@ export async function createCampaignAction(input: CampaignMutationInput): Promis
       throw new Error('Campaign could not be created. Please try again.');
     }
     if (!data) throw new Error('Campaign could not be created. Please try again.');
+
+    // Custom-page flow rows. The DB trigger validates the final count.
+    const syncError = await syncCampaignPages(supabase, data.id, pages);
+    if (syncError) {
+      // Roll the campaign row back so the user is not stuck in a bad state.
+      await supabase.from('campaigns').update({ deleted_at: new Date().toISOString(), status: 'paused' })
+        .eq('id', data.id).eq('creator_id', user.id);
+      throw new Error(syncError);
+    }
+
     await createNotification({
       userId: user.id,
       type: 'campaign',
@@ -83,6 +94,7 @@ export async function updateCampaignAction(campaignId: string, input: CampaignMu
   try {
     if (!isCampaignUuid(campaignId)) throw new Error('Campaign not found');
     const payload = buildCampaignWritePayload(input);
+    const pages = extractFlowPages(payload);
     const { supabase, user } = await currentActiveUser();
     const { data, error } = await supabase
       .from('campaigns')
@@ -97,6 +109,10 @@ export async function updateCampaignAction(campaignId: string, input: CampaignMu
       throw new Error('Campaign not found or could not be updated');
     }
     if (!data) throw new Error('Campaign not found or could not be updated');
+
+    const syncError = await syncCampaignPages(supabase, data.id, pages);
+    if (syncError) throw new Error(syncError);
+
     await createNotification({
       userId: user.id,
       type: 'campaign',
@@ -109,6 +125,36 @@ export async function updateCampaignAction(campaignId: string, input: CampaignMu
   } catch (error) {
     return actionError(error);
   }
+}
+
+/**
+ * Replace the campaign's custom-page rows to exactly match `pages`.
+ * The DB deferred trigger enforces that the final count matches the
+ * campaign's flow_type. RLS restricts every write to the owner.
+ */
+async function syncCampaignPages(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  campaignId: string,
+  pages: Array<{ position: number; title: string; description: string | null; image_url: string | null; button_text: string | null }>,
+): Promise<string | null> {
+  const { error: delError } = await supabase
+    .from('campaign_pages')
+    .delete()
+    .eq('campaign_id', campaignId);
+  if (delError) {
+    console.error('[syncCampaignPages] delete failed', delError.message);
+    return 'Campaign pages could not be saved';
+  }
+  if (pages.length === 0) return null;
+  const rows = pages.map(page => ({ ...page, campaign_id: campaignId }));
+  const { error: insError } = await supabase.from('campaign_pages').insert(rows);
+  if (insError) {
+    console.error('[syncCampaignPages] insert failed', insError.message);
+    return insError.message.includes('requires exactly')
+      ? insError.message
+      : 'Campaign pages could not be saved';
+  }
+  return null;
 }
 
 export async function setCampaignStatusAction(campaignId: string, status: 'active' | 'paused'): Promise<{ success: boolean; error?: string }> {

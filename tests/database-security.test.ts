@@ -20,8 +20,8 @@ describe('database security invariants', () => {
   it('migrations exist and are ordered', () => {
     expect(migrations.length).toBeGreaterThanOrEqual(7);
     expect(migrations[0]).toMatch(/^0001_/);
-    // 0013 adds the isolated blog schema after the performance indexes.
-    expect(migrations[migrations.length - 1]).toMatch(/^0013_/);
+    // 0014 introduces the custom-page flow (feature-flagged via flow_type).
+    expect(migrations[migrations.length - 1]).toMatch(/^0014_/);
   });
 
   it('enables RLS on every sensitive table', () => {

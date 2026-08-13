@@ -10,8 +10,10 @@ import {
 } from 'react-icons/fa6';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import Select from '@/components/Select';
+import CampaignFlowEditor, { collectFlowPagesForSubmit, emptyPage, resizePages, FlowPreviewModal, type EditorPage } from '@/components/CampaignFlowEditor';
 import { updateCampaignAction, type CampaignMutationInput } from '@/lib/campaign-actions';
 import { createClient } from '@/lib/supabase/client';
+import { coerceFlowType, FLOW_PAGE_COUNT, type FlowType } from '@/lib/flow';
 import { isTaskType, isValidHttpUrl, type TaskMetadata, type TaskType } from '@/lib/tasks';
 import { toast } from 'sonner';
 
@@ -53,6 +55,14 @@ export default function EditCampaignForm({ campaignId }: { campaignId: string })
   const [form, setForm] = useState({
     name: '', description: '', category: 'youtube_growth' as (typeof CATEGORIES)[number], destinationUrl: '', status: 'active' as 'active' | 'paused' | 'draft', expiresAt: '',
   });
+  const [flowType, setFlowType] = useState<FlowType>('normal');
+  const [flowPages, setFlowPages] = useState<EditorPage[]>([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  const changeFlow = (next: FlowType) => {
+    setFlowType(next);
+    setFlowPages(existing => resizePages(existing.length ? existing : [emptyPage()], FLOW_PAGE_COUNT[next]));
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -61,7 +71,7 @@ export default function EditCampaignForm({ campaignId }: { campaignId: string })
       if (!user) { router.replace('/login'); return; }
       const { data, error } = await supabase
         .from('campaigns')
-        .select('id, name, description, category, destination_url, status, expires_at, tasks, task_metadata, thumbnail_url, banner_url')
+        .select('id, name, description, category, destination_url, status, expires_at, tasks, task_metadata, thumbnail_url, banner_url, flow_type')
         .eq('id', campaignId)
         .eq('creator_id', user.id)
         .is('deleted_at', null)
@@ -89,6 +99,28 @@ export default function EditCampaignForm({ campaignId }: { campaignId: string })
       setBannerPreview(data.banner_url || '');
       setOriginalThumbnail(data.thumbnail_url || null);
       setOriginalBanner(data.banner_url || null);
+
+      const savedFlow = coerceFlowType(data.flow_type);
+      setFlowType(savedFlow);
+      if (savedFlow !== 'normal') {
+        const { data: pageRows } = await supabase
+          .from('campaign_pages')
+          .select('position, title, description, image_url, button_text')
+          .eq('campaign_id', campaignId)
+          .order('position', { ascending: true });
+        const loaded: EditorPage[] = (pageRows || []).map(row => ({
+          title: String(row.title || ''),
+          description: String(row.description || ''),
+          buttonText: String(row.button_text || ''),
+          imageUrl: row.image_url ?? null,
+          imageFile: null,
+          imagePreview: row.image_url || '',
+        }));
+        setFlowPages(resizePages(loaded, FLOW_PAGE_COUNT[savedFlow]));
+      } else {
+        setFlowPages([]);
+      }
+
       setLoading(false);
     };
     void load();
@@ -144,15 +176,26 @@ export default function EditCampaignForm({ campaignId }: { campaignId: string })
   const save = async () => {
     const error = validate();
     if (error) { toast.error(error); return; }
+    const requiredCount = FLOW_PAGE_COUNT[flowType];
+    if (flowType !== 'normal') {
+      const trimmed = flowPages.slice(0, requiredCount);
+      if (trimmed.length !== requiredCount || trimmed.some(p => !p.title.trim())) {
+        toast.error(`${flowType === '4_pages' ? '4 Pages' : '5 Pages'} requires exactly ${requiredCount} pages with titles`);
+        return;
+      }
+    }
     setSaving(true);
     try {
-      const [uploadedThumbnail, uploadedBanner] = await Promise.all([
+      const [uploadedThumbnail, uploadedBanner, pagesResult] = await Promise.all([
         thumbnailFile ? uploadMedia(thumbnailFile, 'thumbnail') : Promise.resolve(originalThumbnail),
         bannerFile ? uploadMedia(bannerFile, 'banner') : Promise.resolve(originalBanner),
+        collectFlowPagesForSubmit(flowPages, requiredCount),
       ]);
+      if (pagesResult.error) { toast.error(pagesResult.error); return; }
       const result = await updateCampaignAction(campaignId, {
         name: form.name, description: form.description, category: form.category, destinationUrl: form.destinationUrl, status: form.status,
         expiresAt: form.expiresAt, thumbnailUrl: uploadedThumbnail, bannerUrl: uploadedBanner, tasks: selectedTasks,
+        flowType, flowPages: pagesResult.pages,
       } satisfies CampaignMutationInput);
       if (!result.success) { toast.error(result.error); return; }
       toast.success('Campaign updated');
@@ -195,6 +238,18 @@ export default function EditCampaignForm({ campaignId }: { campaignId: string })
           </div>
           {selectedTasks.length > 0 && <div className="mt-5 space-y-3">{selectedTasks.map((task, index) => <div key={task.id} className="glass rounded-xl p-4"><div className="flex items-center gap-2 mb-3"><span className="w-6 h-6 rounded-full bg-purple-500/20 text-purple-200 text-xs flex items-center justify-center">{index + 1}</span><h3 className="text-sm font-medium flex-1">{taskLabel(task.id)}</h3><button type="button" onClick={() => moveTask(index, -1)} disabled={index === 0} className="p-1.5 text-gray-400 disabled:opacity-30 hover:text-white" aria-label={`Move ${taskLabel(task.id)} up`}><ArrowUp className="w-4 h-4" /></button><button type="button" onClick={() => moveTask(index, 1)} disabled={index === selectedTasks.length - 1} className="p-1.5 text-gray-400 disabled:opacity-30 hover:text-white" aria-label={`Move ${taskLabel(task.id)} down`}><ArrowDown className="w-4 h-4" /></button><button type="button" onClick={() => removeTask(task.id)} className="p-1.5 text-red-400 hover:text-red-300" aria-label={`Remove ${taskLabel(task.id)}`}><X className="w-4 h-4" /></button></div>{task.id === 'custom' && <label className="text-xs text-gray-300 block mb-3">Task title *<input value={task.title} onChange={event => updateTask(task.id, 'title', event.target.value)} className="input-field mt-1.5" maxLength={120} /></label>}<label className="text-xs text-gray-300 block">Task URL *<input value={task.url} onChange={event => updateTask(task.id, 'url', event.target.value)} className="input-field mt-1.5" placeholder="https://example.com/exact-destination" inputMode="url" /></label></div>)}</div>}
           </section>
+
+          <CampaignFlowEditor
+            flowType={flowType}
+            onFlowTypeChange={changeFlow}
+            pages={flowPages}
+            onPagesChange={setFlowPages}
+            onPreview={flowType !== 'normal' ? () => setPreviewOpen(true) : undefined}
+            disabled={saving}
+          />
+          {previewOpen && flowType !== 'normal' && (
+            <FlowPreviewModal flowType={flowType} pages={flowPages} destinationUrl={form.destinationUrl} onClose={() => setPreviewOpen(false)} />
+          )}
 
           <section><h2 className="font-semibold mb-4">Publishing settings</h2><div className="grid sm:grid-cols-2 gap-4"><label className="text-xs font-medium text-gray-300 block">Status<Select value={form.status} onChange={value => setForm({ ...form, status: value as typeof form.status })} className="mt-1.5" options={[{ value: 'active', label: 'Active' }, { value: 'paused', label: 'Paused' }, { value: 'draft', label: 'Draft' }]} /></label><label className="text-xs font-medium text-gray-300 block">Expiry date (optional)<input type="date" value={form.expiresAt} onChange={event => setForm({ ...form, expiresAt: event.target.value })} className="input-field mt-1.5" /></label></div></section>
           <div className="flex flex-col sm:flex-row sm:justify-end gap-3 pt-4 border-t border-white/10"><Link href="/dashboard/campaigns" className="btn-ghost px-5 py-2.5 rounded-xl text-sm text-center">Cancel</Link><button type="button" onClick={save} disabled={saving} className="btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"><Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save changes'}</button></div>
