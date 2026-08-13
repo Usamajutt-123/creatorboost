@@ -26,6 +26,7 @@ import {
   type BlogContentBlock,
 } from '@/lib/blog-content';
 import { uploadBlogImage, validateBlogImage } from '@/lib/blog-upload';
+import Select from '@/components/Select';
 
 const BLOCK_LABELS: Record<BlogBlockType, string> = {
   paragraph: 'Paragraph',
@@ -322,9 +323,14 @@ export default function BlogEditor({ initialPost, defaultAuthor }: {
                   <div key={block.id} className="glass rounded-xl p-3 sm:p-4">
                     <div className="flex flex-wrap items-center gap-2 mb-3">
                       <Icon className="w-4 h-4 text-purple-300" />
-                      <select value={block.type} onChange={event => updateBlock(index, { type: event.target.value as BlogBlockType })} className="input-field py-1.5 px-2 text-xs w-auto">
-                        {BLOG_BLOCK_TYPES.map(type => <option key={type} value={type}>{BLOCK_LABELS[type]}</option>)}
-                      </select>
+                      <Select
+                        value={block.type}
+                        onChange={value => updateBlock(index, { type: value as BlogBlockType })}
+                        ariaLabel="Block type"
+                        className="inline-block w-auto"
+                        triggerClassName="py-1.5 px-2 text-xs"
+                        options={BLOG_BLOCK_TYPES.map(type => ({ value: type, label: BLOCK_LABELS[type] }))}
+                      />
                       <div className="ml-auto flex items-center gap-1"><button type="button" onClick={() => setBlocks(current => move(current, index, -1))} disabled={index === 0} className="p-1.5 rounded-lg hover:bg-white/10 disabled:opacity-30" aria-label="Move block up"><ArrowUp className="w-3.5 h-3.5" /></button><button type="button" onClick={() => setBlocks(current => move(current, index, 1))} disabled={index === blocks.length - 1} className="p-1.5 rounded-lg hover:bg-white/10 disabled:opacity-30" aria-label="Move block down"><ArrowDown className="w-3.5 h-3.5" /></button><button type="button" onClick={() => setBlocks(current => current.filter((_, currentIndex) => currentIndex !== index))} className="p-1.5 rounded-lg hover:bg-red-500/10 text-red-400" aria-label="Remove block"><Trash2 className="w-3.5 h-3.5" /></button></div>
                     </div>
                     <textarea value={block.text} onChange={event => updateBlock(index, { text: event.target.value })} rows={block.type.includes('list') ? 5 : block.type === 'paragraph' ? 6 : 3} className="input-field resize-y leading-relaxed" placeholder={block.type.includes('list') ? 'Add one list item per line…' : `Write a ${BLOCK_LABELS[block.type].toLowerCase()}…`} />
@@ -355,7 +361,7 @@ export default function BlogEditor({ initialPost, defaultAuthor }: {
         <aside className="space-y-5 lg:sticky lg:top-20">
           <section className="glass-strong rounded-2xl p-4 space-y-4">
             <h2 className="font-semibold">Publishing</h2>
-            <div><label className="text-xs text-gray-400 block mb-1.5">Status</label><select value={status} onChange={event => setStatus(event.target.value as 'draft' | 'published')} className="input-field"><option value="draft">Draft</option><option value="published">Published</option></select></div>
+            <div><label className="text-xs text-gray-400 block mb-1.5">Status</label><Select value={status} onChange={value => setStatus(value as 'draft' | 'published')} ariaLabel="Publishing status" options={[{ value: 'draft', label: 'Draft' }, { value: 'published', label: 'Published' }]} /></div>
             <div><label className="text-xs text-gray-400 block mb-1.5">Published date</label><input type="datetime-local" value={publishedAt} onChange={event => setPublishedAt(event.target.value)} className="input-field" /><p className="text-[10px] text-gray-600 mt-1">Leave blank to publish immediately. Future dates stay hidden until scheduled time.</p></div>
             <button type="button" onClick={() => save(status)} disabled={saving || uploading} className="btn-primary w-full py-2.5 rounded-xl text-sm font-semibold text-white gap-2 disabled:opacity-50">{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Changes</button>
           </section>
