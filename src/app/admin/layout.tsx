@@ -1,18 +1,27 @@
-import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import AdminSidebar from '@/components/AdminSidebar';
 import AdminMobileSidebar from '@/components/AdminMobileSidebar';
 import DashboardTopbar from "@/components/DashboardTopbar";
+import { getDashboardProfile, getSessionUser } from '@/lib/session';
+import { getUnreadNotificationCount } from '@/lib/notifications';
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // Request-scoped helpers: the user and profile are verified once per request
+  // (the role/status checks below are unchanged), and admin pages rendered
+  // inside this layout reuse the same cached rows instead of re-querying.
+  const user = await getSessionUser();
   if (!user) redirect('/login');
-  const { data: profile } = await supabase.from('profiles').select('role, status').eq('id', user.id).single();
+
+  const [profile, unreadCount] = await Promise.all([
+    getDashboardProfile(),
+    // Server-rendered unread badge count for the topbar bell.
+    getUnreadNotificationCount(user.id),
+  ]);
+
   if (profile?.status === 'suspended') redirect('/account/suspended');
   if (profile?.status === 'banned') redirect('/account/banned');
   if (profile?.role !== 'admin' && profile?.role !== 'super_admin') redirect('/dashboard');
@@ -29,6 +38,7 @@ export default async function AdminLayout({
           title="Admin Panel"
           subtitle="Manage your platform"
           userId={user.id}
+          unreadCount={unreadCount}
         />
         {children}
       </div>

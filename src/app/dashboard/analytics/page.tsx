@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { getDashboardProfile, getSessionUser } from '@/lib/session';
+import { getUnreadNotificationCount } from '@/lib/notifications';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import StatCard from '@/components/StatCard';
 import AnalyticsCharts from '@/components/AnalyticsCharts';
@@ -19,13 +20,14 @@ export default async function AnalyticsPage() {
 
   // The profile row is the request-scoped one loaded by the dashboard layout,
   // and the views query no longer waits behind it.
-  const [profile, { data: daily }] = await Promise.all([
+  const [profile, { data: daily }, unreadCount] = await Promise.all([
     getDashboardProfile(),
     supabase
       .from('views')
       .select('created_at, status, country_code, earnings')
       .eq('creator_id', user.id)
       .gte('created_at', since),
+    getUnreadNotificationCount(user.id),
   ]);
 
   // AnalyticsCharts only needs the last 14 days of (created_at, status), which
@@ -54,7 +56,7 @@ export default async function AnalyticsPage() {
 
   return (
     <>
-      <DashboardTopbar title="Analytics" subtitle="Track your performance" />
+      <DashboardTopbar title="Analytics" subtitle="Track your performance" userId={user.id} unreadCount={unreadCount} />
       <div className="p-4 sm:p-6 space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Total Views" value={formatNumber(profile?.total_views || 0)} change="All time" icon={Eye} color="cyan" />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Bell } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -11,9 +11,14 @@ import { getUnreadNotificationCountAction } from '@/lib/notification-actions';
  * which skips an extra `auth.getUser()` network round-trip before the realtime
  * subscription can start. Client-rendered screens that do not have it fall back
  * to resolving the user themselves.
+ *
+ * `initialCount` is the server-rendered unread count: when provided the badge
+ * is correct in the first paint and no post-hydration fetch is needed. The
+ * realtime subscription still refreshes it whenever a notification changes.
  */
-export default function NotificationBell({ userId }: { userId?: string }) {
-  const [count, setCount] = useState<number | null>(null);
+export default function NotificationBell({ userId, initialCount }: { userId?: string; initialCount?: number | null }) {
+  const [count, setCount] = useState<number | null>(initialCount ?? null);
+  const hasServerCount = useRef(initialCount != null);
 
   useEffect(() => {
     let cancelled = false;
@@ -25,7 +30,7 @@ export default function NotificationBell({ userId }: { userId?: string }) {
         if (!cancelled) setCount(0);
       }
     };
-    void load();
+    if (!hasServerCount.current) void load();
 
     const supabase = createClient();
     let channel: ReturnType<typeof supabase.channel> | null = null;

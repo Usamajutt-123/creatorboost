@@ -1,6 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useState } from 'react';
 import { localDayKey, daysAgoStart } from '@/lib/utils';
 // Chart.js is loaded on demand (see components/charts/LazyChart) so the
 // charting runtime stays out of the dashboard's first-load JavaScript.
@@ -18,68 +17,65 @@ const baseOpts = {
 const COUNTRY_COLORS = ['#8b5cf6', '#6366f1', '#3b82f6', '#06b6d4', '#a855f7', '#ec4899', '#10b981', '#f59e0b'];
 
 /**
- * `creatorId` and `level` come from the server component that already loaded
- * the session and profile, which removes two blocking client round-trips
- * (`auth.getUser()` and a duplicate `profiles` read) before the charts can
- * request their data. Row access is still enforced by RLS, not by these props.
+ * Chart data arrives from the server component that rendered this dashboard:
+ * the 30-day earnings/views rows are fetched once, alongside the page's other
+ * queries, and passed down as props. This removes the post-hydration
+ * `auth.getUser()` + two Supabase round-trips the charts used to trigger on
+ * mount, and the charts can paint as soon as Chart.js loads. Row access is
+ * still enforced by RLS on the server, not by these props.
  */
-export default function DashboardCharts({ creatorId, level }: { creatorId: string; level: string }) {
-  const [earnings, setEarnings] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] });
-  const [country, setCountry] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] });
-  const [devices, setDevices] = useState<{ mobile: number; desktop: number; tablet: number }>({ mobile: 0, desktop: 0, tablet: 0 });
-
-  useEffect(() => {
-    const load = async () => {
-      const supabase = createClient();
-      if (!creatorId) return;
-
-      const since = new Date(Date.now() - 30 * 86400_000).toISOString();
-
-      const [{ data: earningsRows }, { data: views }] = await Promise.all([
-        supabase.from('earnings').select('amount, created_at').eq('creator_id', creatorId).gte('created_at', since),
-        supabase.from('views').select('country_code, user_agent').eq('creator_id', creatorId).gte('created_at', since),
-      ]);
-
-      // Earnings per day (30 days, local timezone)
-      const dayMap: Record<string, number> = {};
-      for (let i = 29; i >= 0; i--) {
-        const d = localDayKey(daysAgoStart(i));
-        dayMap[d] = 0;
-      }
-      (earningsRows || []).forEach((e: any) => {
-        const d = localDayKey(e.created_at);
-        if (dayMap[d] !== undefined) dayMap[d] += Number(e.amount);
-      });
-      const dayLabels = Object.keys(dayMap);
-      setEarnings({
-        labels: dayLabels.map(d => d.substring(5)),
-        data: dayLabels.map(d => dayMap[d]),
-      });
-
-      // Country breakdown
-      const cMap: Record<string, number> = {};
-      (views || []).forEach((v: any) => {
-        const c = v.country_code || 'XX';
-        cMap[c] = (cMap[c] || 0) + 1;
-      });
-      const top = Object.entries(cMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
-      setCountry({
-        labels: top.map(([c]) => c),
-        data: top.map(([, n]) => n),
-      });
-
-      // Devices
-      let mobile = 0, desktop = 0, tablet = 0;
-      (views || []).forEach((v: any) => {
-        const ua = (v.user_agent || '').toLowerCase();
-        if (ua.includes('ipad') || (ua.includes('android') && !ua.includes('mobile'))) tablet++;
-        else if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) mobile++;
-        else desktop++;
-      });
-      setDevices({ mobile, desktop, tablet });
+export default function DashboardCharts({
+  level,
+  earningsRows,
+  viewRows,
+}: {
+  level: string;
+  earningsRows: Array<{ amount: number | string | null; created_at: string }>;
+  viewRows: Array<{ country_code: string | null; user_agent: string | null }>;
+}) {
+  const [earnings] = useState<{ labels: string[]; data: number[] }>(() => {
+    // Earnings per day (30 days, local timezone)
+    const dayMap: Record<string, number> = {};
+    for (let i = 29; i >= 0; i--) {
+      const d = localDayKey(daysAgoStart(i));
+      dayMap[d] = 0;
+    }
+    earningsRows.forEach((e) => {
+      const d = localDayKey(e.created_at);
+      if (dayMap[d] !== undefined) dayMap[d] += Number(e.amount);
+    });
+    const dayLabels = Object.keys(dayMap);
+    return {
+      labels: dayLabels.map(d => d.substring(5)),
+      data: dayLabels.map(d => dayMap[d]),
     };
-    load();
-  }, [creatorId]);
+  });
+
+  const [country] = useState<{ labels: string[]; data: number[] }>(() => {
+    // Country breakdown
+    const cMap: Record<string, number> = {};
+    viewRows.forEach((v) => {
+      const c = v.country_code || 'XX';
+      cMap[c] = (cMap[c] || 0) + 1;
+    });
+    const top = Object.entries(cMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    return {
+      labels: top.map(([c]) => c),
+      data: top.map(([, n]) => n),
+    };
+  });
+
+  const [devices] = useState<{ mobile: number; desktop: number; tablet: number }>(() => {
+    // Devices
+    let mobile = 0, desktop = 0, tablet = 0;
+    viewRows.forEach((v) => {
+      const ua = (v.user_agent || '').toLowerCase();
+      if (ua.includes('ipad') || (ua.includes('android') && !ua.includes('mobile'))) tablet++;
+      else if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) mobile++;
+      else desktop++;
+    });
+    return { mobile, desktop, tablet };
+  });
 
   const earningsData = {
     labels: earnings.labels,

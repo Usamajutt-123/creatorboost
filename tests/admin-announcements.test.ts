@@ -6,6 +6,7 @@ const root = join(__dirname, '..');
 const migration = readFileSync(join(root, 'supabase', 'migrations', '0011_admin_announcements.sql'), 'utf8');
 const adminServer = readFileSync(join(root, 'src', 'lib', 'admin-server.ts'), 'utf8');
 const composer = readFileSync(join(root, 'src', 'app', 'admin', 'announcements', 'page.tsx'), 'utf8');
+const composerClient = readFileSync(join(root, 'src', 'app', 'admin', 'announcements', 'AnnouncementsClient.tsx'), 'utf8');
 const notifications = readFileSync(join(root, 'src', 'app', 'dashboard', 'notifications', 'NotificationsClient.tsx'), 'utf8');
 
 
@@ -42,8 +43,11 @@ describe('admin announcement system', () => {
 
   it('wires the composer, history, metadata type labels, and mark-read behavior', () => {
     for (const text of ['Preview', 'Send Announcement', 'Announcement History', 'Recipient count']) {
-      expect(composer).toContain(text);
+      expect(composerClient).toContain(text);
     }
+    expect(composerClient).toContain('adminGetAnnouncementRecipientCount');
+    expect(composerClient).toContain('adminListAnnouncements');
+    // The server page resolves the initial history + recipient count.
     expect(composer).toContain('adminGetAnnouncementRecipientCount');
     expect(composer).toContain('adminListAnnouncements');
     expect(notifications).toContain('metadata?.announcement_type');

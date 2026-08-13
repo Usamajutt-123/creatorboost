@@ -9,6 +9,14 @@ export const dynamic = 'force-dynamic';
 export default async function AdminDashboardPage() {
   const supabase = createAdminClient();
 
+  // Chart data windows — identical to what AdminCharts used to fetch from the
+  // browser; fetching them here removes four post-hydration client round-trips.
+  const monthWindowStart = new Date();
+  const since = new Date(monthWindowStart.getTime() - 7 * 86400_000).toISOString();
+  const revenueSince = new Date(Date.UTC(monthWindowStart.getFullYear(), monthWindowStart.getMonth() - 5, 1))
+    .toISOString()
+    .slice(0, 10);
+
   const [
     { count: totalCreators },
     { count: activeCampaigns },
@@ -18,15 +26,26 @@ export default async function AdminDashboardPage() {
     { data: approvedW },
     { data: paidW },
     { count: rejectedW },
+    { data: chartEarnings },
+    { data: chartRevenue },
+    { data: chartViews },
+    { data: chartCreators },
   ] = await Promise.all([
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'creator'),
-    supabase.from('campaigns').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'creator'),
+    supabase.from('campaigns').select('id', { count: 'exact', head: true }).eq('status', 'active'),
     supabase.from('earnings').select('amount').eq('type', 'view_earning'),
     supabase.from('ad_revenue_imports').select('revenue, source'),
-    supabase.from('withdrawals').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('withdrawals').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('withdrawals').select('amount').eq('status', 'approved'),
     supabase.from('withdrawals').select('amount').eq('status', 'paid'),
-    supabase.from('withdrawals').select('*', { count: 'exact', head: true }).eq('status', 'rejected'),
+    supabase.from('withdrawals').select('id', { count: 'exact', head: true }).eq('status', 'rejected'),
+    supabase.from('earnings').select('amount, created_at').eq('type', 'view_earning').gte('created_at', since),
+    // The revenue chart only renders the last 6 calendar months; rows older
+    // than that were downloaded and then thrown away, so the query is bounded
+    // by the same window.
+    supabase.from('ad_revenue_imports').select('revenue_date, network, revenue, source').gte('revenue_date', revenueSince).limit(2000),
+    supabase.from('views').select('country_code, created_at').gte('created_at', since),
+    supabase.from('profiles').select('created_at').eq('role', 'creator'),
   ]);
 
   const totalPayouts = payouts?.reduce((s, e) => s + Number(e.amount), 0) ?? 0;
@@ -62,7 +81,12 @@ export default async function AdminDashboardPage() {
         </div>
       )}
 
-      <AdminCharts />
+      <AdminCharts
+        earningsRows={(chartEarnings || []).map((e: any) => ({ amount: e.amount, created_at: e.created_at }))}
+        revenueRows={(chartRevenue || []).map((r: any) => ({ revenue_date: r.revenue_date, network: r.network, revenue: r.revenue, source: r.source }))}
+        viewRows={(chartViews || []).map((v: any) => ({ country_code: v.country_code, created_at: v.created_at }))}
+        creatorRows={(chartCreators || []).map((c: any) => ({ created_at: c.created_at }))}
+      />
     </div>
   );
 }
