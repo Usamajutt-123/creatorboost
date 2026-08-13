@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { countryFlagLabel, type ChartSeries, type CompactEarning } from '@/lib/chart-data';
 // Chart.js is loaded on demand (see components/charts/LazyChart) so the
 // charting runtime stays out of the admin dashboard's first-load JavaScript.
 import { Line, Doughnut, Bar } from '@/components/charts/LazyChart';
@@ -10,31 +11,44 @@ const tickColor = '#94a3b8';
 
 const COUNTRY_COLORS = ['#8b5cf6', '#6366f1', '#3b82f6', '#06b6d4', '#a855f7', '#ec4899', '#f59e0b', '#10b981'];
 
-type RevRow = {
-  revenue_date: string;
-  network: string;
-  revenue: number;
-  source: string;
-};
+/** Only the two fields the local-month revenue bucketing actually reads. */
+export type CompactRevenue = [revenueDate: string, revenue: number];
 
 /**
  * All chart data arrives from the server component that rendered the admin
  * dashboard: the same bounded window queries the charts used to fire from the
  * browser (earnings 7d, revenue ledger ≥ first day of the 6-month window,
  * views 7d, creator signups) are fetched once on the server, alongside the
- * stat-card queries, and passed down as props. The aggregation math below is
- * unchanged.
+ * stat-card queries.
+ *
+ * Aggregations that do not depend on the viewer's timezone — the top-8 country
+ * breakdown and the per-network revenue split — are now performed on the server
+ * (see `lib/chart-data`), so only the resulting numbers are serialised into the
+ * RSC payload instead of every raw view/revenue row. The per-local-month
+ * buckets (revenue vs payouts, cumulative growth) still run here because their
+ * keys depend on the viewer's local calendar; their inputs travel in compact
+ * tuple form. The aggregation math itself is unchanged.
  */
 export default function AdminCharts({
   earningsRows,
   revenueRows,
-  viewRows,
+  hasRevenue,
+  netDist,
+  topCountries,
   creatorRows,
 }: {
-  earningsRows: Array<{ amount: number | string | null; created_at: string }>;
-  revenueRows: RevRow[];
-  viewRows: Array<{ country_code: string | null; created_at: string }>;
-  creatorRows: Array<{ created_at: string }>;
+  /** Compact `[amount, epochMs]` tuples — bucketed per *local* month below. */
+  earningsRows: CompactEarning[];
+  /** Compact `[revenue_date, revenue]` tuples — bucketed per *local* month. */
+  revenueRows: CompactRevenue[];
+  /** Whether the revenue ledger has any rows at all (was `revenueRows.length > 0`). */
+  hasRevenue: boolean;
+  /** Server-aggregated per-network recorded revenue (top 6). */
+  netDist: ChartSeries;
+  /** Server-aggregated top-8 country view counts (labels already flagged). */
+  topCountries: ChartSeries;
+  /** Creator signup timestamps as epoch ms — bucketed per *local* month. */
+  creatorRows: number[];
 }) {
   const [monthly] = useState<{ labels: string[]; revenue: number[]; payouts: number[] }>(() => {
     const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -45,46 +59,21 @@ export default function AdminCharts({
       const key = `${monthNames[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
       monthMap[key] = { rev: 0, pay: 0 };
     }
-    revenueRows.forEach((r) => {
-      const d = new Date(r.revenue_date + 'T00:00:00Z');
+    revenueRows.forEach(([revenueDate, revenue]) => {
+      const d = new Date(revenueDate + 'T00:00:00Z');
       const key = `${monthNames[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
-      if (monthMap[key]) monthMap[key].rev += Number(r.revenue) || 0;
+      if (monthMap[key]) monthMap[key].rev += Number(revenue) || 0;
     });
-    earningsRows.forEach((e) => {
-      const d = new Date(e.created_at);
+    earningsRows.forEach(([amount, at]) => {
+      const d = new Date(at);
       const key = `${monthNames[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
-      if (monthMap[key]) monthMap[key].pay += Number(e.amount);
+      if (monthMap[key]) monthMap[key].pay += amount;
     });
     const monthKeys = Object.keys(monthMap);
     return {
       labels: monthKeys,
       revenue: monthKeys.map(k => Math.round((monthMap[k].rev + Number.EPSILON) * 100) / 100),
       payouts: monthKeys.map(k => Math.round((monthMap[k].pay + Number.EPSILON) * 100) / 100),
-    };
-  });
-
-  const [netDist] = useState<{ labels: string[]; data: number[] }>(() => {
-    // Network distribution by RECORDED revenue (not weights, not guesses)
-    const netMap: Record<string, number> = {};
-    revenueRows.forEach(r => { netMap[r.network] = (netMap[r.network] || 0) + Number(r.revenue) || 0; });
-    const nets = Object.entries(netMap).sort((a, b) => b[1] - a[1]).slice(0, 6);
-    return { labels: nets.map(([n]) => n), data: nets.map(([, v]) => Math.round(v * 100) / 100) };
-  });
-
-  const [topCountries] = useState<{ labels: string[]; data: number[] }>(() => {
-    // Top countries from views (7d, real)
-    const cMap: Record<string, number> = {};
-    viewRows.forEach((v) => {
-      const c = v.country_code || 'XX';
-      cMap[c] = (cMap[c] || 0) + 1;
-    });
-    const topC = Object.entries(cMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
-    return {
-      labels: topC.map(([c]) => {
-        const flag = String.fromCodePoint(...c.toUpperCase().split('').map(ch => 127397 + ch.charCodeAt(0)));
-        return `${flag} ${c}`;
-      }),
-      data: topC.map(([, n]) => n),
     };
   });
 
@@ -97,8 +86,8 @@ export default function AdminCharts({
       const d = new Date(monthNow.getFullYear(), monthNow.getMonth() - i, 1);
       growthMap[monthNames[d.getMonth()]] = 0;
     }
-    creatorRows.forEach((c) => {
-      const d = new Date(c.created_at);
+    creatorRows.forEach((at) => {
+      const d = new Date(at);
       const key = monthNames[d.getMonth()];
       if (growthMap[key] !== undefined) growthMap[key]++;
     });
@@ -107,8 +96,6 @@ export default function AdminCharts({
     const cumulative = gKeys.map(k => { cum += growthMap[k]; return cum; });
     return { labels: gKeys, data: cumulative };
   });
-
-  const hasRevenue = revenueRows.length > 0;
 
   const revenueData = {
     labels: monthly.labels,
@@ -124,7 +111,7 @@ export default function AdminCharts({
   };
 
   const countryData = {
-    labels: topCountries.labels,
+    labels: topCountries.labels.map(countryFlagLabel),
     datasets: [{
       data: topCountries.data,
       backgroundColor: COUNTRY_COLORS.slice(0, topCountries.data.length),

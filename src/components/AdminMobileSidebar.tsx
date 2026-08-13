@@ -3,7 +3,9 @@ import { useState, useEffect } from 'react';
 import AdminSidebar from './AdminSidebar';
 import { X, } from 'lucide-react';
 
-export default function AdminMobileSidebar() {
+/** Server-resolved admin identity is forwarded to the shared sidebar so the
+ *  drawer does not fire its own duplicate `serverAdminMe()` round-trip. */
+export default function AdminMobileSidebar({ adminName, adminRole }: { adminName?: string; adminRole?: string } = {}) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export default function AdminMobileSidebar() {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto">
-          <AdminSidebar />
+          <AdminSidebar adminName={adminName} adminRole={adminRole} />
         </div>
       </aside>
     </>

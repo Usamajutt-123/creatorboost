@@ -5,6 +5,7 @@ import { getUnreadNotificationCount } from '@/lib/notifications';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import StatCard from '@/components/StatCard';
 import DashboardCharts from '@/components/DashboardCharts';
+import { aggregateViewCountries, aggregateViewDevices, compactEarnings } from '@/lib/chart-data';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { DollarSign, TrendingUp, Eye, Zap, Wallet, Clock, BarChart3, Users } from 'lucide-react';
 
@@ -116,10 +117,19 @@ export default async function DashboardPage() {
           <StatCard label="Referral Earnings" value={formatCurrency(profile?.referral_earnings || 0)} change="Lifetime" icon={Users} color="purple" />
         </div>
 
+        {/*
+          The country/device breakdowns are reduced here on the server instead
+          of shipping 30 days of raw view rows into the RSC payload (that used
+          to make this document ~982 KB and cost ~450 ms of main-thread parse).
+          The aggregation code is the same; only where it runs changed.
+          Earnings stay client-bucketed (local-timezone days) but travel as
+          compact [amount, epochMs] tuples.
+        */}
         <DashboardCharts
           level={profile?.level || 'bronze'}
-          earningsRows={(chartEarnings || []).map((e: any) => ({ amount: e.amount, created_at: e.created_at }))}
-          viewRows={(chartViews || []).map((v: any) => ({ country_code: v.country_code, user_agent: v.user_agent }))}
+          earningsRows={compactEarnings(chartEarnings)}
+          country={aggregateViewCountries(chartViews)}
+          devices={aggregateViewDevices(chartViews)}
         />
 
         <div className="glass rounded-2xl p-5">

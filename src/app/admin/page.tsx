@@ -3,6 +3,7 @@ import StatCard from '@/components/StatCard';
 import AdminCharts from '@/components/AdminCharts';
 import { DollarSign, Users, Megaphone, Clock, CheckCircle, Banknote, XCircle } from 'lucide-react';
 import { formatCurrency, formatNumber } from '@/lib/utils';
+import { aggregateNetworkRevenue, aggregateViewCountries, compactEarnings, compactTimestamps } from '@/lib/chart-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,8 +44,12 @@ export default async function AdminDashboardPage() {
     // The revenue chart only renders the last 6 calendar months; rows older
     // than that were downloaded and then thrown away, so the query is bounded
     // by the same window.
-    supabase.from('ad_revenue_imports').select('revenue_date, network, revenue, source').gte('revenue_date', revenueSince).limit(2000),
-    supabase.from('views').select('country_code, created_at').gte('created_at', since),
+    // `source` was selected but never read by any chart aggregation.
+    supabase.from('ad_revenue_imports').select('revenue_date, network, revenue').gte('revenue_date', revenueSince).limit(2000),
+    // `created_at` was selected but never read by the country chart, so it was
+    // downloaded on the server and then serialised into the RSC payload for
+    // nothing. Only the column the aggregation reads is fetched now.
+    supabase.from('views').select('country_code').gte('created_at', since),
     supabase.from('profiles').select('created_at').eq('role', 'creator'),
   ]);
 
@@ -82,10 +87,12 @@ export default async function AdminDashboardPage() {
       )}
 
       <AdminCharts
-        earningsRows={(chartEarnings || []).map((e: any) => ({ amount: e.amount, created_at: e.created_at }))}
-        revenueRows={(chartRevenue || []).map((r: any) => ({ revenue_date: r.revenue_date, network: r.network, revenue: r.revenue, source: r.source }))}
-        viewRows={(chartViews || []).map((v: any) => ({ country_code: v.country_code, created_at: v.created_at }))}
-        creatorRows={(chartCreators || []).map((c: any) => ({ created_at: c.created_at }))}
+        earningsRows={compactEarnings(chartEarnings)}
+        revenueRows={(chartRevenue || []).map((r: any) => [r.revenue_date as string, Number(r.revenue)] as [string, number])}
+        hasRevenue={(chartRevenue?.length ?? 0) > 0}
+        netDist={aggregateNetworkRevenue(chartRevenue)}
+        topCountries={aggregateViewCountries(chartViews)}
+        creatorRows={compactTimestamps(chartCreators)}
       />
     </div>
   );
