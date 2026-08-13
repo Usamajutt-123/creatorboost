@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Mail, MessageCircle, MapPin, Send } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import Select from '@/components/Select';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -84,9 +85,13 @@ export default function ContactClient() {
                 </div>
                 <div>
                   <label className="text-xs text-gray-300 block mb-1.5">Subject</label>
-                  <select value={form.subject} onChange={e => setForm({...form, subject: e.target.value})} className="input-field">
-                    <option>General Inquiry</option><option>Sales</option><option>Partnership</option><option>Press</option><option>Bug Report</option>
-                  </select>
+                  <Select value={form.subject} onChange={value => setForm({...form, subject: value})} ariaLabel="Subject" options={[
+                    { value: 'General Inquiry', label: 'General Inquiry' },
+                    { value: 'Sales', label: 'Sales' },
+                    { value: 'Partnership', label: 'Partnership' },
+                    { value: 'Press', label: 'Press' },
+                    { value: 'Bug Report', label: 'Bug Report' },
+                  ]} />
                 </div>
                 <div>
                   <label className="text-xs text-gray-300 block mb-1.5">Message</label>

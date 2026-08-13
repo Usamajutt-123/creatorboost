@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Search, X, Ban, Shield, ShieldOff, UserCheck, UserMinus, Mail, DollarSign, Megaphone, Wallet, Pause, Play, RefreshCw } from 'lucide-react';
 import { formatCurrency, formatNumber, timeAgo } from '@/lib/utils';
+import Select from '@/components/Select';
 import {
   serverAdminMe, adminListUsers, adminSetUserStatus, adminSetUserRole, adminUserDetail,
 } from '@/lib/admin-server';
@@ -106,19 +107,19 @@ export default function AdminUsersClient({
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by email, username, name..." className="input-field pl-10" />
         </div>
-        <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="input-field sm:w-auto">
-          <option value="all">All Roles</option>
-          <option value="creator">Creator</option>
-          <option value="admin">Admin</option>
-          <option value="super_admin">Super Admin</option>
-        </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="input-field sm:w-auto">
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="suspended">Suspended</option>
-          <option value="banned">Banned</option>
-          <option value="pending_verification">Pending</option>
-        </select>
+        <Select value={roleFilter} onChange={value => setRoleFilter(value)} ariaLabel="Filter by role" className="sm:w-auto" options={[
+          { value: 'all', label: 'All Roles' },
+          { value: 'creator', label: 'Creator' },
+          { value: 'admin', label: 'Admin' },
+          { value: 'super_admin', label: 'Super Admin' },
+        ]} />
+        <Select value={statusFilter} onChange={value => setStatusFilter(value)} ariaLabel="Filter by status" className="sm:w-auto" options={[
+          { value: 'all', label: 'All Status' },
+          { value: 'active', label: 'Active' },
+          { value: 'suspended', label: 'Suspended' },
+          { value: 'banned', label: 'Banned' },
+          { value: 'pending_verification', label: 'Pending' },
+        ]} />
       </div>
 
       <div className="glass rounded-2xl p-4 sm:p-5">

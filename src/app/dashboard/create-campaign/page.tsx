@@ -19,6 +19,7 @@ import {
   FaYoutube,
 } from 'react-icons/fa6';
 import DashboardTopbar from '@/components/DashboardTopbar';
+import Select from '@/components/Select';
 import { createCampaignAction, type CampaignMutationInput } from '@/lib/campaign-actions';
 import { createClient } from '@/lib/supabase/client';
 import { isValidHttpUrl, type TaskType } from '@/lib/tasks';
@@ -190,9 +191,7 @@ export default function CreateCampaignPage() {
                   <input value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} className="input-field mt-1.5" placeholder="My campaign" maxLength={150} />
                 </label>
                 <label className="text-xs font-medium text-gray-300 block">Category
-                  <select value={form.category} onChange={event => setForm({ ...form, category: event.target.value as (typeof CATEGORIES)[number] })} className="input-field mt-1.5">
-                    {CATEGORIES.map(category => <option key={category} value={category}>{category.replace(/_/g, ' ')}</option>)}
-                  </select>
+                  <Select value={form.category} onChange={value => setForm({ ...form, category: value as (typeof CATEGORIES)[number] })} className="mt-1.5" options={CATEGORIES.map(category => ({ value: category, label: category.replace(/_/g, ' ') }))} />
                 </label>
                 <label className="text-xs font-medium text-gray-300 block sm:col-span-2">Description
                   <textarea rows={3} value={form.description} onChange={event => setForm({ ...form, description: event.target.value })} className="input-field mt-1.5" placeholder="Tell visitors what they will unlock" maxLength={2000} />
@@ -273,9 +272,11 @@ export default function CreateCampaignPage() {
               <h2 className="font-semibold mb-4">Publishing settings</h2>
               <div className="grid sm:grid-cols-2 gap-4">
                 <label className="text-xs font-medium text-gray-300 block">Initial status
-                  <select value={form.status} onChange={event => setForm({ ...form, status: event.target.value as typeof form.status })} className="input-field mt-1.5">
-                    <option value="active">Active</option><option value="paused">Paused</option><option value="draft">Draft</option>
-                  </select>
+                  <Select value={form.status} onChange={value => setForm({ ...form, status: value as typeof form.status })} className="mt-1.5" options={[
+                    { value: 'active', label: 'Active' },
+                    { value: 'paused', label: 'Paused' },
+                    { value: 'draft', label: 'Draft' },
+                  ]} />
                 </label>
                 <label className="text-xs font-medium text-gray-300 block">Expiry date (optional)
                   <input type="date" value={form.expiresAt} onChange={event => setForm({ ...form, expiresAt: event.target.value })} className="input-field mt-1.5" />

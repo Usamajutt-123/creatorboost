@@ -3,6 +3,7 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Zap, Mail, Lock, User, Globe2 } from 'lucide-react';
+import Select from '@/components/Select';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
@@ -117,16 +118,16 @@ function SignupContent() {
               <label className="text-xs font-medium text-gray-300 block mb-1.5">Country</label>
               <div className="relative">
                 <Globe2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                <select value={form.country} onChange={e => setForm({ ...form, country: e.target.value })} className="input-field pl-10 appearance-none">
-                  <option value="US">United States</option>
-                  <option value="GB">United Kingdom</option>
-                  <option value="PK">Pakistan</option>
-                  <option value="IN">India</option>
-                  <option value="DE">Germany</option>
-                  <option value="CA">Canada</option>
-                  <option value="AU">Australia</option>
-                  <option value="OTHER">Other</option>
-                </select>
+                <Select value={form.country} onChange={value => setForm({ ...form, country: value })} ariaLabel="Country" triggerClassName="pl-10" options={[
+                  { value: 'US', label: 'United States' },
+                  { value: 'GB', label: 'United Kingdom' },
+                  { value: 'PK', label: 'Pakistan' },
+                  { value: 'IN', label: 'India' },
+                  { value: 'DE', label: 'Germany' },
+                  { value: 'CA', label: 'Canada' },
+                  { value: 'AU', label: 'Australia' },
+                  { value: 'OTHER', label: 'Other' },
+                ]} />
               </div>
             </div>
             <div>
