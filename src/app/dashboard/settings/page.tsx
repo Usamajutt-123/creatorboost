@@ -12,7 +12,13 @@ export default function SettingsPage() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      // Only the columns this form renders; avoids shipping the full profile
+      // row (balances, referral data, admin fields) to the browser.
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name, username, email, bio, country_code, level, created_at')
+        .eq('id', user.id)
+        .single();
       if (data) {
         setProfile(data);
       }

@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { notFound } from 'next/navigation';
 import UnlockClient from './UnlockClient';
 import { loadPublicCampaign, PublicCampaignLookupError } from '@/lib/public-campaign';
@@ -7,10 +8,19 @@ export const dynamic = 'force-dynamic';
 
 type PageProps = { params: Promise<{ slug: string }> };
 
+/**
+ * Next.js calls `generateMetadata` and the page component for the same request,
+ * and both need the campaign. Without memoization every visit to a public
+ * unlock link ran the campaign lookup twice, doubling the Supabase latency on
+ * the most traffic-heavy route in the app. `cache()` is request-scoped, so
+ * campaign changes are still picked up on the very next request.
+ */
+const getCampaign = cache(loadPublicCampaign);
+
 export async function generateMetadata({ params }: PageProps) {
   const { slug } = await resolveParams(params);
   try {
-    const campaign = await loadPublicCampaign(slug);
+    const campaign = await getCampaign(slug);
     if (!campaign) return { title: 'Campaign not found', robots: { index: false, follow: false } };
     const description = campaign.description || `Complete the tasks to unlock ${campaign.name}.`;
     return {
@@ -32,7 +42,7 @@ export default async function UnlockPage({ params }: PageProps) {
   const { slug } = await resolveParams(params);
   let campaign;
   try {
-    campaign = await loadPublicCampaign(slug);
+    campaign = await getCampaign(slug);
   } catch (error) {
     if (error instanceof PublicCampaignLookupError) {
       throw error;

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import DashboardSidebar from '@/components/DashboardSidebar';
 import MobileSidebar from '@/components/MobileSidebar';
 import { sendTemplateEmail, isConfigured as emailConfigured } from '@/lib/email';
+import { getDashboardProfile, getSessionUser } from '@/lib/session';
 
 /** One-time welcome email after the account becomes active. */
 async function maybeSendWelcomeEmail(userId: string, email: string | null | undefined) {
@@ -26,15 +27,22 @@ async function maybeSendWelcomeEmail(userId: string, email: string | null | unde
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+
+  // The level thresholds do not depend on the profile, so both round-trips run
+  // in parallel instead of one after the other. `getSessionUser`/
+  // `getDashboardProfile` are request-scoped, so the page rendered inside this
+  // layout reuses the same rows instead of re-querying Supabase.
+  const [user, profile, { data: levels }] = await Promise.all([
+    getSessionUser(),
+    getDashboardProfile(),
+    supabase
+      .from('creator_levels')
+      .select('level, min_views')
+      .eq('active', true)
+      .order('min_views', { ascending: true }),
+  ]);
 
   if (!user) redirect('/login');
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
 
   if (!profile) redirect('/login');
   if (profile.status === 'suspended') redirect('/account/suspended');
@@ -44,13 +52,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
   void maybeSendWelcomeEmail(user.id, profile.email);
 
   const level = profile.level || 'bronze';
-
-  // Read level thresholds from the database (admin-configurable).
-  const { data: levels } = await supabase
-    .from('creator_levels')
-    .select('level, min_views')
-    .eq('active', true)
-    .order('min_views', { ascending: true });
 
   const sorted = (levels || []).sort((a: any, b: any) => Number(a.min_views) - Number(b.min_views));
   const idx = sorted.findIndex((l: any) => l.level === level);

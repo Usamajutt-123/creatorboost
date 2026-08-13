@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { getDashboardProfile, getSessionUser } from '@/lib/session';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import StatCard from '@/components/StatCard';
 import AnalyticsCharts from '@/components/AnalyticsCharts';
@@ -9,22 +10,32 @@ export const dynamic = 'force-dynamic';
 
 export default async function AnalyticsPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) return null;
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('total_views, valid_views, invalid_views, total_earnings')
-    .eq('id', user.id)
-    .single();
-
   // Last 30 days
-  const since = new Date(new Date().getTime() - 30 * 86400_000).toISOString();
-  const { data: daily } = await supabase
-    .from('views')
-    .select('created_at, status, country_code, earnings')
-    .eq('creator_id', user.id)
-    .gte('created_at', since);
+  const nowMs = new Date().getTime();
+  const since = new Date(nowMs - 30 * 86400_000).toISOString();
+
+  // The profile row is the request-scoped one loaded by the dashboard layout,
+  // and the views query no longer waits behind it.
+  const [profile, { data: daily }] = await Promise.all([
+    getDashboardProfile(),
+    supabase
+      .from('views')
+      .select('created_at, status, country_code, earnings')
+      .eq('creator_id', user.id)
+      .gte('created_at', since),
+  ]);
+
+  // AnalyticsCharts only needs the last 14 days of (created_at, status), which
+  // is a subset of the rows above. Passing it down removes a duplicate
+  // client-side round-trip (auth.getUser + a second `views` query) that used to
+  // re-download the same data after hydration.
+  const chartSince = nowMs - 14 * 86400_000;
+  const chartViews = (daily || [])
+    .filter((v: any) => new Date(v.created_at).getTime() >= chartSince)
+    .map((v: any) => ({ created_at: v.created_at as string, status: v.status as string }));
 
   // Country breakdown
   const countryMap = new Map<string, { total: number; valid: number; invalid: number; earned: number }>();
@@ -52,7 +63,7 @@ export default async function AnalyticsPage() {
           <StatCard label="Avg CPM" value={profile?.valid_views ? `$${((profile?.total_earnings || 0) / (profile?.valid_views / 1000)).toFixed(2)}` : '$0.00'} change="All time" icon={TrendingUp} color="blue" />
         </div>
 
-        <AnalyticsCharts />
+        <AnalyticsCharts views={chartViews} />
 
         <div className="glass rounded-2xl p-5">
           <h3 className="font-semibold mb-4">Top Countries Performance</h3>

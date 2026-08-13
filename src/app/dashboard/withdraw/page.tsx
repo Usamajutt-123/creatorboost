@@ -20,6 +20,9 @@ type MethodConfig = {
   fee_percentage: number;
 };
 
+const PROFILE_COLUMNS = 'id, available_balance, pending_earnings';
+const WITHDRAWAL_COLUMNS = 'id, amount, method, status, created_at';
+
 export default function WithdrawPage() {
   const router = useRouter();
   const [amount, setAmount] = useState('');
@@ -36,18 +39,23 @@ export default function WithdrawPage() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      // These four reads are independent, so they run in parallel instead of
+      // as a four-request waterfall, and each selects only the columns this
+      // page renders.
+      const [{ data: p }, { data: w }, { data: settings }, { data: m }] = await Promise.all([
+        supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', user.id).single(),
+        supabase.from('withdrawals').select(WITHDRAWAL_COLUMNS).eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('public_platform_settings').select('min_withdrawal').single(),
+        // Only show enabled methods
+        supabase
+          .from('withdrawal_method_config')
+          .select('id, method, label, icon, enabled, min_amount, max_amount, fee_percentage')
+          .eq('enabled', true)
+          .order('sort_order'),
+      ]);
       setProfile(p);
-      const { data: w } = await supabase.from('withdrawals').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
       setHistory(w || []);
-      const { data: settings } = await supabase.from('public_platform_settings').select('min_withdrawal').single();
       if (settings) setMinWithdraw(settings.min_withdrawal);
-      // Only show enabled methods
-      const { data: m } = await supabase
-        .from('withdrawal_method_config')
-        .select('*')
-        .eq('enabled', true)
-        .order('sort_order');
       setMethods((m || []) as MethodConfig[]);
       if (m && m.length > 0) setMethod(m[0].method);
     };
@@ -81,9 +89,11 @@ export default function WithdrawPage() {
     toast.success('Withdrawal request submitted!');
     setAmount(''); setAccount('');
     const supabase = createClient();
-    const { data: w } = await supabase.from('withdrawals').select('*').eq('user_id', profile.id).order('created_at', { ascending: false });
+    const [{ data: w }, { data: p }] = await Promise.all([
+      supabase.from('withdrawals').select(WITHDRAWAL_COLUMNS).eq('user_id', profile.id).order('created_at', { ascending: false }),
+      supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', profile.id).single(),
+    ]);
     setHistory(w || []);
-    const { data: p } = await supabase.from('profiles').select('*').eq('id', profile.id).single();
     setProfile(p);
     router.refresh();
   };

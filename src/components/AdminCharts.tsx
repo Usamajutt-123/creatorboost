@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Line, Doughnut, Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Filler, Legend } from 'chart.js';
 import { createClient } from '@/lib/supabase/client';
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Filler, Legend);
+// Chart.js is loaded on demand (see components/charts/LazyChart) so the
+// charting runtime stays out of the admin dashboard's first-load JavaScript.
+import { Line, Doughnut, Bar } from '@/components/charts/LazyChart';
 
 const fontOpts = { family: 'Inter', size: 11 };
 const gridColor = 'rgba(255,255,255,0.06)';
@@ -29,10 +29,19 @@ export default function AdminCharts() {
     const load = async () => {
       const supabase = createClient();
       const since = new Date(Date.now() - 7 * 86400_000).toISOString();
+      // The revenue chart only renders the last 6 calendar months, so rows
+      // older than that were downloaded and then thrown away. Bounding the
+      // query by the same window keeps the rendered values identical while
+      // cutting the payload (and it is deterministic, unlike an unordered
+      // `.limit(2000)` that could silently drop in-window rows).
+      const monthWindowStart = new Date();
+      const revenueSince = new Date(Date.UTC(monthWindowStart.getFullYear(), monthWindowStart.getMonth() - 5, 1))
+        .toISOString()
+        .slice(0, 10);
 
       const [{ data: earningsRows }, { data: revenueRows }, { data: views }, { data: creators }] = await Promise.all([
         supabase.from('earnings').select('amount, created_at').eq('type', 'view_earning').gte('created_at', since),
-        supabase.from('ad_revenue_imports').select('revenue_date, network, revenue, source').limit(2000),
+        supabase.from('ad_revenue_imports').select('revenue_date, network, revenue, source').gte('revenue_date', revenueSince).limit(2000),
         supabase.from('views').select('country_code, created_at').gte('created_at', since),
         supabase.from('profiles').select('created_at').eq('role', 'creator'),
       ]);

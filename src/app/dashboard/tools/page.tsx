@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { QrCode, Copy, KeyRound } from 'lucide-react';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import { toast } from 'sonner';
-import QRCode from 'qrcode';
 
 export default function ToolsPage() {
   const [qrText, setQrText] = useState('');
@@ -15,6 +14,10 @@ export default function ToolsPage() {
     if (!qrText) { toast.error('Enter text or URL'); return; }
     setGenerating(true);
     try {
+      // `qrcode` is a large encoder bundle that only matters once someone
+      // actually presses Generate, so it is fetched on demand instead of
+      // shipping in this page's initial JavaScript.
+      const { default: QRCode } = await import('qrcode');
       const dataUrl = await QRCode.toDataURL(qrText, { color: { dark: '#000000', light: '#ffffff' }, width: 240, margin: 1 });
       setQrDataUrl(dataUrl);
     } catch {

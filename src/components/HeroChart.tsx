@@ -1,26 +1,8 @@
 'use client';
 
-import { Line } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Tooltip,
-  Filler,
-  Legend,
-} from 'chart.js';
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Tooltip,
-  Filler,
-  Legend
-);
+// Chart.js is loaded on demand (see components/charts/LazyChart) so the
+// ~180 KB charting runtime stays out of the home page's first-load JavaScript.
+import { Line } from '@/components/charts/LazyChart';
 
 const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
