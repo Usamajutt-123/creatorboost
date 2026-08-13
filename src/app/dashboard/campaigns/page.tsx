@@ -18,8 +18,11 @@ export default function CampaignsPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { data } = await supabase
+      // Only the columns these cards render. `select('*')` also pulled
+      // destination_url and the full tasks payload into the browser for every
+      // campaign — wasted bytes, and data this screen never shows.
       .from('campaigns')
-      .select('*')
+      .select('id, name, slug, status, thumbnail_url, total_views, valid_views, total_earnings')
       .eq('creator_id', user.id)
       .is('deleted_at', null)
       .order('created_at', { ascending: false });

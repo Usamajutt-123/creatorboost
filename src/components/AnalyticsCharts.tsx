@@ -1,32 +1,27 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Line, Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Filler, Legend } from 'chart.js';
-import { createClient } from '@/lib/supabase/client';
 import { localDayKey, daysAgoStart } from '@/lib/utils';
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Filler, Legend);
+// Chart.js is loaded on demand (see components/charts/LazyChart) so the
+// charting runtime stays out of the analytics page's first-load JavaScript.
+import { Line, Bar } from '@/components/charts/LazyChart';
 
 const fontOpts = { family: 'Inter', size: 11 };
 const gridColor = 'rgba(255,255,255,0.06)';
 const tickColor = '#94a3b8';
 
-export default function AnalyticsCharts() {
+type ViewRow = { created_at: string; status: string };
+
+/**
+ * Rows arrive from the server component, which already queried this creator's
+ * views for the surrounding period. Bucketing stays on the client because the
+ * day/hour keys are computed in the visitor's local timezone.
+ */
+export default function AnalyticsCharts({ views }: { views: ViewRow[] }) {
   const [daily, setDaily] = useState<{ labels: string[]; valid: number[]; invalid: number[] }>({ labels: [], valid: [], invalid: [] });
   const [hourly, setHourly] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] });
 
   useEffect(() => {
     const load = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const since = new Date(Date.now() - 14 * 86400_000).toISOString();
-      const { data: views } = await supabase
-        .from('views')
-        .select('created_at, status')
-        .eq('creator_id', user.id)
-        .gte('created_at', since);
-
       // Build daily (last 14 days, local timezone)
       const dayMap: Record<string, { valid: number; invalid: number }> = {};
       for (let i = 13; i >= 0; i--) {
@@ -60,7 +55,7 @@ export default function AnalyticsCharts() {
       });
     };
     load();
-  }, []);
+  }, [views]);
 
   const trafficData = {
     labels: daily.labels,

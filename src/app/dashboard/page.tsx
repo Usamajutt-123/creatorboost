@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { getDashboardProfile, getSessionUser } from '@/lib/session';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import StatCard from '@/components/StatCard';
 import DashboardCharts from '@/components/DashboardCharts';
@@ -10,14 +11,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) return null;
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
 
   // Earnings: today vs yesterday (real change %)
   const currentTime = new Date();
@@ -26,11 +21,47 @@ export default async function DashboardPage() {
   const yesterdayStart = new Date(todayStart.getTime() - 86400_000);
   const todayIso = todayStart.toISOString();
   const yesterdayIso = yesterdayStart.toISOString();
+  const priorWeekStart = new Date(nowMs - 14 * 86400_000).toISOString();
+  const weekStart = new Date(nowMs - 7 * 86400_000).toISOString();
 
-  const [{ data: todayEarnings }, { data: yesterdayEarnings }, { data: weekEarnings }] = await Promise.all([
+  // Every query below is independent, so they all run in one round-trip batch
+  // instead of three sequential waves. The profile row is the request-scoped
+  // one already loaded by the dashboard layout, so it is not fetched twice.
+  const [
+    profile,
+    { data: todayEarnings },
+    { data: yesterdayEarnings },
+    { data: weekEarnings },
+    { data: publicCpm },
+    { count: priorWeek },
+    { count: currentWeek },
+    { data: campaigns },
+    { data: recent },
+  ] = await Promise.all([
+    getDashboardProfile(),
     supabase.from('earnings').select('amount').eq('creator_id', user.id).gte('created_at', todayIso),
     supabase.from('earnings').select('amount').eq('creator_id', user.id).gte('created_at', yesterdayIso).lt('created_at', todayIso),
-    supabase.from('earnings').select('amount').eq('creator_id', user.id).gte('created_at', new Date(nowMs - 7 * 86400_000).toISOString()),
+    supabase.from('earnings').select('amount').eq('creator_id', user.id).gte('created_at', weekStart),
+    // Live platform CPM (same source the earning engine uses).
+    supabase.from('public_cpm').select('cpm').maybeSingle(),
+    // Week view trend (real)
+    supabase.from('views').select('id', { count: 'exact', head: true }).eq('creator_id', user.id).gte('created_at', priorWeekStart).lt('created_at', weekStart),
+    supabase.from('views').select('id', { count: 'exact', head: true }).eq('creator_id', user.id).gte('created_at', weekStart),
+    // Recent campaigns — only the columns this table renders.
+    supabase
+      .from('campaigns')
+      .select('id, name, status, total_views, valid_views, total_earnings')
+      .eq('creator_id', user.id)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(5),
+    // Recent activity (latest earnings) — only the columns this list renders.
+    supabase
+      .from('earnings')
+      .select('id, amount, created_at, campaign:campaigns(name)')
+      .eq('creator_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(6),
   ]);
 
   const todayTotal = todayEarnings?.reduce((s, e) => s + Number(e.amount), 0) ?? 0;
@@ -44,43 +75,18 @@ export default async function DashboardPage() {
 
   const validRate = profile?.total_views ? Math.round(((profile.valid_views || 0) / profile.total_views) * 100) : 0;
 
-  // Live platform CPM (same source the earning engine uses).
-  const { data: publicCpm } = await supabase.from('public_cpm').select('cpm').maybeSingle();
   const currentCpm = publicCpm?.cpm != null ? Number(publicCpm.cpm) : null;
 
-  // Week view trend (real)
-  const priorWeekStart = new Date(nowMs - 14 * 86400_000).toISOString();
-  const weekStart = new Date(nowMs - 7 * 86400_000).toISOString();
-  const [{ count: priorWeek }, { count: currentWeek }] = await Promise.all([
-    supabase.from('views').select('id', { count: 'exact', head: true }).eq('creator_id', user.id).gte('created_at', priorWeekStart).lt('created_at', weekStart),
-    supabase.from('views').select('id', { count: 'exact', head: true }).eq('creator_id', user.id).gte('created_at', weekStart),
-  ]);
   const viewTrend = priorWeek && priorWeek > 0 ? (((currentWeek ?? 0) - priorWeek) / priorWeek) * 100 : 0;
-
-  // Recent campaigns
-  const { data: campaigns } = await supabase
-    .from('campaigns')
-    .select('*')
-    .eq('creator_id', user.id)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
-    .limit(5);
-
-  // Recent activity (latest earnings)
-  const { data: recent } = await supabase
-    .from('earnings')
-    .select('*, campaign:campaigns(name)')
-    .eq('creator_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(6);
 
   return (
     <>
       <DashboardTopbar
         title="Dashboard"
         subtitle={`Welcome back, ${profile?.full_name || 'creator'}. Here's your overview.`}
-        fullName={profile?.full_name}
+        fullName={profile?.full_name ?? undefined}
         email={profile?.email}
+        userId={user.id}
       />
       <div className="p-4 sm:p-6 space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -97,7 +103,7 @@ export default async function DashboardPage() {
           <StatCard label="Referral Earnings" value={formatCurrency(profile?.referral_earnings || 0)} change="Lifetime" icon={Users} color="purple" />
         </div>
 
-        <DashboardCharts />
+        <DashboardCharts creatorId={user.id} level={profile?.level || 'bronze'} />
 
         <div className="glass rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">

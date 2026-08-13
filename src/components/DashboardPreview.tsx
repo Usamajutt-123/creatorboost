@@ -1,8 +1,7 @@
 'use client';
-import { Line, Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Filler, Legend } from 'chart.js';
-
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Filler, Legend);
+// Chart.js is loaded on demand (see components/charts/LazyChart) so the
+// charting runtime stays out of the home page's first-load JavaScript.
+import { Line, Bar } from '@/components/charts/LazyChart';
 
 export default function DashboardPreview() {
   return (

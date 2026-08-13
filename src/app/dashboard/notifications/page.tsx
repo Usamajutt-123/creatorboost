@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { getSessionUser } from '@/lib/session';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import NotificationsClient from './NotificationsClient';
 
@@ -6,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function NotificationsPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) return null;
 
   const [{ data: notifs, error }, { count: unreadCount }] = await Promise.all([
@@ -27,7 +28,7 @@ export default async function NotificationsPage() {
 
   return (
     <>
-      <DashboardTopbar title="Notifications" subtitle={error ? 'Could not load notifications' : `${unread} unread`} />
+      <DashboardTopbar title="Notifications" subtitle={error ? 'Could not load notifications' : `${unread} unread`} userId={user.id} />
       <NotificationsClient
         initial={notifs || []}
         loadError={error ? 'Notifications could not be loaded. Please try again.' : null}

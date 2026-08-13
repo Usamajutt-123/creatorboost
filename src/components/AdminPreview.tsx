@@ -1,9 +1,8 @@
 'use client';
-import { Line, Doughnut } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Filler, Legend } from 'chart.js';
 import { DollarSign, TrendingUp, Users, Megaphone, Check, X } from 'lucide-react';
-
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Filler, Legend);
+// Chart.js is loaded on demand (see components/charts/LazyChart) so the
+// charting runtime stays out of the home page's first-load JavaScript.
+import { Line, Doughnut } from '@/components/charts/LazyChart';
 
 const tickColor = '#94a3b8';
 const gridColor = 'rgba(255,255,255,0.06)';

@@ -37,7 +37,9 @@ const nextConfig = {
     ];
   },
   experimental: {
-    optimizePackageImports: ['lucide-react', 'recharts'],
+    // Tree-shake the icon barrels that are actually imported in this app.
+    // `recharts` is not a dependency here, so listing it did nothing.
+    optimizePackageImports: ['lucide-react', 'react-icons'],
   },
 };
 

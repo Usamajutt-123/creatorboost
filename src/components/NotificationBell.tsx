@@ -6,7 +6,13 @@ import { Bell } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { getUnreadNotificationCountAction } from '@/lib/notification-actions';
 
-export default function NotificationBell() {
+/**
+ * `userId` is supplied by server components that already resolved the session,
+ * which skips an extra `auth.getUser()` network round-trip before the realtime
+ * subscription can start. Client-rendered screens that do not have it fall back
+ * to resolving the user themselves.
+ */
+export default function NotificationBell({ userId }: { userId?: string }) {
   const [count, setCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -24,13 +30,13 @@ export default function NotificationBell() {
     const supabase = createClient();
     let channel: ReturnType<typeof supabase.channel> | null = null;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || cancelled) return;
+      const id = userId ?? (await supabase.auth.getUser()).data.user?.id;
+      if (!id || cancelled) return;
       channel = supabase
-        .channel(`notifications:${user.id}`)
+        .channel(`notifications:${id}`)
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+          { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${id}` },
           () => { void load(); },
         )
         .subscribe();
@@ -40,7 +46,7 @@ export default function NotificationBell() {
       cancelled = true;
       if (channel) void supabase.removeChannel(channel);
     };
-  }, []);
+  }, [userId]);
 
   return (
     <Link href="/dashboard/notifications" aria-label="Open notifications" className="relative p-2 glass rounded-lg hover:bg-white/5">

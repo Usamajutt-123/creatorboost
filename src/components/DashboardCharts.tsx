@@ -1,15 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Line, Bar, Doughnut } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement,
-  Tooltip, Filler, Legend,
-} from 'chart.js';
 import { createClient } from '@/lib/supabase/client';
 import { localDayKey, daysAgoStart } from '@/lib/utils';
-
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Filler, Legend);
+// Chart.js is loaded on demand (see components/charts/LazyChart) so the
+// charting runtime stays out of the dashboard's first-load JavaScript.
+import { Line, Bar, Doughnut } from '@/components/charts/LazyChart';
 
 const fontOpts = { family: 'Inter', size: 11 };
 const gridColor = 'rgba(255,255,255,0.06)';
@@ -22,27 +17,28 @@ const baseOpts = {
 
 const COUNTRY_COLORS = ['#8b5cf6', '#6366f1', '#3b82f6', '#06b6d4', '#a855f7', '#ec4899', '#10b981', '#f59e0b'];
 
-export default function DashboardCharts() {
+/**
+ * `creatorId` and `level` come from the server component that already loaded
+ * the session and profile, which removes two blocking client round-trips
+ * (`auth.getUser()` and a duplicate `profiles` read) before the charts can
+ * request their data. Row access is still enforced by RLS, not by these props.
+ */
+export default function DashboardCharts({ creatorId, level }: { creatorId: string; level: string }) {
   const [earnings, setEarnings] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] });
   const [country, setCountry] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] });
   const [devices, setDevices] = useState<{ mobile: number; desktop: number; tablet: number }>({ mobile: 0, desktop: 0, tablet: 0 });
-  const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
     const load = async () => {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!creatorId) return;
 
       const since = new Date(Date.now() - 30 * 86400_000).toISOString();
 
-      const [{ data: p }, { data: earningsRows }, { data: views }] = await Promise.all([
-        supabase.from('profiles').select('level, total_views').eq('id', user.id).single(),
-        supabase.from('earnings').select('amount, created_at').eq('creator_id', user.id).gte('created_at', since),
-        supabase.from('views').select('country_code, user_agent').eq('creator_id', user.id).gte('created_at', since),
+      const [{ data: earningsRows }, { data: views }] = await Promise.all([
+        supabase.from('earnings').select('amount, created_at').eq('creator_id', creatorId).gte('created_at', since),
+        supabase.from('views').select('country_code, user_agent').eq('creator_id', creatorId).gte('created_at', since),
       ]);
-
-      setProfile(p);
 
       // Earnings per day (30 days, local timezone)
       const dayMap: Record<string, number> = {};
@@ -83,7 +79,7 @@ export default function DashboardCharts() {
       setDevices({ mobile, desktop, tablet });
     };
     load();
-  }, []);
+  }, [creatorId]);
 
   const earningsData = {
     labels: earnings.labels,
@@ -115,7 +111,7 @@ export default function DashboardCharts() {
   };
 
   const levels = ['bronze', 'silver', 'gold', 'platinum', 'diamond'];
-  const currentLevelIdx = levels.indexOf(profile?.level || 'bronze');
+  const currentLevelIdx = levels.indexOf(level || 'bronze');
 
   return (
     <div className="space-y-4">

@@ -28,6 +28,7 @@ export default async function AdminLayout({
         <DashboardTopbar
           title="Admin Panel"
           subtitle="Manage your platform"
+          userId={user.id}
         />
         {children}
       </div>
