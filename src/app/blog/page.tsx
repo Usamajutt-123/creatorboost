@@ -5,6 +5,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import BlogCard from '@/components/BlogCard';
 import BlogEmptyState from '@/components/BlogEmptyState';
+import BlogCategoryFilter from './BlogCategoryFilter';
 import { getPublishedPostList } from '@/lib/blog-data';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://creatorboost.io';
@@ -71,10 +72,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
             </label>
             <label>
               <span className="sr-only">Filter by category</span>
-              <select name="category" defaultValue={category} className="input-field h-full appearance-none">
-                <option value="">All categories</option>
-                {categories.map(item => <option key={item} value={item}>{item}</option>)}
-              </select>
+              <BlogCategoryFilter categories={categories} currentCategory={category} />
             </label>
             <button type="submit" className="btn-primary px-6 py-3 rounded-xl text-sm font-semibold text-white">Search</button>
           </form>
