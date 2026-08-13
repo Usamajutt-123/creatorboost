@@ -1,7 +1,7 @@
 /**
  * CPM source of truth helpers.
- * The active rate always comes from cpm_settings in the database.
- * Never trust a browser-supplied CPM.
+ * Global CPM comes from cpm_settings. An active country_tiers rate for the
+ * creator's profile country can override it. Never trust a browser-supplied CPM.
  */
 
 export type CpmSettings = {
@@ -54,4 +54,34 @@ export function parseActiveCpm(row: { cpm?: unknown; is_active?: unknown } | nul
   if (!row || row.is_active === false) return 0;
   const cpm = Number(row.cpm);
   return Number.isFinite(cpm) && cpm >= 0 ? cpm : 0;
+}
+
+export type CountryCpmOverride = {
+  cpm_default?: unknown;
+  active?: unknown;
+};
+
+export type ResolvedCreatorCpm = {
+  cpm: number;
+  source: 'country' | 'global';
+};
+
+/**
+ * Country-specific CPM overrides Global CPM when an active, valid
+ * country_tiers rate exists. Missing, disabled, or invalid country
+ * rates leave Global CPM unchanged.
+ */
+export function resolveCreatorCpm(
+  globalCpm: number,
+  countryRate: CountryCpmOverride | null | undefined,
+): ResolvedCreatorCpm {
+  const fallback = Number.isFinite(globalCpm) && globalCpm >= 0 ? globalCpm : 0;
+  if (!countryRate || countryRate.active === false) {
+    return { cpm: fallback, source: 'global' };
+  }
+  const countryCpm = Number(countryRate.cpm_default);
+  if (!Number.isFinite(countryCpm) || countryCpm < 0) {
+    return { cpm: fallback, source: 'global' };
+  }
+  return { cpm: countryCpm, source: 'country' };
 }

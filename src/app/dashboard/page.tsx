@@ -7,6 +7,8 @@ import StatCard from '@/components/StatCard';
 import DashboardCharts from '@/components/DashboardCharts';
 import { aggregateViewCountries, aggregateViewDevices, compactEarnings } from '@/lib/chart-data';
 import { formatCurrency, formatNumber } from '@/lib/utils';
+import { sanitizeCountryCode } from '@/lib/geo';
+import { resolveCreatorCpm } from '@/lib/cpm';
 import { DollarSign, TrendingUp, Eye, Zap, Wallet, Clock, BarChart3, Users } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -33,12 +35,15 @@ export default async function DashboardPage() {
   // `chartEarnings`/`chartViews` feed the charts: the same two 30-day queries
   // DashboardCharts used to fire from the browser after hydration, moved here
   // so the charts paint without any client-side Supabase round-trip.
+  const profilePromise = getDashboardProfile();
+  const creatorCountry = sanitizeCountryCode((await profilePromise)?.country_code);
   const [
     profile,
     { data: todayEarnings },
     { data: yesterdayEarnings },
     { data: weekEarnings },
     { data: publicCpm },
+    { data: countryCpmRow },
     { count: priorWeek },
     { count: currentWeek },
     { data: campaigns },
@@ -47,12 +52,15 @@ export default async function DashboardPage() {
     { data: chartViews },
     unreadCount,
   ] = await Promise.all([
-    getDashboardProfile(),
+    profilePromise,
     supabase.from('earnings').select('amount').eq('creator_id', user.id).gte('created_at', todayIso),
     supabase.from('earnings').select('amount').eq('creator_id', user.id).gte('created_at', yesterdayIso).lt('created_at', todayIso),
     supabase.from('earnings').select('amount').eq('creator_id', user.id).gte('created_at', weekStart),
     // Live platform CPM (same source the earning engine uses).
     supabase.from('public_cpm').select('cpm').maybeSingle(),
+    creatorCountry
+      ? supabase.from('country_tiers').select('cpm_default, active').eq('country_code', creatorCountry).maybeSingle()
+      : Promise.resolve({ data: null }),
     // Week view trend (real)
     supabase.from('views').select('id', { count: 'exact', head: true }).eq('creator_id', user.id).gte('created_at', priorWeekStart).lt('created_at', weekStart),
     supabase.from('views').select('id', { count: 'exact', head: true }).eq('creator_id', user.id).gte('created_at', weekStart),
@@ -88,7 +96,9 @@ export default async function DashboardPage() {
 
   const validRate = profile?.total_views ? Math.round(((profile.valid_views || 0) / profile.total_views) * 100) : 0;
 
-  const currentCpm = publicCpm?.cpm != null ? Number(publicCpm.cpm) : null;
+  const globalCpm = publicCpm?.cpm != null ? Number(publicCpm.cpm) : null;
+  const resolvedCpm = resolveCreatorCpm(globalCpm ?? 0, countryCpmRow);
+  const currentCpm = globalCpm != null || resolvedCpm.source === 'country' ? resolvedCpm.cpm : null;
 
   const viewTrend = priorWeek && priorWeek > 0 ? (((currentWeek ?? 0) - priorWeek) / priorWeek) * 100 : 0;
 

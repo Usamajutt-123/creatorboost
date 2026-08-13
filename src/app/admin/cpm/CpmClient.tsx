@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Save, Info, Edit, Check, X, Plus, Globe, RefreshCw } from 'lucide-react';
+import { Save, Info, Edit, Check, X, Plus, Globe, RefreshCw, Search } from 'lucide-react';
 import { adminLoadCountries, adminLoadLevels, adminLoadSettings, adminSaveCountryUpdates, adminAddCountry, adminDeleteCountry, adminSaveLevel, adminSaveSettings } from '@/lib/admin-server';
 import { getCpmSettingsAction, updateCpmAction } from '@/lib/cpm-actions';
 
@@ -58,6 +58,7 @@ export default function CpmAdminClient({
   const [cpmMessage, setCpmMessage] = useState<string | null>(null);
   const [cpmError, setCpmError] = useState<string | null>(initialCpmError);
   const [pageLoading, setPageLoading] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
 
   const load = async () => {
     try {
@@ -160,7 +161,18 @@ export default function CpmAdminClient({
     catch (e: any) { toast.error(e.message || 'Delete failed'); }
   };
 
-  const grouped = TIERS.map(t => ({ ...t, items: countries.filter(c => c.tier === t.key) }));
+  const search = countrySearch.trim().toLowerCase();
+  const visibleCountries = search
+    ? countries.filter(c => {
+      const row = cur(c);
+      return row.country_name.toLowerCase().includes(search) || row.country_code.toLowerCase().includes(search);
+    })
+    : countries;
+  const grouped = TIERS.map(t => ({ ...t, items: visibleCountries.filter(c => c.tier === t.key) }));
+  const appliedCountryCpm = (c: Country) => {
+    const row = cur(c);
+    return row.active ? Number(row.cpm_default) : Number(globalCpm || 0);
+  };
 
   const saveGlobalCpm = async () => {
     setSavingCpm(true);
@@ -211,7 +223,7 @@ export default function CpmAdminClient({
         <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
         <div className="text-xs text-gray-300">
           <strong className="text-white">Earnings formula:</strong> earning_per_view = (active_CPM × level_multiplier) / 1000.<br />
-          The global CPM below is the single source of truth. New valid views use it immediately. Already credited earnings are not recalculated.
+          active_CPM is the creator&apos;s country CPM when that country has an active custom rate; otherwise Global CPM is used. New valid views use the current rate immediately. Already credited earnings are not recalculated.
         </div>
       </div>
 
@@ -263,9 +275,24 @@ export default function CpmAdminClient({
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <h3 className="font-display text-lg font-bold">Country CPM Rates</h3>
-        <button onClick={() => setAddingCountry(true)} className="btn-primary px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /> Add Country</button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="font-display text-lg font-bold">Country CPM Rates</h3>
+          <p className="text-xs text-gray-500">Custom rates override Global CPM for creators in that country. Disable a row to fall back to Global CPM.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-gray-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <input
+              value={countrySearch}
+              onChange={e => setCountrySearch(e.target.value)}
+              className="input-field text-xs py-1.5 pl-8 w-48"
+              placeholder="Search countries"
+              aria-label="Search countries"
+            />
+          </div>
+          <button onClick={() => setAddingCountry(true)} className="btn-primary px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5"><Plus className="w-3.5 h-3.5" /> Add Country</button>
+        </div>
       </div>
 
       {addingCountry && (
@@ -293,13 +320,15 @@ export default function CpmAdminClient({
               <h4 className="font-semibold">{g.name} <span className="text-xs text-gray-400 font-normal">· {g.desc}</span></h4>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-xs sm:text-sm min-w-[700px]">
+              <table className="w-full text-xs sm:text-sm min-w-[860px]">
                 <thead>
                   <tr className="text-gray-500 border-b border-white/10">
                     <th className="text-left py-2 font-medium">Country</th>
                     <th className="text-left py-2 font-medium">CPM Default</th>
                     <th className="text-left py-2 font-medium">CPM Min</th>
                     <th className="text-left py-2 font-medium">CPM Max</th>
+                    <th className="text-left py-2 font-medium">Applied CPM</th>
+                    <th className="text-left py-2 font-medium">Source</th>
                     <th className="text-left py-2 font-medium">Status</th>
                     <th className="text-right py-2 font-medium">Actions</th>
                   </tr>
@@ -313,6 +342,8 @@ export default function CpmAdminClient({
                         <td className="py-2.5"><input type="number" step="0.01" value={row.cpm_default} onChange={e => updateField(c.id, 'cpm_default', parseFloat(e.target.value))} className="input-field py-1.5 text-xs w-24" /></td>
                         <td className="py-2.5"><input type="number" step="0.01" value={row.cpm_min} onChange={e => updateField(c.id, 'cpm_min', parseFloat(e.target.value))} className="input-field py-1.5 text-xs w-20" /></td>
                         <td className="py-2.5"><input type="number" step="0.01" value={row.cpm_max} onChange={e => updateField(c.id, 'cpm_max', parseFloat(e.target.value))} className="input-field py-1.5 text-xs w-20" /></td>
+                        <td className="py-2.5 font-semibold">${appliedCountryCpm(c).toFixed(2)}</td>
+                        <td className="py-2.5"><span className={`badge ${row.active ? 'status-active' : 'status-rejected'}`}>{row.active ? 'Custom' : 'Global fallback'}</span></td>
                         <td className="py-2.5"><span className={`badge ${row.active ? 'status-active' : 'status-rejected'}`}>{row.active ? 'Active' : 'Inactive'}</span></td>
                         <td className="py-2.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">

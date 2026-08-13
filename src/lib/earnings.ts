@@ -20,7 +20,7 @@ import { createAdminClient } from './supabase/server';
 import { getCountryFromIP, sanitizeCountryCode } from './geo';
 import { assessFraud, hashIp, type FraudAssessment } from './fraud';
 import { computePerViewEarning, computeReferralCommission } from './finance';
-import { parseActiveCpm } from './cpm';
+import { parseActiveCpm, resolveCreatorCpm } from './cpm';
 
 export { computePerViewEarning, computeReferralCommission, computeWithdrawalFee } from './finance';
 
@@ -120,9 +120,10 @@ export async function computeViewEarnings(opts: {
     return { valid: false, reason: 'abnormal_traffic', cpm: 0, levelMultiplier: 1, earning: 0 };
   }
 
-  // 3. Active platform CPM (admin-configurable, single source of truth).
-  //    Country is recorded for analytics only. A missing/inactive row yields
-  //    $0 — never a hardcoded fallback rate.
+  // 3. Active platform CPM (admin-configurable Global CPM).
+  //    A missing/inactive cpm_settings row yields $0 — never a hardcoded rate.
+  //    An active country_tiers rate for the creator's profile country then
+  //    overrides Global CPM. Visitor country stays analytics-only.
   let cpm = 0;
   const { data: cpmRow } = await supabase
     .from('cpm_settings')
@@ -140,11 +141,21 @@ export async function computeViewEarnings(opts: {
   // 4. Creator account status: banned/suspended creators earn nothing.
   const { data: profile } = await supabase
     .from('profiles')
-    .select('level, status')
+    .select('level, status, country_code')
     .eq('id', opts.creatorId)
     .maybeSingle();
   if (profile && (profile.status === 'banned' || profile.status === 'suspended')) {
     return { valid: false, reason: 'account_blocked', cpm: 0, levelMultiplier: 1, earning: 0 };
+  }
+
+  const creatorCountry = sanitizeCountryCode(profile?.country_code);
+  if (creatorCountry) {
+    const { data: countryRow } = await supabase
+      .from('country_tiers')
+      .select('cpm_default, active')
+      .eq('country_code', creatorCountry)
+      .maybeSingle();
+    cpm = resolveCreatorCpm(cpm, countryRow).cpm;
   }
   const { data: levelRow } = await supabase
     .from('creator_levels')
