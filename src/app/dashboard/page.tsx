@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { getDashboardProfile, getSessionUser } from '@/lib/session';
+import { getUnreadNotificationCount } from '@/lib/notifications';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import StatCard from '@/components/StatCard';
 import DashboardCharts from '@/components/DashboardCharts';
@@ -23,10 +24,14 @@ export default async function DashboardPage() {
   const yesterdayIso = yesterdayStart.toISOString();
   const priorWeekStart = new Date(nowMs - 14 * 86400_000).toISOString();
   const weekStart = new Date(nowMs - 7 * 86400_000).toISOString();
+  const chartSince = new Date(nowMs - 30 * 86400_000).toISOString();
 
   // Every query below is independent, so they all run in one round-trip batch
   // instead of three sequential waves. The profile row is the request-scoped
   // one already loaded by the dashboard layout, so it is not fetched twice.
+  // `chartEarnings`/`chartViews` feed the charts: the same two 30-day queries
+  // DashboardCharts used to fire from the browser after hydration, moved here
+  // so the charts paint without any client-side Supabase round-trip.
   const [
     profile,
     { data: todayEarnings },
@@ -37,6 +42,9 @@ export default async function DashboardPage() {
     { count: currentWeek },
     { data: campaigns },
     { data: recent },
+    { data: chartEarnings },
+    { data: chartViews },
+    unreadCount,
   ] = await Promise.all([
     getDashboardProfile(),
     supabase.from('earnings').select('amount').eq('creator_id', user.id).gte('created_at', todayIso),
@@ -62,6 +70,10 @@ export default async function DashboardPage() {
       .eq('creator_id', user.id)
       .order('created_at', { ascending: false })
       .limit(6),
+    // Chart inputs (30 days).
+    supabase.from('earnings').select('amount, created_at').eq('creator_id', user.id).gte('created_at', chartSince),
+    supabase.from('views').select('country_code, user_agent').eq('creator_id', user.id).gte('created_at', chartSince),
+    getUnreadNotificationCount(user.id),
   ]);
 
   const todayTotal = todayEarnings?.reduce((s, e) => s + Number(e.amount), 0) ?? 0;
@@ -87,6 +99,7 @@ export default async function DashboardPage() {
         fullName={profile?.full_name ?? undefined}
         email={profile?.email}
         userId={user.id}
+        unreadCount={unreadCount}
       />
       <div className="p-4 sm:p-6 space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -103,7 +116,11 @@ export default async function DashboardPage() {
           <StatCard label="Referral Earnings" value={formatCurrency(profile?.referral_earnings || 0)} change="Lifetime" icon={Users} color="purple" />
         </div>
 
-        <DashboardCharts creatorId={user.id} level={profile?.level || 'bronze'} />
+        <DashboardCharts
+          level={profile?.level || 'bronze'}
+          earningsRows={(chartEarnings || []).map((e: any) => ({ amount: e.amount, created_at: e.created_at }))}
+          viewRows={(chartViews || []).map((v: any) => ({ country_code: v.country_code, user_agent: v.user_agent }))}
+        />
 
         <div className="glass rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">

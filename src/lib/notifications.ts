@@ -1,4 +1,10 @@
-import { createAdminClient } from '@/lib/supabase/server';
+import { cache as reactCache } from 'react';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
+
+// See session.ts: `cache` is provided by the Next.js server runtime; fall back
+// to the identity so this module also loads under plain Node (unit tests).
+const cache: <T extends (...args: never[]) => unknown>(fn: T) => T =
+  typeof reactCache === 'function' ? reactCache : ((fn: unknown) => fn) as never;
 
 export type NotificationType = 'earning' | 'withdrawal' | 'campaign' | 'referral' | 'system' | 'announcement';
 
@@ -82,3 +88,23 @@ export async function notifyAdmins(input: Omit<NotificationPayload, 'userId'>): 
 export function canUserAccessNotification(ownerId: string, actorId: string): boolean {
   return Boolean(ownerId) && ownerId === actorId;
 }
+
+/**
+ * Server-side unread notification count for a session-verified user.
+ *
+ * Used by dashboard/admin layouts and pages so the topbar bell renders its
+ * badge with the real count during SSR instead of firing a separate server
+ * action + auth round-trip after hydration. The user id must come from the
+ * already-verified session; row access is still enforced by RLS through the
+ * user-scoped client. `cache()` dedupes the query across layout + page in the
+ * same request. Realtime updates still flow through the bell's subscription.
+ */
+export const getUnreadNotificationCount = cache(async (userId: string): Promise<number> => {
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('read', false);
+  return count ?? 0;
+});

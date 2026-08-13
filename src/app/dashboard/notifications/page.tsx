@@ -28,7 +28,7 @@ export default async function NotificationsPage() {
 
   return (
     <>
-      <DashboardTopbar title="Notifications" subtitle={error ? 'Could not load notifications' : `${unread} unread`} userId={user.id} />
+      <DashboardTopbar title="Notifications" subtitle={error ? 'Could not load notifications' : `${unread} unread`} userId={user.id} unreadCount={unread} />
       <NotificationsClient
         initial={notifs || []}
         loadError={error ? 'Notifications could not be loaded. Please try again.' : null}

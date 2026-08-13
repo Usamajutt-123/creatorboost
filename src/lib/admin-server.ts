@@ -15,6 +15,7 @@
  */
 
 import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { getDashboardProfile, getSessionUser } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { getClientIpFromHeaders } from '@/lib/request-ip';
@@ -43,15 +44,19 @@ function shortText(value: unknown, label: string, max: number, allowEmpty = fals
   return text;
 }
 
+/**
+ * Reuses the request-scoped session/profile helpers: the user's identity is
+ * still verified against Supabase Auth and the role is still read from the
+ * database on every request — `getSessionUser`/`getDashboardProfile` are
+ * `cache()`-memoized per request, so when a server-rendered admin page calls
+ * several admin read helpers in one render they share a single auth + profile
+ * round-trip instead of repeating it per helper. Cross-request caching does
+ * not exist and nothing is ever shared between users.
+ */
 async function requireAuth(): Promise<Admin> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) throw new Error('Not authenticated');
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle();
+  const profile = await getDashboardProfile();
   if (!profile) throw new Error('Profile not found');
   return { id: user.id, role: profile.role };
 }
@@ -110,9 +115,18 @@ async function audit(admin: Admin, action: string, entityType: string, entityId?
 export async function serverAdminMe() {
   try {
     const admin = await requireAuth();
-    const supabase = createAdminClient();
-    const { data: profile } = await supabase.from('profiles').select('id, full_name, email, role, status').eq('id', admin.id).single();
-    return { ok: true, admin: profile, isSuper: profile?.role === 'super_admin' };
+    const profile = await getDashboardProfile();
+    return {
+      ok: true,
+      admin: profile ? {
+        id: profile.id,
+        full_name: profile.full_name,
+        email: profile.email,
+        role: profile.role,
+        status: profile.status,
+      } : null,
+      isSuper: profile?.role === 'super_admin',
+    };
   } catch {
     return { ok: false, admin: null, isSuper: false };
   }
@@ -141,10 +155,10 @@ export async function adminUserDetail(userId: string) {
   await requireAdmin();
   const supabase = createAdminClient();
   const [{ data: profile }, { data: campaigns }, { data: withdrawals }, { data: earnings }] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', userId).single(),
-    supabase.from('campaigns').select('*').eq('creator_id', userId).is('deleted_at', null).order('created_at', { ascending: false }).limit(20),
-    supabase.from('withdrawals').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(20),
-    supabase.from('earnings').select('*, campaign:campaigns(name)').eq('creator_id', userId).order('created_at', { ascending: false }).limit(20),
+    supabase.from('profiles').select('id, username, full_name, email, level, role, status, total_earnings, total_views, valid_views, created_at').eq('id', userId).single(),
+    supabase.from('campaigns').select('id, name, status, total_views, total_earnings').eq('creator_id', userId).is('deleted_at', null).order('created_at', { ascending: false }).limit(20),
+    supabase.from('withdrawals').select('id, amount, method, status, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(20),
+    supabase.from('earnings').select('id, amount, type, created_at, campaign:campaigns(name)').eq('creator_id', userId).order('created_at', { ascending: false }).limit(20),
   ]);
   return { profile, campaigns: campaigns || [], withdrawals: withdrawals || [], earnings: earnings || [] };
 }
@@ -225,25 +239,16 @@ export async function adminGetCampaign(campaignId: string) {
 export async function adminListCampaigns() {
   await requireAdmin();
   const supabase = createAdminClient();
-  // Include soft-deleted campaigns so admins can restore them.
+  // Include soft-deleted campaigns so admins can restore them. The creator's
+  // public display name is embedded by PostgREST (one round-trip instead of a
+  // second `profiles` lookup after the list comes back).
   const { data } = await supabase
     .from('campaigns')
-    .select('id, slug, name, creator_id, total_views, valid_views, total_earnings, status, deleted_at, created_at')
+    .select('id, slug, name, creator_id, total_views, valid_views, total_earnings, status, deleted_at, created_at, creator:profiles!campaigns_creator_id_fkey(full_name)')
     .order('created_at', { ascending: false })
     .limit(200);
   const rows = data || [];
-
-  // Attach public creator info (PostgREST cannot embed a join to a view).
-  const creatorIds = [...new Set(rows.map((c: any) => c.creator_id))];
-  let profiles: Record<string, { full_name: string; email: string }> = {};
-  if (creatorIds.length) {
-    const { data: p } = await supabase
-      .from('public_profiles')
-      .select('id, full_name')
-      .in('id', creatorIds);
-    profiles = (p || []).reduce((acc: any, x: any) => { acc[x.id] = { full_name: x.full_name, email: '' }; return acc; }, {});
-  }
-  return rows.map((c: any) => ({ ...c, creator: profiles[c.creator_id] || null }));
+  return rows.map((c: any) => ({ ...c, creator: c.creator ? { full_name: c.creator.full_name, email: '' } : null }));
 }
 
 // ------------------------------------------------------------------
@@ -252,24 +257,15 @@ export async function adminListCampaigns() {
 export async function adminListWithdrawals() {
   await requireAdmin();
   const supabase = createAdminClient();
+  // Only the columns the table renders, with the user's name/email embedded by
+  // PostgREST — previously `select('*')` plus a second profiles round-trip.
   const { data } = await supabase
     .from('withdrawals')
-    .select('*')
+    .select('id, amount, method, account_details, created_at, status, rejection_reason, user:profiles!withdrawals_user_id_fkey(full_name, email)')
     .order('created_at', { ascending: false })
     .limit(200);
   const rows = data || [];
-
-  const userIds = [...new Set(rows.map((w: any) => w.user_id))];
-  let profiles: Record<string, { full_name: string; email: string }> = {};
-  if (userIds.length) {
-    // Admin client: full profiles (includes email) — RLS lets admins read these.
-    const { data: p } = await supabase
-      .from('profiles')
-      .select('id, full_name, email')
-      .in('id', userIds);
-    profiles = (p || []).reduce((acc: any, x: any) => { acc[x.id] = { full_name: x.full_name, email: x.email }; return acc; }, {});
-  }
-  return rows.map((w: any) => ({ ...w, user: profiles[w.user_id] || null }));
+  return rows.map((w: any) => ({ ...w, user: w.user || null }));
 }
 
 async function withdrawalUserEmail(withdrawalId: string): Promise<{ email: string | null; amount: number; method: string }> {
@@ -392,7 +388,7 @@ export async function adminListAdRevenue() {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from('ad_revenue_imports')
-    .select('*')
+    .select('id, revenue_date, network, impressions, clicks, revenue, currency, country, source, imported_at')
     .order('revenue_date', { ascending: false })
     .limit(500);
   return data || [];
@@ -441,28 +437,28 @@ export async function adminDeleteAdRevenue(id: number) {
 export async function adminLoadCountries() {
   await requireAdmin();
   const supabase = createAdminClient();
-  const { data } = await supabase.from('country_tiers').select('*').order('tier').limit(500);
+  const { data } = await supabase.from('country_tiers').select('id, country_code, country_name, tier, cpm_min, cpm_max, cpm_default, payout_percentage, active').order('tier').limit(500);
   return data || [];
 }
 
 export async function adminLoadLevels() {
   await requireAdmin();
   const supabase = createAdminClient();
-  const { data } = await supabase.from('creator_levels').select('*').order('sort_order').limit(100);
+  const { data } = await supabase.from('creator_levels').select('id, name, min_views, cpm_multiplier, badge_color, priority_support, fast_withdrawal, verified_badge, premium_analytics, active, sort_order').order('sort_order').limit(100);
   return data || [];
 }
 
 export async function adminLoadSettings() {
   await requireAdmin();
   const supabase = createAdminClient();
-  const { data } = await supabase.from('platform_settings').select('*').eq('id', 1).single();
+  const { data } = await supabase.from('platform_settings').select('site_name, site_tagline, support_email, site_announcement, site_announcement_active, min_withdrawal, referral_percentage, fraud_detection_sensitivity, vpn_block_enabled, duplicate_device_block, duplicate_ip_window_hours, maintenance_mode, signup_enabled, max_earnings_per_view, max_views_per_device_per_day, max_views_per_ip_per_day, creator_daily_earning_cap, campaign_daily_earning_cap, platform_daily_earning_cap, earning_holding_hours').eq('id', 1).single();
   return data;
 }
 
 export async function adminLoadAdNetworks() {
   await requireAdmin();
   const supabase = createAdminClient();
-  const { data } = await supabase.from('ad_networks').select('*').order('total_revenue', { ascending: false }).limit(100);
+  const { data } = await supabase.from('ad_networks').select('id, name, status, total_revenue, weight, avg_cpm, fill_rate').order('total_revenue', { ascending: false }).limit(100);
   return data || [];
 }
 
@@ -602,7 +598,7 @@ export async function adminSaveSettings(data: Record<string, unknown>) {
 export async function adminListWithdrawalMethods() {
   await requireAdmin();
   const supabase = createAdminClient();
-  const { data } = await supabase.from('withdrawal_method_config').select('*').order('sort_order');
+  const { data } = await supabase.from('withdrawal_method_config').select('id, method, label, icon, enabled, min_amount, max_amount, fee_percentage, sort_order').order('sort_order');
   return data || [];
 }
 
@@ -786,30 +782,19 @@ export async function adminListAnnouncementCreators(search = '') {
 export async function adminListAnnouncements() {
   await requireAdmin();
   const supabase = createAdminClient();
+  // The sender's name/email is embedded by PostgREST instead of a second
+  // sequential profiles lookup after the history comes back.
   const { data, error } = await supabase
     .from('announcements')
-    .select('id, title, body, type, audience, recipient_count, created_at, sent_at, sent_by, status, idempotency_key')
+    .select('id, title, body, type, audience, recipient_count, created_at, sent_at, sent_by, status, idempotency_key, sender:profiles(full_name, email)')
     .not('idempotency_key', 'is', null)
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) throw new Error('Announcement history could not be loaded');
 
-  const rows = data || [];
-  const senderIds = [...new Set(rows.map((row: any) => row.sent_by).filter(Boolean))];
-  const senderById: Record<string, { full_name: string | null; email: string | null }> = {};
-  if (senderIds.length) {
-    const { data: senders } = await supabase
-      .from('profiles')
-      .select('id, full_name, email')
-      .in('id', senderIds);
-    for (const sender of senders || []) {
-      senderById[sender.id] = { full_name: sender.full_name, email: sender.email };
-    }
-  }
-
-  return rows.map((row: any) => ({
+  return (data || []).map((row: any) => ({
     ...row,
-    sender: row.sent_by ? senderById[row.sent_by] || null : null,
+    sender: row.sent_by && row.sender ? row.sender : null,
   }));
 }
 

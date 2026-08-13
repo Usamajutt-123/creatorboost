@@ -1,6 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useState } from 'react';
 // Chart.js is loaded on demand (see components/charts/LazyChart) so the
 // charting runtime stays out of the admin dashboard's first-load JavaScript.
 import { Line, Doughnut, Bar } from '@/components/charts/LazyChart';
@@ -18,102 +17,98 @@ type RevRow = {
   source: string;
 };
 
-export default function AdminCharts() {
-  const [monthly, setMonthly] = useState<{ labels: string[]; revenue: number[]; payouts: number[] }>({ labels: [], revenue: [], payouts: [] });
-  const [netDist, setNetDist] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] });
-  const [topCountries, setTopCountries] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] });
-  const [growth, setGrowth] = useState<{ labels: string[]; data: number[] }>({ labels: [], data: [] });
-  const [hasRevenue, setHasRevenue] = useState(false);
-
-  useEffect(() => {
-    const load = async () => {
-      const supabase = createClient();
-      const since = new Date(Date.now() - 7 * 86400_000).toISOString();
-      // The revenue chart only renders the last 6 calendar months, so rows
-      // older than that were downloaded and then thrown away. Bounding the
-      // query by the same window keeps the rendered values identical while
-      // cutting the payload (and it is deterministic, unlike an unordered
-      // `.limit(2000)` that could silently drop in-window rows).
-      const monthWindowStart = new Date();
-      const revenueSince = new Date(Date.UTC(monthWindowStart.getFullYear(), monthWindowStart.getMonth() - 5, 1))
-        .toISOString()
-        .slice(0, 10);
-
-      const [{ data: earningsRows }, { data: revenueRows }, { data: views }, { data: creators }] = await Promise.all([
-        supabase.from('earnings').select('amount, created_at').eq('type', 'view_earning').gte('created_at', since),
-        supabase.from('ad_revenue_imports').select('revenue_date, network, revenue, source').gte('revenue_date', revenueSince).limit(2000),
-        supabase.from('views').select('country_code, created_at').gte('created_at', since),
-        supabase.from('profiles').select('created_at').eq('role', 'creator'),
-      ]);
-
-      const revRows = (revenueRows || []) as RevRow[];
-      setHasRevenue(revRows.length > 0);
-
-      // Monthly recorded revenue + payouts (last 6 months, from real ledger data)
-      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      const monthNow = new Date();
-      const monthMap: Record<string, { rev: number; pay: number }> = {};
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(monthNow.getFullYear(), monthNow.getMonth() - i, 1);
-        const key = `${monthNames[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
-        monthMap[key] = { rev: 0, pay: 0 };
-      }
-      revRows.forEach((r) => {
-        const d = new Date(r.revenue_date + 'T00:00:00Z');
-        const key = `${monthNames[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
-        if (monthMap[key]) monthMap[key].rev += Number(r.revenue) || 0;
-      });
-      (earningsRows || []).forEach((e: any) => {
-        const d = new Date(e.created_at);
-        const key = `${monthNames[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
-        if (monthMap[key]) monthMap[key].pay += Number(e.amount);
-      });
-      const monthKeys = Object.keys(monthMap);
-      setMonthly({
-        labels: monthKeys,
-        revenue: monthKeys.map(k => Math.round((monthMap[k].rev + Number.EPSILON) * 100) / 100),
-        payouts: monthKeys.map(k => Math.round((monthMap[k].pay + Number.EPSILON) * 100) / 100),
-      });
-
-      // Network distribution by RECORDED revenue (not weights, not guesses)
-      const netMap: Record<string, number> = {};
-      revRows.forEach(r => { netMap[r.network] = (netMap[r.network] || 0) + Number(r.revenue) || 0; });
-      const nets = Object.entries(netMap).sort((a, b) => b[1] - a[1]).slice(0, 6);
-      setNetDist({ labels: nets.map(([n]) => n), data: nets.map(([, v]) => Math.round(v * 100) / 100) });
-
-      // Top countries from views (7d, real)
-      const cMap: Record<string, number> = {};
-      (views || []).forEach((v: any) => {
-        const c = v.country_code || 'XX';
-        cMap[c] = (cMap[c] || 0) + 1;
-      });
-      const topC = Object.entries(cMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
-      setTopCountries({
-        labels: topC.map(([c]) => {
-          const flag = String.fromCodePoint(...c.toUpperCase().split('').map(ch => 127397 + ch.charCodeAt(0)));
-          return `${flag} ${c}`;
-        }),
-        data: topC.map(([, n]) => n),
-      });
-
-      // Growth: cumulative creators over last 6 months (real)
-      const growthMap: Record<string, number> = {};
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(monthNow.getFullYear(), monthNow.getMonth() - i, 1);
-        growthMap[monthNames[d.getMonth()]] = 0;
-      }
-      (creators || []).forEach((c: any) => {
-        const d = new Date(c.created_at);
-        const key = monthNames[d.getMonth()];
-        if (growthMap[key] !== undefined) growthMap[key]++;
-      });
-      const gKeys = Object.keys(growthMap);
-      let cum = 0;
-      const cumulative = gKeys.map(k => { cum += growthMap[k]; return cum; });
-      setGrowth({ labels: gKeys, data: cumulative });
+/**
+ * All chart data arrives from the server component that rendered the admin
+ * dashboard: the same bounded window queries the charts used to fire from the
+ * browser (earnings 7d, revenue ledger ≥ first day of the 6-month window,
+ * views 7d, creator signups) are fetched once on the server, alongside the
+ * stat-card queries, and passed down as props. The aggregation math below is
+ * unchanged.
+ */
+export default function AdminCharts({
+  earningsRows,
+  revenueRows,
+  viewRows,
+  creatorRows,
+}: {
+  earningsRows: Array<{ amount: number | string | null; created_at: string }>;
+  revenueRows: RevRow[];
+  viewRows: Array<{ country_code: string | null; created_at: string }>;
+  creatorRows: Array<{ created_at: string }>;
+}) {
+  const [monthly] = useState<{ labels: string[]; revenue: number[]; payouts: number[] }>(() => {
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthNow = new Date();
+    const monthMap: Record<string, { rev: number; pay: number }> = {};
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(monthNow.getFullYear(), monthNow.getMonth() - i, 1);
+      const key = `${monthNames[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+      monthMap[key] = { rev: 0, pay: 0 };
+    }
+    revenueRows.forEach((r) => {
+      const d = new Date(r.revenue_date + 'T00:00:00Z');
+      const key = `${monthNames[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+      if (monthMap[key]) monthMap[key].rev += Number(r.revenue) || 0;
+    });
+    earningsRows.forEach((e) => {
+      const d = new Date(e.created_at);
+      const key = `${monthNames[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+      if (monthMap[key]) monthMap[key].pay += Number(e.amount);
+    });
+    const monthKeys = Object.keys(monthMap);
+    return {
+      labels: monthKeys,
+      revenue: monthKeys.map(k => Math.round((monthMap[k].rev + Number.EPSILON) * 100) / 100),
+      payouts: monthKeys.map(k => Math.round((monthMap[k].pay + Number.EPSILON) * 100) / 100),
     };
-    load();
-  }, []);
+  });
+
+  const [netDist] = useState<{ labels: string[]; data: number[] }>(() => {
+    // Network distribution by RECORDED revenue (not weights, not guesses)
+    const netMap: Record<string, number> = {};
+    revenueRows.forEach(r => { netMap[r.network] = (netMap[r.network] || 0) + Number(r.revenue) || 0; });
+    const nets = Object.entries(netMap).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    return { labels: nets.map(([n]) => n), data: nets.map(([, v]) => Math.round(v * 100) / 100) };
+  });
+
+  const [topCountries] = useState<{ labels: string[]; data: number[] }>(() => {
+    // Top countries from views (7d, real)
+    const cMap: Record<string, number> = {};
+    viewRows.forEach((v) => {
+      const c = v.country_code || 'XX';
+      cMap[c] = (cMap[c] || 0) + 1;
+    });
+    const topC = Object.entries(cMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    return {
+      labels: topC.map(([c]) => {
+        const flag = String.fromCodePoint(...c.toUpperCase().split('').map(ch => 127397 + ch.charCodeAt(0)));
+        return `${flag} ${c}`;
+      }),
+      data: topC.map(([, n]) => n),
+    };
+  });
+
+  const [growth] = useState<{ labels: string[]; data: number[] }>(() => {
+    // Growth: cumulative creators over last 6 months (real)
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthNow = new Date();
+    const growthMap: Record<string, number> = {};
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(monthNow.getFullYear(), monthNow.getMonth() - i, 1);
+      growthMap[monthNames[d.getMonth()]] = 0;
+    }
+    creatorRows.forEach((c) => {
+      const d = new Date(c.created_at);
+      const key = monthNames[d.getMonth()];
+      if (growthMap[key] !== undefined) growthMap[key]++;
+    });
+    const gKeys = Object.keys(growthMap);
+    let cum = 0;
+    const cumulative = gKeys.map(k => { cum += growthMap[k]; return cum; });
+    return { labels: gKeys, data: cumulative };
+  });
+
+  const hasRevenue = revenueRows.length > 0;
 
   const revenueData = {
     labels: monthly.labels,

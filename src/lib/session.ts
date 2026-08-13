@@ -1,5 +1,12 @@
-import { cache } from 'react';
+import { cache as reactCache } from 'react';
 import { createClient } from '@/lib/supabase/server';
+
+// The published React package only exports `cache` through the Next.js server
+// runtime; under plain Node (unit tests) it is undefined, in which case these
+// helpers degrade to plain functions (no memoization) — behavior in the app is
+// unchanged.
+const cache: <T extends (...args: never[]) => unknown>(fn: T) => T =
+  typeof reactCache === 'function' ? reactCache : ((fn: unknown) => fn) as never;
 
 /**
  * Request-scoped session/profile helpers.

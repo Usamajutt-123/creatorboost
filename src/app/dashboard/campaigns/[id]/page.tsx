@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Edit, Copy, ExternalLink, Eye, DollarSign, BarChart3, Users, Calendar, Globe } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
+import { getSessionUser } from '@/lib/session';
 import StatCard from '@/components/StatCard';
 import { formatNumber, formatCurrency, timeAgo, localDayKey, daysAgoStart } from '@/lib/utils';
 import { isCampaignUuid, resolveParams } from '@/lib/route-params';
@@ -14,12 +15,14 @@ export default async function CampaignStatsPage({ params }: { params: Promise<{ 
   if (!isCampaignUuid(id)) notFound();
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) redirect('/login');
 
   const { data: campaign, error: campaignError } = await supabase
     .from('campaigns')
-    .select('*')
+    // Only the columns this screen renders — `select('*')` also carried
+    // destination_url into the page payload.
+    .select('id, name, slug, status, category, created_at, tasks, total_views, valid_views, invalid_views, total_earnings')
     .eq('id', id)
     .eq('creator_id', user.id)
     .is('deleted_at', null)
@@ -31,7 +34,10 @@ export default async function CampaignStatsPage({ params }: { params: Promise<{ 
   }
   if (!campaign) notFound();
 
-  // Server-side aggregation (never relies on the first N views).
+  // Server-side aggregation (never relies on the first N views). The daily
+  // and country stats views are already bounded to one row per day/country
+  // per campaign; the window filters stay in the render logic so the local
+  // timezone bucketing is exactly as it was.
   const [
     { data: summary, error: summaryError },
     { data: dailyRows, error: dailyError },

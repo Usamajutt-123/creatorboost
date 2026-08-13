@@ -1,6 +1,7 @@
 'use server';
 
-import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
+import { getSessionUser } from '@/lib/session';
 
 export type ReferralDashboardData = {
   referralCode: string;
@@ -13,8 +14,9 @@ export type ReferralDashboardData = {
 /** Returns a privacy-safe referral dashboard for the signed-in referrer only. */
 export async function loadReferralDashboardAction(): Promise<{ success: true; data: ReferralDashboardData } | { success: false; error: string }> {
   try {
-    const session = await createClient();
-    const { data: { user } } = await session.auth.getUser();
+    // Request-scoped session helper: shared with the layout/page that already
+    // resolved the session, so no duplicate auth round-trip happens here.
+    const user = await getSessionUser();
     if (!user) return { success: false, error: 'You must be signed in' };
 
     const admin = createAdminClient();
@@ -26,7 +28,7 @@ export async function loadReferralDashboardAction(): Promise<{ success: true; da
     if (!profile?.referral_code) return { success: false, error: 'Referral profile is unavailable' };
 
     const [{ data: referrals }, { count: clicks }, { data: settings }] = await Promise.all([
-      admin.from('referrals').select('id, referred_id, total_commission, status, created_at').eq('referrer_id', user.id).order('created_at', { ascending: false }),
+      admin.from('referrals').select('id, referred_id, total_commission, status, created_at').eq('referrer_id', user.id).order('created_at', { ascending: false }).limit(500),
       admin.from('referral_clicks').select('id', { count: 'exact', head: true }).eq('referral_code', profile.referral_code),
       admin.from('platform_settings').select('referral_percentage').eq('id', 1).maybeSingle(),
     ]);
