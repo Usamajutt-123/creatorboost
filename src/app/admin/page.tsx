@@ -1,9 +1,11 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import StatCard from '@/components/StatCard';
 import AdminCharts from '@/components/AdminCharts';
+import AdminTrafficQuality from '@/components/AdminTrafficQuality';
 import { DollarSign, Users, Megaphone, Clock, CheckCircle, Banknote, XCircle } from 'lucide-react';
 import { formatCurrency, formatNumber } from '@/lib/utils';
-import { aggregateNetworkRevenue, aggregateViewCountries, compactEarnings, compactTimestamps } from '@/lib/chart-data';
+import { aggregateNetworkRevenue, compactEarnings, compactTimestamps } from '@/lib/chart-data';
+import { adminLoadViewCountries, adminLoadViewTrafficDaily, adminLoadViewTrafficSummary } from '@/lib/admin-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,8 +31,10 @@ export default async function AdminDashboardPage() {
     { count: rejectedW },
     { data: chartEarnings },
     { data: chartRevenue },
-    { data: chartViews },
+    topCountries,
     { data: chartCreators },
+    trafficSummary,
+    trafficDaily,
   ] = await Promise.all([
     supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'creator'),
     supabase.from('campaigns').select('id', { count: 'exact', head: true }).eq('status', 'active'),
@@ -46,11 +50,17 @@ export default async function AdminDashboardPage() {
     // by the same window.
     // `source` was selected but never read by any chart aggregation.
     supabase.from('ad_revenue_imports').select('revenue_date, network, revenue').gte('revenue_date', revenueSince).limit(2000),
-    // `created_at` was selected but never read by the country chart, so it was
-    // downloaded on the server and then serialised into the RSC payload for
-    // nothing. Only the column the aggregation reads is fetched now.
-    supabase.from('views').select('country_code').gte('created_at', since),
+    // The top-country breakdown is aggregated in the database (migration
+    // 0020). Previously one row per view was downloaded and counted here,
+    // which grows without bound as traffic grows; now only the top 8 buckets
+    // cross the wire, and no per-visitor column is ever read.
+    adminLoadViewCountries(7, 8),
     supabase.from('profiles').select('created_at').eq('role', 'creator'),
+    // Paid vs non-paid attribution. Aggregated in the database (migration
+    // 0020) so a large `views` table is never streamed into the browser, and
+    // so no raw visitor IP ever reaches the admin UI.
+    adminLoadViewTrafficSummary({ sinceDays: 30 }),
+    adminLoadViewTrafficDaily(14),
   ]);
 
   const totalPayouts = payouts?.reduce((s, e) => s + Number(e.amount), 0) ?? 0;
@@ -86,12 +96,14 @@ export default async function AdminDashboardPage() {
         </div>
       )}
 
+      <AdminTrafficQuality summary={trafficSummary} daily={trafficDaily} windowLabel="last 30 days" />
+
       <AdminCharts
         earningsRows={compactEarnings(chartEarnings)}
         revenueRows={(chartRevenue || []).map((r: any) => [r.revenue_date as string, Number(r.revenue)] as [string, number])}
         hasRevenue={(chartRevenue?.length ?? 0) > 0}
         netDist={aggregateNetworkRevenue(chartRevenue)}
-        topCountries={aggregateViewCountries(chartViews)}
+        topCountries={topCountries}
         creatorRows={compactTimestamps(chartCreators)}
       />
     </div>

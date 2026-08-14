@@ -84,7 +84,17 @@ export default async function DashboardPage() {
       .limit(6),
     // Chart inputs (30 days).
     supabase.from('earnings').select('amount, created_at').eq('creator_id', user.id).gte('created_at', chartSince),
-    supabase.from('views').select('country_code, user_agent').eq('creator_id', user.id).gte('created_at', chartSince),
+    // PRIVACY: creator charts read earning-eligible views only, and only the
+    // two analytics columns the country/device breakdowns need. Non-paid
+    // traffic never reaches a creator surface, and no ip_hash, visitor_ip,
+    // fraud_score or invalid_reason is selected here.
+    supabase
+      .from('views')
+      .select('country_code, user_agent')
+      .eq('creator_id', user.id)
+      .eq('status', 'valid')
+      .gte('created_at', chartSince)
+      .limit(5000),
     getUnreadNotificationCount(user.id),
   ]);
 

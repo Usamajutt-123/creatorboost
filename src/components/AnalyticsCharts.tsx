@@ -9,7 +9,12 @@ const fontOpts = { family: 'Inter', size: 11 };
 const gridColor = 'rgba(255,255,255,0.06)';
 const tickColor = '#94a3b8';
 
-type ViewRow = { created_at: string; status: string };
+/**
+ * Only earning-eligible views reach this component. The server component
+ * filters `status = 'valid'` before rendering, so no anti-fraud outcome
+ * (duplicate, bot, proxy, rate-limited) is ever plotted on a creator chart.
+ */
+type ViewRow = { created_at: string };
 
 /**
  * Rows arrive from the server component, which already queried this creator's
@@ -26,17 +31,14 @@ type ViewRow = { created_at: string; status: string };
 export default function AnalyticsCharts({ views }: { views: ViewRow[] }) {
   const { daily, hourly } = useMemo(() => {
     // Build daily (last 14 days, local timezone)
-    const dayMap: Record<string, { valid: number; invalid: number }> = {};
+    const dayMap: Record<string, { valid: number }> = {};
     for (let i = 13; i >= 0; i--) {
       const d = localDayKey(daysAgoStart(i));
-      dayMap[d] = { valid: 0, invalid: 0 };
+      dayMap[d] = { valid: 0 };
     }
     (views || []).forEach((v: any) => {
       const d = localDayKey(v.created_at);
-      if (dayMap[d]) {
-        if (v.status === 'valid') dayMap[d].valid++;
-        else if (v.status === 'invalid') dayMap[d].invalid++;
-      }
+      if (dayMap[d]) dayMap[d].valid++;
     });
     const dayLabels = Object.keys(dayMap);
 
@@ -52,7 +54,6 @@ export default function AnalyticsCharts({ views }: { views: ViewRow[] }) {
       daily: {
         labels: dayLabels.map(d => d.substring(5)),
         valid: dayLabels.map(d => dayMap[d].valid),
-        invalid: dayLabels.map(d => dayMap[d].invalid),
       },
       hourly: {
         labels: Object.keys(hourMap).map(h => `${h}h`),
@@ -64,8 +65,7 @@ export default function AnalyticsCharts({ views }: { views: ViewRow[] }) {
   const trafficData = {
     labels: daily.labels,
     datasets: [
-      { label: 'Valid', data: daily.valid, borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.2)', fill: true, tension: 0.4, borderWidth: 2 },
-      { label: 'Invalid', data: daily.invalid, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', fill: true, tension: 0.4, borderWidth: 2 },
+      { label: 'Valid Views', data: daily.valid, borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.2)', fill: true, tension: 0.4, borderWidth: 2 },
     ],
   };
 

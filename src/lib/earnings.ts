@@ -22,6 +22,8 @@ import { getCountryFromIP, sanitizeCountryCode } from './geo';
 import { assessFraud, hashIp, type FraudAssessment } from './fraud';
 import { computePerViewEarning, computeReferralCommission } from './finance';
 import { parseActiveCpm, resolveCreatorCpm } from './cpm';
+import { classifyViewOutcome, type ViewTrafficCategory } from './view-eligibility';
+import type { HeaderSignals } from './bot-detection';
 
 export { computePerViewEarning, computeReferralCommission, computeWithdrawalFee } from './finance';
 
@@ -37,12 +39,22 @@ export type ValidatedCampaign = {
 export type RecordViewInput = {
   campaign: ValidatedCampaign;      // fetched + validated by the caller
   visitorIp?: string | null;
+  /**
+   * SECURITY: must be the server-observed `user-agent` request header.
+   * `body.userAgent` is never authoritative for a fraud/earning decision.
+   */
   userAgent?: string | null;
   deviceFingerprint?: string | null;
   tasksCompleted?: string[];
   idempotencyKey?: string | null;
   // Optional: the currently-authenticated user, for self-view detection.
   sessionUserId?: string | null;
+  /** Header-derived bot signals (server-side, from the real request headers). */
+  headerSignals?: HeaderSignals | null;
+  /** Server-measured seconds between campaign load and unlock submission. */
+  sessionSeconds?: number | null;
+  /** Number of tasks the campaign requires (read server-side from the campaign). */
+  requiredTasks?: number;
 };
 
 export type RecordViewResult = {
@@ -55,6 +67,14 @@ export type RecordViewResult = {
   fraudScore: number;
   duplicate: boolean;
   existingId?: string | null;
+  /**
+   * Safe admin-facing traffic category for this outcome.
+   *
+   * `paid` = earning-eligible. Everything else is admin-analytics-only
+   * traffic that produced no creator earning. This is NEVER forwarded to a
+   * creator surface or to the visitor response body.
+   */
+  category: ViewTrafficCategory;
 };
 
 type Caps = {
@@ -220,6 +240,7 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
         fraudScore: Number(existing.fraud_score || 0),
         duplicate: true,
         existingId: existing.id,
+        category: classifyViewOutcome(existing.status, existing.invalid_reason),
       };
     }
   }
@@ -247,10 +268,17 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
   const countryCode = sanitizeCountryCode(await getCountryFromIP(input.visitorIp));
   const fraud = await assessFraud({
     ip: input.visitorIp ?? undefined,
+    // Already the server-observed header value — the route handler never
+    // forwards `body.userAgent` into this field for a security decision.
     userAgent: input.userAgent ?? undefined,
     fingerprint: input.deviceFingerprint ?? undefined,
     campaignId,
     creatorId,
+    // Server-derived request/behavioural context. All of these come from the
+    // real request headers and server-side timestamps, never from the body.
+    headerSignals: input.headerSignals ?? null,
+    sessionSeconds: input.sessionSeconds ?? null,
+    requiredTasks: input.requiredTasks ?? 0,
   });
 
   // ---------------------------------------------------------------
@@ -543,11 +571,23 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
     countryCode,
     fraudScore: fraud.fraudScore,
     duplicate: false,
+    category: classifyViewOutcome(finalValid ? 'valid' : 'invalid', finalReason),
   };
 }
 
 function invalidResult(reason: string): RecordViewResult {
-  return { valid: false, reason, cpm: 0, levelMultiplier: 1, earning: 0, countryCode: null, fraudScore: 0, duplicate: false };
+  return {
+    valid: false,
+    reason,
+    cpm: 0,
+    levelMultiplier: 1,
+    earning: 0,
+    countryCode: null,
+    fraudScore: 0,
+    duplicate: false,
+    // Non-paid traffic is still recorded/classified for admin analytics.
+    category: classifyViewOutcome('invalid', reason),
+  };
 }
 
 /** Credit the referrer a % commission on a valid view earning (idempotent per view). */

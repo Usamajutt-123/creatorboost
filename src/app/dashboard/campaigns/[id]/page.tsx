@@ -47,7 +47,20 @@ export default async function CampaignStatsPage({ params }: { params: Promise<{ 
     supabase.from('campaign_summary').select('*').eq('campaign_id', id).maybeSingle(),
     supabase.from('campaign_daily_stats').select('*').eq('campaign_id', id),
     supabase.from('campaign_country_stats').select('*').eq('campaign_id', id).order('views', { ascending: false }),
-    supabase.from('views').select('id, status, country_code, is_vpn, created_at').eq('campaign_id', id).order('created_at', { ascending: false }).limit(20),
+    // Creator-facing recent activity.
+    //
+    // PRIVACY: only earning-eligible views are listed, and the query selects
+    // no anti-fraud column at all — `is_vpn`, `is_bot`, `fraud_score`,
+    // `invalid_reason`, `ip_hash` and `visitor_ip` are deliberately absent.
+    // A creator must never be able to see (or infer) that a specific visit
+    // was rejected as a duplicate, a bot or a proxy.
+    supabase
+      .from('views')
+      .select('id, country_code, created_at, earnings')
+      .eq('campaign_id', id)
+      .eq('status', 'valid')
+      .order('created_at', { ascending: false })
+      .limit(20),
   ]);
 
   if (summaryError || dailyError || countryError || recentError) {
@@ -112,22 +125,27 @@ export default async function CampaignStatsPage({ params }: { params: Promise<{ 
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/*
+            Creator-facing business metrics. The per-reason breakdown of
+            non-paid traffic (duplicates, bots, proxies) is admin-only and is
+            intentionally not surfaced here.
+          */}
           <StatCard label="Total Views" value={formatNumber(totalViews)} change="All time" icon={Eye} color="purple" />
-          <StatCard label="Valid Views" value={formatNumber(validViews)} change="Valid views" icon={Users} color="green" />
-          <StatCard label="Invalid Views" value={formatNumber(invalidViews)} change="Invalid views" icon={Eye} color="red" />
+          <StatCard label="Valid Views" value={formatNumber(validViews)} change="Earning-eligible" icon={Users} color="green" />
+          <StatCard label="Valid Rate" value={`${validityRate.toFixed(1)}%`} change="Of all views" icon={BarChart3} color="cyan" />
           <StatCard label="Total Earnings" value={formatCurrency(totalEarnings)} change="All time" icon={DollarSign} color="yellow" />
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Today" value={formatNumber(views24h)} change="Last 24h" icon={Calendar} color="blue" />
           <StatCard label="This Week" value={formatNumber(views7d)} change="Last 7 days" icon={Calendar} color="cyan" />
           <StatCard label="This Month" value={formatNumber(views30d)} change="Last 30 days" icon={Calendar} color="purple" />
-          <StatCard label="Valid Rate" value={`${validityRate.toFixed(1)}%`} change="Of all views" icon={BarChart3} color="pink" />
+          <StatCard label="Tasks" value={String((campaign.tasks || []).length)} change="Required actions" icon={BarChart3} color="pink" />
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Status" value={campaign.status} change="Current state" icon={BarChart3} color={campaign.status === 'active' ? 'green' : campaign.status === 'paused' ? 'yellow' : 'purple'} />
           <StatCard label="Category" value={campaign.category?.replace(/_/g, ' ') || '—'} change="Type" icon={BarChart3} color="blue" />
-          <StatCard label="Avg CPM" value={validViews > 0 ? formatCurrency((totalEarnings / validViews) * 1000) : '$0.00'} change="Per 1000 views" icon={DollarSign} color="yellow" />
-          <StatCard label="Tasks" value={String((campaign.tasks || []).length)} change="Required actions" icon={BarChart3} color="purple" />
+          <StatCard label="Avg CPM" value={validViews > 0 ? formatCurrency((totalEarnings / validViews) * 1000) : '$0.00'} change="Per 1000 valid views" icon={DollarSign} color="yellow" />
+          <StatCard label="Created" value={timeAgo(campaign.created_at)} change="Campaign age" icon={Calendar} color="purple" />
         </div>
 
         {/* Daily views chart */}
@@ -182,21 +200,20 @@ export default async function CampaignStatsPage({ params }: { params: Promise<{ 
 
           {/* Recent views */}
           <div className="glass-strong rounded-2xl p-5">
-            <h3 className="font-semibold mb-1">Recent Views</h3>
-            <p className="text-xs text-gray-500 mb-4">Latest 20 recorded views</p>
+            <h3 className="font-semibold mb-1">Recent Valid Views</h3>
+            <p className="text-xs text-gray-500 mb-4">Latest 20 earning-eligible views</p>
             <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
               {(recentViews || []).map((v: any) => (
                 <div key={v.id} className="flex items-center justify-between gap-2 p-2.5 glass rounded-lg text-xs">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${v.status === 'valid' ? 'bg-green-400' : v.status === 'invalid' ? 'bg-red-400' : 'bg-yellow-400'}`} />
+                    <span className="w-2 h-2 rounded-full flex-shrink-0 bg-green-400" />
                     <span className="font-mono text-gray-400 truncate">{v.country_code || '??'}</span>
-                    {v.is_vpn && <span className="text-[9px] text-orange-400">VPN</span>}
                   </div>
-                  <span className={`badge status-${v.status === 'valid' ? 'active' : v.status === 'invalid' ? 'rejected' : 'pending'}`}>{v.status}</span>
+                  <span className="text-green-400 font-medium">+{formatCurrency(Number(v.earnings) || 0)}</span>
                   <span className="text-gray-500 flex-shrink-0">{timeAgo(v.created_at)}</span>
                 </div>
               ))}
-              {!recentViews?.length && <p className="text-xs text-gray-500 text-center py-4">No views yet</p>}
+              {!recentViews?.length && <p className="text-xs text-gray-500 text-center py-4">No valid views yet</p>}
             </div>
           </div>
         </div>

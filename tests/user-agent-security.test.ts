@@ -16,16 +16,24 @@ describe('Fix 2: User-Agent security — route handler', () => {
   const root = join(__dirname, '..');
   const route = readFileSync(join(root, 'src/app/api/views/record/route.ts'), 'utf8');
 
-  it('uses request.headers.get("user-agent") as the primary (authoritative) source', () => {
-    // The assignment must use the server header FIRST, not the body field.
-    // Pattern: request.headers.get('user-agent') || userAgent ||
-    expect(route).toMatch(/request\.headers\.get\(['"]user-agent['"]\)\s*\|\|\s*userAgent/);
+  it('uses request.headers.get("user-agent") as the authoritative source', () => {
+    // The UA handed to the earnings engine must come from the server header.
+    expect(route).toMatch(/userAgent:\s*request\.headers\.get\(['"]user-agent['"]\)/);
   });
 
-  it('does NOT use body.userAgent as the primary UA source', () => {
-    // Should NOT have: userAgent || request.headers.get(...)
-    // (which would prioritize client-supplied UA).
+  it('does NOT fall back to body.userAgent at all', () => {
+    // Hardened: the body field is no longer read as a fallback either, so a
+    // request with no UA header is scored as a missing UA (suspicious)
+    // rather than adopting whatever string the client claimed.
+    expect(route).not.toMatch(/request\.headers\.get\(['"]user-agent['"]\)\s*\|\|\s*userAgent/);
     expect(route).not.toMatch(/userAgent\s*\|\|\s*request\.headers\.get\(['"]user-agent['"]\)/);
+  });
+
+  it('never destructures body.userAgent into the recordView call', () => {
+    // `userAgent` may still appear in the schema (accepted + ignored), but the
+    // route must not pull it out of the parsed body for any decision.
+    const destructure = route.match(/const \{[^}]*\} = parsed\.data;/)?.[0] ?? '';
+    expect(destructure).not.toMatch(/\buserAgent\b/);
   });
 
   it('accepts a userAgent field in the request schema (for telemetry)', () => {
