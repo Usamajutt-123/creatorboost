@@ -16,7 +16,7 @@ export default async function CampaignsPage() {
   const [{ data: campaigns }, unreadCount] = await Promise.all([
     supabase
       .from('campaigns')
-      .select('id, name, slug, status, thumbnail_url, total_views, valid_views, total_earnings, flow_type')
+      .select('id, name, slug, status, thumbnail_url, total_views, valid_views, total_earnings')
       .eq('creator_id', user.id)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })

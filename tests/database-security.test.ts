@@ -20,36 +20,8 @@ describe('database security invariants', () => {
   it('migrations exist and are ordered', () => {
     expect(migrations.length).toBeGreaterThanOrEqual(7);
     expect(migrations[0]).toMatch(/^0001_/);
-    // 0015 makes the 0014 campaign/page invariant transactionally writable.
+    // Applied migration history currently ends at 0015.
     expect(migrations[migrations.length - 1]).toMatch(/^0015_/);
-  });
-
-  it('saves campaigns and flow pages atomically without trusting ownership or page content', () => {
-    const s15 = readFileSync(join(MIGRATIONS_DIR, '0015_atomic_campaign_flow_mutations.sql'), 'utf8');
-    expect(s15).toContain('CREATE OR REPLACE FUNCTION public.save_campaign_with_pages');
-    expect(s15).toContain('SECURITY DEFINER');
-    expect(s15).toContain('v_user_id UUID := auth.uid()');
-    expect(s15).toContain("id = v_user_id AND status = 'active'");
-    expect(s15).toContain('creator_id = v_user_id');
-    expect(s15).toContain('DELETE FROM public.campaign_pages');
-    expect(s15).toContain('INSERT INTO public.campaign_pages');
-    expect(s15).toContain("CASE WHEN page.ordinality <= 3");
-    expect(s15).toContain("p_campaign->>'name'");
-    expect(s15).toContain('REVOKE ALL ON FUNCTION public.save_campaign_with_pages(JSONB, JSONB, UUID) FROM PUBLIC, anon');
-    expect(s15).toContain('GRANT EXECUTE ON FUNCTION public.save_campaign_with_pages(JSONB, JSONB, UUID) TO authenticated');
-  });
-
-  it('enforces 0/3/4 custom pages per flow — the existing Normal task page is implicit stage 1', () => {
-    // 0014 (already applied) must not be edited, so 0015 re-defines the
-    // enforcement function its deferred constraint triggers call. Custom
-    // flows store ONLY the pages after the Normal task page: 4_pages → 3,
-    // 5_pages → 4 custom pages.
-    const s14 = readFileSync(join(MIGRATIONS_DIR, '0014_custom_page_flow.sql'), 'utf8');
-    expect(s14).toContain('CREATE CONSTRAINT TRIGGER trg_campaigns_flow_page_count');
-    const s15 = readFileSync(join(MIGRATIONS_DIR, '0015_atomic_campaign_flow_mutations.sql'), 'utf8');
-    expect(s15).toContain('CREATE OR REPLACE FUNCTION public.enforce_campaign_page_count');
-    expect(s15).toContain("WHEN '4_pages' THEN 3");
-    expect(s15).toContain("WHEN '5_pages' THEN 4");
   });
 
   it('enables RLS on every sensitive table', () => {

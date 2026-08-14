@@ -28,18 +28,9 @@ type PublicCampaign = {
   task_metadata?: TaskMetadata | null;
 };
 
-export default function UnlockClient({ campaign, adConfig, onUnlocked }: {
+export default function UnlockClient({ campaign, adConfig }: {
   campaign: PublicCampaign;
   adConfig?: AdConfig;
-  /**
-   * ONLY used by the custom-page flows (4 Pages / 5 Pages), where this exact
-   * Normal task page is stage 1 of a longer flow. When provided, completing
-   * every task hands the browser-confirmed task list to the parent flow
-   * instead of recording the view / redirecting to the destination — the
-   * custom pages continue from here. Normal campaigns never pass this prop,
-   * so their behavior stays bit-for-bit identical.
-   */
-  onUnlocked?: (completedTasks: string[]) => void;
 }) {
   const router = useRouter();
   const tasks = useMemo(() => (campaign.tasks || []).filter(isTaskType), [campaign.tasks]);
@@ -71,14 +62,6 @@ export default function UnlockClient({ campaign, adConfig, onUnlocked }: {
 
   const requestUnlock = async () => {
     if (!allComplete || !configurationValid) return;
-    // Custom-flow composition: this exact task page (stage 1) is complete,
-    // so the parent flow continues with its custom pages. No view is
-    // recorded here and the destination stays locked until the full flow
-    // finishes at the final custom page.
-    if (onUnlocked) {
-      onUnlocked(tasks);
-      return;
-    }
     setStep('verifying');
     setProgress(0);
     const interval = window.setInterval(() => setProgress(value => Math.min(value + 8, 90)), 180);

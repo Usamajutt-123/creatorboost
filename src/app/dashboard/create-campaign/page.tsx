@@ -20,10 +20,8 @@ import {
 } from 'react-icons/fa6';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import Select from '@/components/Select';
-import CampaignFlowEditor, { collectFlowPagesForSubmit, emptyPage, resizePages, FlowPreviewModal, type EditorPage } from '@/components/CampaignFlowEditor';
 import { createCampaignAction, type CampaignMutationInput } from '@/lib/campaign-actions';
 import { createClient } from '@/lib/supabase/client';
-import { FLOW_PAGE_COUNT, type FlowType } from '@/lib/flow';
 import { isValidHttpUrl, type TaskType } from '@/lib/tasks';
 import { toast } from 'sonner';
 
@@ -71,14 +69,6 @@ export default function CreateCampaignPage() {
     status: 'active' as 'active' | 'paused' | 'draft',
     expiresAt: '',
   });
-  const [flowType, setFlowType] = useState<FlowType>('normal');
-  const [flowPages, setFlowPages] = useState<EditorPage[]>([]);
-  const [previewOpen, setPreviewOpen] = useState(false);
-
-  const changeFlow = (next: FlowType) => {
-    setFlowType(next);
-    setFlowPages(existing => resizePages(existing.length ? existing : [emptyPage()], FLOW_PAGE_COUNT[next]));
-  };
 
   const addTask = (id: TaskType) => {
     if (selectedTasks.some(task => task.id === id)) return;
@@ -156,25 +146,12 @@ export default function CreateCampaignPage() {
       toast.error(validation);
       return;
     }
-    const requiredCount = FLOW_PAGE_COUNT[flowType];
-    if (flowType !== 'normal') {
-      const trimmed = flowPages.slice(0, requiredCount);
-      if (trimmed.length !== requiredCount) {
-        toast.error(`${flowType === '4_pages' ? '4 Pages' : '5 Pages'} requires exactly ${requiredCount} pages`);
-        return;
-      }
-    }
     setSaving(true);
     try {
-      const [thumbnailUrl, bannerUrl, pagesResult] = await Promise.all([
+      const [thumbnailUrl, bannerUrl] = await Promise.all([
         thumbnailFile ? uploadMedia(thumbnailFile, 'thumbnail') : Promise.resolve(null),
         bannerFile ? uploadMedia(bannerFile, 'banner') : Promise.resolve(null),
-        collectFlowPagesForSubmit(flowPages, requiredCount),
       ]);
-      if (pagesResult.error) {
-        toast.error(pagesResult.error);
-        return;
-      }
       const input: CampaignMutationInput = {
         name: form.name,
         description: form.description,
@@ -185,8 +162,6 @@ export default function CreateCampaignPage() {
         thumbnailUrl,
         bannerUrl,
         tasks: selectedTasks,
-        flowType,
-        flowPages: pagesResult.pages,
       };
       const result = await createCampaignAction(input);
       if (!result.success) {
@@ -293,15 +268,6 @@ export default function CreateCampaignPage() {
               )}
             </section>
 
-            <CampaignFlowEditor
-              flowType={flowType}
-              onFlowTypeChange={changeFlow}
-              pages={flowPages}
-              onPagesChange={setFlowPages}
-              onPreview={flowType !== 'normal' ? () => setPreviewOpen(true) : undefined}
-              disabled={saving}
-            />
-
             <section>
               <h2 className="font-semibold mb-4">Publishing settings</h2>
               <div className="grid sm:grid-cols-2 gap-4">
@@ -317,17 +283,6 @@ export default function CreateCampaignPage() {
                 </label>
               </div>
             </section>
-
-            {previewOpen && flowType !== 'normal' && (
-              <FlowPreviewModal
-                flowType={flowType}
-                pages={flowPages}
-                destinationUrl={form.destinationUrl}
-                campaignName={form.name}
-                campaignDescription={form.description}
-                onClose={() => setPreviewOpen(false)}
-              />
-            )}
 
             <div className="flex flex-col sm:flex-row sm:justify-end gap-3 pt-4 border-t border-white/10">
               <button type="button" onClick={() => submit('draft')} disabled={saving} className="btn-ghost px-5 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2"><Save className="w-4 h-4" /> Save draft</button>
