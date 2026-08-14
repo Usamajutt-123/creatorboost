@@ -47,10 +47,10 @@ const base: CampaignMutationInput = {
   tasks: [{ id: 'website_visit', title: '', url: 'https://example.com/task' }],
 };
 
-function inputWithPages(count: 0 | 4 | 5): CampaignMutationInput {
+function inputWithPages(count: 0 | 3 | 4): CampaignMutationInput {
   return {
     ...base,
-    flowType: count === 0 ? 'normal' : count === 4 ? '4_pages' : '5_pages',
+    flowType: count === 0 ? 'normal' : count === 3 ? '4_pages' : '5_pages',
     flowPages: Array.from({ length: count }, (_, index) => ({ position: index + 1 })),
   };
 }
@@ -62,14 +62,17 @@ beforeEach(() => {
 });
 
 describe('atomic campaign actions', () => {
-  for (const count of [0, 4, 5] as const) {
-    it(`creates the ${count === 0 ? 'normal' : `${count}-page`} flow in one RPC`, async () => {
+  // 0 custom pages = normal; 3 custom pages = 4_pages flow; 4 custom pages =
+  // 5_pages flow (the existing Normal task page is the implicit stage 1).
+  for (const count of [0, 3, 4] as const) {
+    const flowLabel = count === 0 ? 'normal' : `${count + 1}-page`;
+    it(`creates the ${flowLabel} flow in one RPC`, async () => {
       const result = await createCampaignAction(inputWithPages(count));
       expect(result).toEqual({ success: true, id: CAMPAIGN_ID });
       expect(state.rpcCalls).toHaveLength(1);
       expect(state.rpcCalls[0].name).toBe('save_campaign_with_pages');
       expect((state.rpcCalls[0].args.p_campaign as { flow_type: string }).flow_type)
-        .toBe(count === 0 ? 'normal' : `${count}_pages`);
+        .toBe(count === 0 ? 'normal' : `${count + 1}_pages`);
       expect(state.rpcCalls[0].args.p_pages).toHaveLength(count);
       expect(state.rpcCalls[0].args.p_campaign_id).toBeNull();
       expect(state.tableCalls).toEqual(['profiles']);
@@ -77,12 +80,12 @@ describe('atomic campaign actions', () => {
   }
 
   it('edits campaign data and pages through the same atomic RPC', async () => {
-    const result = await updateCampaignAction(CAMPAIGN_ID, inputWithPages(5));
+    const result = await updateCampaignAction(CAMPAIGN_ID, inputWithPages(4));
     expect(result).toEqual({ success: true, id: CAMPAIGN_ID });
     expect(state.rpcCalls).toHaveLength(1);
     expect(state.rpcCalls[0].name).toBe('save_campaign_with_pages');
     expect(state.rpcCalls[0].args.p_campaign_id).toBe(CAMPAIGN_ID);
-    expect(state.rpcCalls[0].args.p_pages).toHaveLength(5);
+    expect(state.rpcCalls[0].args.p_pages).toHaveLength(4);
     expect(state.tableCalls).toEqual(['profiles']);
   });
 
@@ -90,13 +93,13 @@ describe('atomic campaign actions', () => {
     vi.stubEnv('NODE_ENV', 'development');
     state.rpcError = {
       code: '23514',
-      message: 'Campaign flow 4_pages requires exactly 4 pages, found 0',
+      message: 'Campaign flow 4_pages requires exactly 3 pages, found 0',
       details: 'deferred constraint trigger',
     };
-    const result = await createCampaignAction(inputWithPages(4));
+    const result = await createCampaignAction(inputWithPages(3));
     expect(result).toEqual({
       success: false,
-      error: 'Campaign flow 4_pages requires exactly 4 pages, found 0',
+      error: 'Campaign flow 4_pages requires exactly 3 pages, found 0',
     });
     vi.unstubAllEnvs();
   });

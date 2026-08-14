@@ -10,11 +10,24 @@
 export const FLOW_TYPES = ['normal', '4_pages', '5_pages'] as const;
 export type FlowType = (typeof FLOW_TYPES)[number];
 
-/** Number of custom pages required by a flow. Normal has none. */
+/**
+ * Number of CUSTOM pages required by a flow. Normal has none.
+ *
+ * The existing Normal flow (the task/unlock page) is always the first stage
+ * of every custom flow and is NOT stored in `campaign_pages` — the custom
+ * pages are only the extra pages that come AFTER it:
+ *
+ *   normal   → Normal task page → destination                (0 custom pages)
+ *   4_pages  → Normal task page → 3 custom pages → destination
+ *   5_pages  → Normal task page → 4 custom pages → destination
+ *
+ * The flow label counts the total visitor pages including the Normal task
+ * page (1 + 3 = 4, 1 + 4 = 5).
+ */
 export const FLOW_PAGE_COUNT: Record<FlowType, number> = {
   normal: 0,
-  '4_pages': 4,
-  '5_pages': 5,
+  '4_pages': 3,
+  '5_pages': 4,
 };
 
 /**
@@ -76,11 +89,13 @@ export type FlowPageInput = {
 /**
  * Validate a page array against the required flow shape.
  *
- * Normal must have zero pages. 4_pages must have exactly 4. 5_pages must
- * have exactly 5. Titles/descriptions are no longer required here because
- * every page inherits the campaign's main name/description (populated
- * server-side by `buildCampaignWritePayload`). This runs on the server (as
- * part of the server action) AND is enforced again by DB checks.
+ * Normal must have zero pages. 4_pages must have exactly 3 and 5_pages
+ * exactly 4 CUSTOM pages — the existing Normal task page is the implicit
+ * first stage of every custom flow and is never part of this array.
+ * Titles/descriptions are no longer required here because every page
+ * inherits the campaign's main name/description (populated server-side by
+ * `buildCampaignWritePayload`). This runs on the server (as part of the
+ * server action) AND is enforced again by DB checks.
  */
 export function validateFlowPages(flowType: FlowType, pages: FlowPageInput[]): string | null {
   const expected = FLOW_PAGE_COUNT[flowType];

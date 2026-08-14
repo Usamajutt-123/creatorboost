@@ -111,6 +111,9 @@ export function buildCampaignWritePayload(input: CampaignMutationInput) {
       if (page.position < 1 || page.position > expectedPages) {
         throw new Error(`Page positions must be between 1 and ${expectedPages}`);
       }
+      // Media/button restrictions are decided by CUSTOM-page position, not
+      // by the overall visitor-flow position (where the Normal task page
+      // counts as page 1). Only custom pages 1–3 may carry media/action.
       const isAutoPage = page.position >= 4;
       if (!isAutoPage && page.imageUrl && page.imageUrl.trim() && !isValidHttpUrl(page.imageUrl)) {
         throw new Error(`Page ${page.position} image URL must be a valid http(s) URL`);
@@ -133,8 +136,9 @@ export function buildCampaignWritePayload(input: CampaignMutationInput) {
         title: parsed.name.trim(),
         description: parsed.description?.trim() ? parsed.description.trim() : null,
         // Page content always inherits the campaign basics. Optional legacy
-        // media/action values remain valid on pages 1–3; pages 4–5 are
-        // stripped server-side regardless of what a caller submits.
+        // media/action values stay valid on custom pages 1–3 (a custom-page
+        // position, NOT the overall flow position); custom page 4 of a
+        // 5_pages flow is stripped server-side no matter what is submitted.
         image_url: allowsMediaAndButton
           ? safeMediaUrl(page.imageUrl, `Page ${position} image URL`)
           : null,
