@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { timeAgo } from '@/lib/utils';
 import { markAllNotificationsReadAction, markNotificationReadAction } from '@/lib/notification-actions';
+import { isAdminSentNotification } from '@/lib/notification-policy';
 
 const ICONS: Record<string, string> = {
   earning: '💰',
@@ -47,7 +48,7 @@ function announcementLabel(item: Item) {
 }
 
 export default function NotificationsClient({ initial, loadError }: { initial: Item[]; loadError: string | null }) {
-  const [items, setItems] = useState(initial);
+  const [items, setItems] = useState(() => initial.filter(isAdminSentNotification));
   const [error, setError] = useState(loadError);
   const [pending, start] = useTransition();
 
@@ -123,7 +124,7 @@ export default function NotificationsClient({ initial, loadError }: { initial: I
         <div className="glass rounded-xl p-12 text-center">
           <div className="text-5xl mb-3">🔔</div>
           <h3 className="font-semibold mb-1">No notifications yet</h3>
-          <p className="text-sm text-gray-500">You&apos;ll see updates here when something happens</p>
+          <p className="text-sm text-gray-500">Admin updates sent to you will appear here</p>
         </div>
       )}
     </div>

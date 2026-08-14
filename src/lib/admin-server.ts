@@ -21,7 +21,6 @@ import { headers } from 'next/headers';
 import { getClientIpFromHeaders } from '@/lib/request-ip';
 import { sendTemplateEmail } from '@/lib/email';
 import { validateManualRevenueRow, type ManualRevenueInput } from '@/lib/ad-revenue/manual';
-import { createNotification } from '@/lib/notifications';
 import {
   isValidPlatformAdUrl,
   normalizePlatformAdCode,
