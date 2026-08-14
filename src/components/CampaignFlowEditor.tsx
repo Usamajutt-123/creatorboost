@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Eye, Image as ImageIcon, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowDown, ArrowRight, ArrowUp, Eye, X } from 'lucide-react';
 import Select from '@/components/Select';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -12,12 +12,12 @@ import {
   type FlowType,
 } from '@/lib/flow';
 import { isValidHttpUrl } from '@/lib/tasks';
-import { toast } from 'sonner';
 
 /**
- * A single custom flow page. Every page shares the campaign's main name and
- * description, so the only per-page content a creator configures is the
- * button text and an optional image (and only on the first three pages).
+ * A single custom flow page. Every page uses the campaign's main name and
+ * description from Basic information and advances automatically. The legacy
+ * fields remain in this type so previously saved page rows can still be
+ * loaded safely, but new pages no longer expose per-page content controls.
  */
 export type EditorPage = {
   buttonText: string;
@@ -53,17 +53,13 @@ interface Props {
  * The number of page editors is DETERMINED by the flow type — there is no
  * generic "Add Page" button, and no way to reach 1/2/3/6/7+ pages.
  *
- * Page titles and descriptions are NOT collected here: every page uses the
- * campaign's main name and description (populated server-side), so the
- * creator only enters that information once.
+ * Page titles, descriptions, button text, and images are NOT collected here:
+ * every page uses the campaign's main name and description (populated
+ * server-side), with an automatic next-page action.
  */
 export default function CampaignFlowEditor({ flowType, onFlowTypeChange, pages, onPagesChange, onPreview, disabled }: Props) {
   const total = FLOW_PAGE_COUNT[flowType];
   const showPages = total > 0;
-
-  const updatePage = (index: number, patch: Partial<EditorPage>) => {
-    onPagesChange(pages.map((p, i) => (i === index ? { ...p, ...patch } : p)));
-  };
 
   const move = (index: number, direction: -1 | 1) => {
     const target = index + direction;
@@ -131,13 +127,11 @@ export default function CampaignFlowEditor({ flowType, onFlowTypeChange, pages, 
             )}
           </div>
           <div className="space-y-3">
-            {pages.slice(0, total).map((page, index) => (
+            {pages.slice(0, total).map((_, index) => (
               <PageEditor
                 key={index}
                 index={index}
                 total={total}
-                page={page}
-                onChange={patch => updatePage(index, patch)}
                 onMove={dir => move(index, dir)}
                 disabled={disabled}
               />
@@ -152,35 +146,12 @@ export default function CampaignFlowEditor({ flowType, onFlowTypeChange, pages, 
 interface PageProps {
   index: number;
   total: number;
-  page: EditorPage;
-  onChange: (patch: Partial<EditorPage>) => void;
   onMove: (dir: -1 | 1) => void;
   disabled?: boolean;
 }
 
-function PageEditor({ index, total, page, onChange, onMove, disabled }: PageProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const isAutomatic = index >= 3;
-
-  const handleFile = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please choose an image file');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Images must be 5 MB or smaller');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      onChange({ imageFile: file, imagePreview: String(reader.result || ''), imageUrl: null });
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const removeImage = () => onChange({ imageFile: null, imagePreview: '', imageUrl: null });
+function PageEditor({ index, total, onMove, disabled }: PageProps) {
+  const buttonLabel = index === total - 1 ? 'Unlock destination' : 'Next Page';
 
   return (
     <div className="glass rounded-xl p-4 space-y-3">
@@ -195,41 +166,11 @@ function PageEditor({ index, total, page, onChange, onMove, disabled }: PageProp
         </button>
       </div>
 
-      {isAutomatic ? (
-        <p className="text-xs text-gray-400">This page automatically uses your campaign name and description.</p>
-      ) : (
-        <>
-          <label className="text-xs text-gray-300 block">Button text
-            <input
-              value={page.buttonText}
-              onChange={event => onChange({ buttonText: event.target.value })}
-              className="input-field mt-1.5"
-              maxLength={60}
-              placeholder={index === total - 1 ? 'Unlock destination' : 'Continue'}
-              disabled={disabled}
-            />
-          </label>
-
-          <div>
-            <span className="text-xs font-medium text-gray-300 block mb-1.5">Image (optional)</span>
-            <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp,image/avif" onChange={handleFile} className="hidden" disabled={disabled} />
-            {page.imagePreview ? (
-              <div className="relative glass rounded-xl p-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={page.imagePreview} alt="" className="w-full max-h-40 object-cover rounded-lg" />
-                <button type="button" onClick={removeImage} disabled={disabled} aria-label={`Remove page ${index + 1} image`} className="absolute top-3 right-3 p-1.5 bg-red-500/90 hover:bg-red-500 rounded-full">
-                  <X className="w-3 h-3 text-white" />
-                </button>
-              </div>
-            ) : (
-              <button type="button" onClick={() => inputRef.current?.click()} disabled={disabled} className="w-full input-field border-dashed rounded-xl p-5 text-center hover:bg-white/5 flex flex-col items-center gap-2">
-                <ImageIcon className="w-5 h-5 text-gray-500" />
-                <span className="text-xs text-gray-400">Choose image</span>
-              </button>
-            )}
-          </div>
-        </>
-      )}
+      <p className="text-xs text-gray-400">This page automatically uses your campaign name and description from Basic information.</p>
+      <div className="flex items-center justify-between gap-3 rounded-lg bg-white/5 border border-white/10 px-3 py-2.5 text-xs">
+        <span className="text-gray-400">Automatic action</span>
+        <span className="text-purple-200 inline-flex items-center gap-1.5 font-medium"><ArrowRight className="w-3.5 h-3.5" />{buttonLabel}</span>
+      </div>
     </div>
   );
 }
@@ -317,7 +258,7 @@ export function FlowPreviewModal({
           <span className="text-[11px] text-gray-500">Step {Math.min(step + 1, total)} of {total}</span>
           {step < total - 1 ? (
             <button type="button" onClick={() => setStep(s => Math.min(s + 1, total - 1))} className="btn-primary px-3 py-1.5 rounded-lg text-xs">
-              {active?.buttonText?.trim() || 'Continue'}
+              {active?.buttonText?.trim() || 'Next Page'}
             </button>
           ) : (
             <button type="button" onClick={onClose} className="btn-primary px-3 py-1.5 rounded-lg text-xs">

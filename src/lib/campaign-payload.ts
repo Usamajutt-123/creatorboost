@@ -125,15 +125,17 @@ export function buildCampaignWritePayload(input: CampaignMutationInput) {
   const normalizedPages = flowPages
     .slice()
     .sort((a, b) => a.position - b.position)
-    .map((page, index) => {
+    .map((_, index) => {
       const position = index + 1;
-      const isAutoPage = (flowType !== 'normal' && position >= 4);
       return {
         position,
         title: parsed.name.trim(),
         description: parsed.description?.trim() ? parsed.description.trim() : null,
-        image_url: isAutoPage ? null : (page.imageUrl?.trim() ? page.imageUrl.trim() : null),
-        button_text: isAutoPage ? null : (page.buttonText?.trim() ? page.buttonText.trim() : null),
+        // Custom flows use the campaign-level information and automatic
+        // navigation on every page. Per-page media and button values are
+        // intentionally ignored, even if an older client sends them.
+        image_url: null,
+        button_text: null,
       };
     });
 
