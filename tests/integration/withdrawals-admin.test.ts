@@ -53,7 +53,7 @@ vi.mock('@/lib/supabase/server', () => ({
 }));
 
 import { requestWithdrawalAction } from '@/lib/withdraw-actions';
-import { adminSetUserStatus, adminSetUserRole, adminApproveWithdrawal } from '@/lib/admin-server';
+import { adminSetUserStatus, adminSetUserRole, adminApproveWithdrawal, adminSaveSettings } from '@/lib/admin-server';
 
 beforeEach(() => {
   state.rpcCalls = [];
@@ -97,6 +97,42 @@ describe('admin authorization (privilege escalation)', () => {
   it('blocks non-admins from user status changes', async () => {
     state.profiles['user-1'] = { role: 'creator', status: 'active', email: 'x@y.com' };
     await expect(adminSetUserStatus('user-2', 'banned')).rejects.toThrow('Admin privileges required');
+  });
+
+  it('blocks creators from changing platform ads', async () => {
+    state.profiles['user-1'] = { role: 'creator', status: 'active' };
+    await expect(adminSaveSettings({
+      banner_enabled: true,
+      banner_code: '<ins>creator ad</ins>',
+    })).rejects.toThrow('Admin privileges required');
+    expect(state.updates.some(update => update.table === 'platform_settings')).toBe(false);
+  });
+
+  it('allows admins and super admins to save platform ads through the protected action', async () => {
+    const adSettings = {
+      banner_enabled: true,
+      banner_code: '<ins>platform banner</ins>',
+      banner_url: 'https://ads.example/banner',
+      popunder_enabled: true,
+      popunder_code: '',
+      popunder_url: 'https://ads.example/popunder',
+    };
+
+    for (const role of ['admin', 'super_admin']) {
+      state.profiles['user-1'] = { role, status: 'active' };
+      state.updates = [];
+      const result = await adminSaveSettings(adSettings);
+      expect(result.ok).toBe(true);
+      const update = state.updates.find(item => item.table === 'platform_settings');
+      expect(update?.data).toMatchObject({
+        banner_enabled: true,
+        banner_code: '<ins>platform banner</ins>',
+        banner_url: 'https://ads.example/banner',
+        popunder_enabled: true,
+        popunder_code: null,
+        popunder_url: 'https://ads.example/popunder',
+      });
+    }
   });
 
   it('blocks admins from changing roles (super-admin only)', async () => {

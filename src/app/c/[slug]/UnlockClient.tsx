@@ -5,17 +5,10 @@ import { AlertCircle, Check, ExternalLink, Loader2, Lock, Shield, Unlock } from 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { configuredTaskUrl, isTaskType, TASK_DETAILS, taskDisplayName, type TaskMetadata } from '@/lib/tasks';
+import { PlatformBannerAd, usePlatformPopunder } from '@/components/PlatformAdSlot';
+import type { PublicPlatformAds } from '@/lib/platform-ads';
 
 type Step = 'tasks' | 'verifying' | 'complete' | 'error';
-
-type AdConfig = {
-  banner_enabled?: boolean | null;
-  banner_code?: string | null;
-  banner_url?: string | null;
-  popunder_enabled?: boolean | null;
-  popunder_code?: string | null;
-  popunder_url?: string | null;
-} | null;
 
 type PublicCampaign = {
   id: string;
@@ -28,9 +21,9 @@ type PublicCampaign = {
   task_metadata?: TaskMetadata | null;
 };
 
-export default function UnlockClient({ campaign, adConfig }: {
+export default function UnlockClient({ campaign, platformAds }: {
   campaign: PublicCampaign;
-  adConfig?: AdConfig;
+  platformAds: PublicPlatformAds;
 }) {
   const router = useRouter();
   const tasks = useMemo(() => (campaign.tasks || []).filter(isTaskType), [campaign.tasks]);
@@ -40,6 +33,7 @@ export default function UnlockClient({ campaign, adConfig }: {
   const [progress, setProgress] = useState(0);
   const [idempotencyKey, setIdempotencyKey] = useState('');
   const [payoutEligible, setPayoutEligible] = useState<boolean | null>(null);
+  const triggerPopunder = usePlatformPopunder(platformAds.popunder);
 
   const totalSteps = tasks.length;
   const completedCount = completed.size;
@@ -54,6 +48,9 @@ export default function UnlockClient({ campaign, adConfig }: {
       setError('This task has no valid URL. Ask the creator to update the campaign.');
       return;
     }
+    // A platform-owned popunder may run once from this visitor gesture. It is
+    // independent of creator campaign data and cannot change task completion.
+    triggerPopunder();
     // This is intentionally the exact persisted creator URL. No platform
     // default, YouTube fallback, or search redirect is ever substituted.
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -149,22 +146,8 @@ export default function UnlockClient({ campaign, adConfig }: {
             {step === 'error' && <div className="text-center py-8"><div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4"><AlertCircle className="w-8 h-8 text-red-400" /></div><h2 className="font-semibold text-xl mb-2 text-red-400">Could not unlock yet</h2><p className="text-sm text-gray-400 mb-6">{error}</p><button onClick={() => { setStep('tasks'); setError(''); }} className="btn-ghost px-5 py-2.5 rounded-xl text-sm">Try again</button></div>}
           </div>
         </div>
+        <PlatformBannerAd ad={platformAds.banner} />
         <p className="text-center text-xs text-gray-500 mt-4">Powered by <Link href="/" className="text-purple-400 hover:text-purple-300">CreatorBoost</Link></p>
-        {adConfig?.banner_enabled && (
-          <div className="glass rounded-xl p-3 mt-4">
-            {adConfig.banner_url ? (
-              <a href={adConfig.banner_url} target="_blank" rel="noopener noreferrer" aria-label="Social banner advertisement">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={adConfig.banner_url} alt="Social banner advertisement" className="w-full rounded-lg" />
-              </a>
-            ) : adConfig.banner_code ? (
-              <div dangerouslySetInnerHTML={{ __html: adConfig.banner_code }} />
-            ) : null}
-          </div>
-        )}
-        {adConfig?.popunder_enabled && adConfig.popunder_code && (
-          <div style={{ display: 'none' }} dangerouslySetInnerHTML={{ __html: adConfig.popunder_code }} />
-        )}
       </main>
     </div>
   );

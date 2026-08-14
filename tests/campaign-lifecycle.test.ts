@@ -63,6 +63,18 @@ describe('campaign create/edit payload', () => {
     expect(payload).not.toHaveProperty('total_earnings');
     expect(payload).not.toHaveProperty('creator_id');
     expect(payload).not.toHaveProperty('slug');
+    expect(payload).not.toHaveProperty('banner_code');
+    expect(payload).not.toHaveProperty('popunder_code');
+    expect(payload).not.toHaveProperty('ad_url');
+  });
+
+  it('rejects attempted platform-ad fields rather than accepting them as campaign data', () => {
+    expect(() => buildCampaignWritePayload({
+      ...input,
+      banner_code: '<script>creatorOverride()</script>',
+      popunder_code: '<script>creatorOverride()</script>',
+      ad_url: 'https://attacker.example/ad',
+    } as any)).toThrow(/unrecognized key/i);
   });
 
   it('rejects missing and invalid task URLs', () => {
