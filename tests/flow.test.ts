@@ -239,9 +239,10 @@ describe('buildCampaignWritePayload — flow', () => {
     for (const page of extracted) {
       expect(page.title).toBe('Flow campaign');
       expect(page.description).toBe('Unlock the good stuff');
-      expect(page.image_url).toBeNull();
-      expect(page.button_text).toBeNull();
     }
+    expect(extracted[0].image_url).toBe('https://example.com/old-image.png');
+    expect(extracted[0].button_text).toBe('Custom button');
+    expect(extracted.slice(3).every(page => page.image_url === null && page.button_text === null)).toBe(true);
   });
 });
 

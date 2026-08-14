@@ -125,17 +125,22 @@ export function buildCampaignWritePayload(input: CampaignMutationInput) {
   const normalizedPages = flowPages
     .slice()
     .sort((a, b) => a.position - b.position)
-    .map((_, index) => {
+    .map((page, index) => {
       const position = index + 1;
+      const allowsMediaAndButton = position <= 3;
       return {
         position,
         title: parsed.name.trim(),
         description: parsed.description?.trim() ? parsed.description.trim() : null,
-        // Custom flows use the campaign-level information and automatic
-        // navigation on every page. Per-page media and button values are
-        // intentionally ignored, even if an older client sends them.
-        image_url: null,
-        button_text: null,
+        // Page content always inherits the campaign basics. Optional legacy
+        // media/action values remain valid on pages 1–3; pages 4–5 are
+        // stripped server-side regardless of what a caller submits.
+        image_url: allowsMediaAndButton
+          ? safeMediaUrl(page.imageUrl, `Page ${position} image URL`)
+          : null,
+        button_text: allowsMediaAndButton && page.buttonText?.trim()
+          ? page.buttonText.trim()
+          : null,
       };
     });
 
