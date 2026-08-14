@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowRight, Check, Loader2, Lock, Shield, Unlock, AlertCircle } from 'lucide-react';
 import type { TaskMetadata } from '@/lib/tasks';
-import { FLOW_LABEL, FLOW_MULTIPLIER, type FlowType } from '@/lib/flow';
+import { FLOW_LABEL, type FlowType } from '@/lib/flow';
+import UnlockClient from './UnlockClient';
 
 type PublicPage = {
   position: number;
@@ -38,14 +39,31 @@ type AdConfig = {
 type Step = 'flow' | 'submitting' | 'complete' | 'error';
 
 /**
- * Public custom-page flow renderer. Every page transition is confirmed by
- * the server (`/api/flow/step`) so a visitor who tampers with the URL,
- * refreshes on page 4, or POSTs `page=5` can never earn the multiplier.
+ * Public custom-page flow renderer.
+ *
+ * The 4 Pages / 5 Pages flows EXTEND the existing Normal flow — they never
+ * replace it. Stage 1 is the exact same task page every normal campaign
+ * uses (UnlockClient, rendered unchanged); once the visitor completes every
+ * task there, the flow continues through this campaign's custom pages:
+ *
+ *   Normal task page → Custom page 1 … N → destination
+ *
+ * (N = 3 for 4 Pages, 4 for 5 Pages — see FLOW_PAGE_COUNT.)
+ *
+ * Every custom-page transition is confirmed by the server (`/api/flow/step`)
+ * so a visitor who tampers with the URL, refreshes a custom page, or POSTs
+ * a forged page number can never earn the multiplier. The destination is
+ * only revealed after the final custom page, through the same
+ * unlock-cookie-gated /destination/[slug] page the Normal flow uses.
  */
 export default function FlowClient({ campaign, adConfig }: { campaign: PublicCampaign; adConfig?: AdConfig }) {
   const router = useRouter();
   const pages = useMemo(() => [...campaign.pages].sort((a, b) => a.position - b.position), [campaign.pages]);
   const total = pages.length;
+  // 'tasks' = the existing Normal flow (stage 1, UnlockClient);
+  // 'flow'  = the custom pages that follow it.
+  const [stage, setStage] = useState<'tasks' | 'flow'>('tasks');
+  const [tasksCompleted, setTasksCompleted] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0); // 0-based
   const [advancing, setAdvancing] = useState(false);
   const [step, setStep] = useState<Step>('flow');
@@ -54,10 +72,19 @@ export default function FlowClient({ campaign, adConfig }: { campaign: PublicCam
   const [ready, setReady] = useState(false);
   const currentPage = pages[currentIndex];
 
-  useEffect(() => {
-    // Ask the server to open a fresh flow session (issues the step-0 cookie).
-    let cancelled = false;
-    (async () => {
+  /**
+   * Called by stage 1 (the existing Normal task page) once every task has
+   * been opened in this browser. Only now does the custom flow session
+   * start (server-side `/api/flow/step start`) — never before the task page
+   * is complete, and never for Normal campaigns. Starting here also keeps
+   * the 10-minute step-token window from expiring while the visitor is
+   * still working on the tasks.
+   */
+  const handleTasksUnlocked = (completedTasks: string[]) => {
+    setTasksCompleted(completedTasks);
+    setStage('flow');
+    setError('');
+    void (async () => {
       try {
         const res = await fetch('/api/flow/step', {
           method: 'POST',
@@ -65,16 +92,20 @@ export default function FlowClient({ campaign, adConfig }: { campaign: PublicCam
           body: JSON.stringify({ campaignId: campaign.id, action: 'start' }),
         });
         if (!res.ok) throw new Error('flow_start_failed');
-        if (!cancelled) setReady(true);
+        setReady(true);
       } catch {
-        if (!cancelled) {
-          setError('Flow could not be started. Please refresh and try again.');
-          setStep('error');
-        }
+        setError('Flow could not be started. Please refresh and try again.');
+        setStep('error');
       }
     })();
-    return () => { cancelled = true; };
-  }, [campaign.id]);
+  };
+
+  // Stage 1 is the exact existing Normal flow — same UI, same task opening,
+  // same validation. `onUnlocked` hands control to the custom pages below
+  // instead of finishing at the destination.
+  if (stage === 'tasks') {
+    return <UnlockClient campaign={campaign} adConfig={adConfig} onUnlocked={handleTasksUnlocked} />;
+  }
 
   const advance = async () => {
     if (advancing || !ready) return;
@@ -106,9 +137,10 @@ export default function FlowClient({ campaign, adConfig }: { campaign: PublicCam
               campaignId: campaign.id,
               deviceFingerprint: fingerprint,
               userAgent: navigator.userAgent,
-              // Every configured task is auto-satisfied by completing the flow;
-              // the server re-verifies the flow completion token.
-              tasksCompleted: campaign.tasks,
+              // The tasks the visitor actually opened on the Normal task page
+              // (stage 1). The server re-verifies coverage of the configured
+              // task set AND the flow completion token before crediting.
+              tasksCompleted,
               idempotencyKey: requestKey,
             }),
           });

@@ -2,6 +2,59 @@
 -- transaction. The constraint triggers added by 0014 are deferred until the
 -- transaction commits; separate PostgREST requests are separate transactions
 -- and therefore cannot satisfy the invariant for a custom flow.
+--
+-- Flow semantics (final): the existing Normal task page is always the
+-- implicit first stage of a custom flow and is NOT stored in campaign_pages.
+-- The flow label counts total visitor pages including that task page:
+--   normal  → task page → destination                    (0 custom pages)
+--   4_pages → task page + 3 custom pages → destination
+--   5_pages → task page + 4 custom pages → destination
+
+-- ------------------------------------------------------------
+-- Page-count invariant. This re-defines the enforcement function CREATED IN
+-- 0014 (which is already applied and therefore not modified on disk). The
+-- deferred constraint triggers 0014 created keep working untouched: they
+-- reference this function by OID and CREATE OR REPLACE preserves the OID.
+-- Only the expected counts change (4→3, 5→4 custom pages) so the invariant
+-- now covers "custom pages AFTER the existing Normal task page".
+-- ------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.enforce_campaign_page_count()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public AS $$
+DECLARE
+  v_campaign_id UUID;
+  v_flow campaign_flow_type;
+  v_count INTEGER;
+  v_expected INTEGER;
+BEGIN
+  IF TG_TABLE_NAME = 'campaigns' THEN
+    v_campaign_id := NEW.id;
+    v_flow := NEW.flow_type;
+  ELSE
+    v_campaign_id := COALESCE(NEW.campaign_id, OLD.campaign_id);
+    SELECT flow_type INTO v_flow FROM public.campaigns WHERE id = v_campaign_id;
+    IF v_flow IS NULL THEN
+      RETURN NULL; -- campaign was cascade-deleted; nothing to enforce
+    END IF;
+  END IF;
+
+  v_expected := CASE v_flow
+    WHEN 'normal' THEN 0
+    WHEN '4_pages' THEN 3
+    WHEN '5_pages' THEN 4
+  END;
+
+  SELECT COUNT(*) INTO v_count FROM public.campaign_pages WHERE campaign_id = v_campaign_id;
+
+  IF v_count <> v_expected THEN
+    RAISE EXCEPTION
+      'Campaign % flow % requires exactly % pages, found %',
+      v_campaign_id, v_flow, v_expected, v_count
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  RETURN NULL;
+END;
+$$;
 
 CREATE OR REPLACE FUNCTION public.save_campaign_with_pages(
   p_campaign JSONB,
@@ -44,10 +97,11 @@ BEGIN
     RAISE EXCEPTION 'Campaign flow type is invalid' USING ERRCODE = '22023';
   END;
 
+  -- Custom pages only: the Normal task page is implicit stage 1.
   v_expected_pages := CASE v_flow
     WHEN 'normal' THEN 0
-    WHEN '4_pages' THEN 4
-    WHEN '5_pages' THEN 5
+    WHEN '4_pages' THEN 3
+    WHEN '5_pages' THEN 4
   END;
   v_page_count := jsonb_array_length(COALESCE(p_pages, '[]'::JSONB));
 
@@ -113,8 +167,11 @@ BEGIN
   END IF;
 
   -- Positions are generated from array order rather than trusted from the
-  -- caller. Campaign-level name/description are the only content source.
-  -- The final two pages are always stripped of media/action data.
+  -- caller, and they are CUSTOM-page positions (1..3 / 1..4) — never the
+  -- overall flow position (the Normal task page is implicit stage 1).
+  -- Campaign-level name/description are the only content source. Media and
+  -- button text are restricted by custom-page position: pages after
+  -- custom-page 3 are always stripped of media/action data.
   INSERT INTO public.campaign_pages (
     campaign_id, position, title, description, image_url, button_text
   )

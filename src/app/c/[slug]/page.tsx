@@ -61,11 +61,12 @@ export default async function UnlockPage({ params }: PageProps) {
     .eq('id', 1)
     .single();
 
-  // Custom-page flows take over the visitor experience. If the campaign is
-  // set to 4_pages / 5_pages but the DB somehow does not have the correct
-  // number of pages we fall back to the normal task flow so visitors are
-  // never stuck; the trigger in migration 0014 keeps this from happening
-  // when campaigns are saved through the app.
+  // Custom-page flows EXTEND the Normal flow: FlowClient renders the exact
+  // same task page (UnlockClient) as stage 1 and the custom pages after it.
+  // If the campaign is set to 4_pages / 5_pages but the DB somehow does not
+  // have the correct number of custom pages we fall back to the normal task
+  // flow so visitors are never stuck; the page-count constraint triggers
+  // keep this from happening when campaigns are saved through the app.
   const expectedPages = FLOW_PAGE_COUNT[campaign.flow_type];
   if (campaign.flow_type !== 'normal' && campaign.pages.length === expectedPages) {
     return <FlowClient campaign={{

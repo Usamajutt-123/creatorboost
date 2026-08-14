@@ -73,9 +73,12 @@ export default function CampaignFlowEditor({ flowType, onFlowTypeChange, pages, 
     <section>
       <h2 className="font-semibold mb-1">Campaign Flow</h2>
       <p className="text-xs text-gray-500 mb-4">
-        Normal keeps the original CreatorBoost flow. Custom flows send visitors through the
-        pages below in order, and the server applies the verified earning multiplier only
-        after every page is completed. Every page uses your campaign name and description.
+        Normal keeps the original CreatorBoost flow. Custom flows start with the exact same
+        task page visitors already know — the existing Normal flow — and then send visitors
+        through the extra pages below in order. The server applies the verified earning
+        multiplier only after the task page and every custom page are completed, and the
+        destination link appears only at the very end. Every page uses your campaign name
+        and description.
       </p>
       <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Campaign flow type">
         {FLOW_TYPES.map(type => {
@@ -97,7 +100,7 @@ export default function CampaignFlowEditor({ flowType, onFlowTypeChange, pages, 
               <div className="text-[11px] text-gray-400 mt-1">
                 {FLOW_PAGE_COUNT[type] === 0
                   ? 'Existing task flow · 1.00× multiplier'
-                  : `${FLOW_PAGE_COUNT[type]} custom pages · ${FLOW_MULTIPLIER[type].toFixed(2)}× multiplier`}
+                  : `Existing task page + ${FLOW_PAGE_COUNT[type]} custom pages · ${FLOW_MULTIPLIER[type].toFixed(2)}× multiplier`}
               </div>
             </button>
           );
@@ -118,7 +121,7 @@ export default function CampaignFlowEditor({ flowType, onFlowTypeChange, pages, 
         <div className="mt-5">
           <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <p className="text-xs text-purple-200">
-              {FLOW_LABEL[flowType]} · {total} custom pages · verified earning multiplier {FLOW_MULTIPLIER[flowType].toFixed(2)}×
+              {FLOW_LABEL[flowType]} · task page + {total} custom pages · verified earning multiplier {FLOW_MULTIPLIER[flowType].toFixed(2)}×
             </p>
             {onPreview && (
               <button type="button" onClick={onPreview} className="btn-ghost px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">

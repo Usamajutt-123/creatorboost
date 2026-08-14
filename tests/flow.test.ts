@@ -57,13 +57,15 @@ describe('flow helpers', () => {
     expect(flowMultiplierFor('1.40')).toBe(1.0);
   });
 
-  it('flow page counts are strict', () => {
+  it('flow page counts are strict (custom pages AFTER the existing Normal task page)', () => {
+    // The Normal task page is always stage 1 of a custom flow. The labels
+    // count total visitor pages: 1 task page + custom pages (1+3=4, 1+4=5).
     expect(FLOW_PAGE_COUNT.normal).toBe(0);
-    expect(FLOW_PAGE_COUNT['4_pages']).toBe(4);
-    expect(FLOW_PAGE_COUNT['5_pages']).toBe(5);
+    expect(FLOW_PAGE_COUNT['4_pages']).toBe(3);
+    expect(FLOW_PAGE_COUNT['5_pages']).toBe(4);
     expect(flowRequiredPageCount('normal')).toBe(0);
-    expect(flowRequiredPageCount('4_pages')).toBe(4);
-    expect(flowRequiredPageCount('5_pages')).toBe(5);
+    expect(flowRequiredPageCount('4_pages')).toBe(3);
+    expect(flowRequiredPageCount('5_pages')).toBe(4);
   });
 
   it('isFlowType narrows correctly', () => {
@@ -90,43 +92,44 @@ describe('validateFlowPages', () => {
     expect(validateFlowPages('normal', pages(1))).toMatch(/must not include/i);
   });
 
-  it('4-page flow requires exactly 4 pages', () => {
-    expect(validateFlowPages('4_pages', pages(4))).toBeNull();
+  it('4-page flow requires exactly 3 custom pages (task page is stage 1)', () => {
+    expect(validateFlowPages('4_pages', pages(3))).toBeNull();
   });
 
-  it('5-page flow requires exactly 5 pages', () => {
-    expect(validateFlowPages('5_pages', pages(5))).toBeNull();
+  it('5-page flow requires exactly 4 custom pages (task page is stage 1)', () => {
+    expect(validateFlowPages('5_pages', pages(4))).toBeNull();
   });
 
-  it('rejects 1-, 2-, 3-page counts for 4_pages', () => {
-    expect(validateFlowPages('4_pages', pages(1))).toMatch(/exactly 4/i);
-    expect(validateFlowPages('4_pages', pages(2))).toMatch(/exactly 4/i);
-    expect(validateFlowPages('4_pages', pages(3))).toMatch(/exactly 4/i);
+  it('rejects 1-, 2-, 4+-page counts for 4_pages', () => {
+    expect(validateFlowPages('4_pages', pages(1))).toMatch(/exactly 3/i);
+    expect(validateFlowPages('4_pages', pages(2))).toMatch(/exactly 3/i);
+    expect(validateFlowPages('4_pages', pages(4))).toMatch(/exactly 3/i);
   });
 
-  it('rejects 6+ pages for 4_pages', () => {
-    expect(validateFlowPages('4_pages', pages(6))).toMatch(/exactly 4/i);
-    expect(validateFlowPages('4_pages', pages(7))).toMatch(/exactly 4/i);
+  it('rejects 5+ pages for 4_pages', () => {
+    expect(validateFlowPages('4_pages', pages(5))).toMatch(/exactly 3/i);
+    expect(validateFlowPages('4_pages', pages(6))).toMatch(/exactly 3/i);
   });
 
-  it('rejects 4-page count for 5_pages flow', () => {
-    expect(validateFlowPages('5_pages', pages(4))).toMatch(/exactly 5/i);
-    expect(validateFlowPages('5_pages', pages(6))).toMatch(/exactly 5/i);
+  it('rejects wrong page counts for 5_pages flow', () => {
+    expect(validateFlowPages('5_pages', pages(3))).toMatch(/exactly 4/i);
+    expect(validateFlowPages('5_pages', pages(5))).toMatch(/exactly 4/i);
+    expect(validateFlowPages('5_pages', pages(6))).toMatch(/exactly 4/i);
   });
 
   it('does not require per-page titles (they inherit the campaign name)', () => {
-    const noTitles = pages(4).map(p => ({ position: p.position }));
+    const noTitles = pages(3).map(p => ({ position: p.position }));
     expect(validateFlowPages('4_pages', noTitles)).toBeNull();
   });
 
   it('requires contiguous positions 1..N', () => {
     const gapped = [
       { position: 1, title: 'A' },
-      { position: 3, title: 'B' },
+      { position: 2, title: 'B' },
       { position: 4, title: 'C' },
-      { position: 5, title: 'D' },
     ];
     expect(validateFlowPages('4_pages', gapped)).toMatch(/without gaps/i);
+    expect(validateFlowPages('5_pages', [...gapped, { position: 5, title: 'D' }])).toMatch(/without gaps/i);
   });
 });
 
@@ -151,12 +154,12 @@ describe('buildCampaignWritePayload — flow', () => {
     expect(extractFlowPages(payload)).toEqual([]);
   });
 
-  it('4_pages requires exactly 4 titled pages', () => {
+  it('4_pages requires exactly 3 custom pages (the Normal task page is implicit)', () => {
     expect(() => buildCampaignWritePayload({
       ...base,
       flowType: '4_pages',
-      flowPages: [{ position: 1, title: 'A' }, { position: 2, title: 'B' }, { position: 3, title: 'C' }],
-    })).toThrow(/exactly 4/i);
+      flowPages: [{ position: 1, title: 'A' }, { position: 2, title: 'B' }],
+    })).toThrow(/exactly 3/i);
 
     expect(() => buildCampaignWritePayload({
       ...base,
@@ -164,33 +167,32 @@ describe('buildCampaignWritePayload — flow', () => {
       flowPages: [
         { position: 1, title: 'A' }, { position: 2, title: 'B' },
         { position: 3, title: 'C' }, { position: 4, title: 'D' },
-        { position: 5, title: 'E' },
       ],
-    })).toThrow(/exactly 4/i);
+    })).toThrow(/exactly 3/i);
 
     const ok = buildCampaignWritePayload({
       ...base,
       flowType: '4_pages',
       flowPages: [
         { position: 1, title: 'A' }, { position: 2, title: 'B' },
-        { position: 3, title: 'C' }, { position: 4, title: 'D' },
+        { position: 3, title: 'C' },
       ],
     });
     expect(ok.flow_type).toBe('4_pages');
-    expect(extractFlowPages(ok)).toHaveLength(4);
+    expect(extractFlowPages(ok)).toHaveLength(3);
   });
 
-  it('5_pages requires exactly 5 titled pages', () => {
+  it('5_pages requires exactly 4 custom pages (the Normal task page is implicit)', () => {
     expect(() => buildCampaignWritePayload({
       ...base,
       flowType: '5_pages',
       flowPages: [
         { position: 1, title: 'A' }, { position: 2, title: 'B' },
-        { position: 3, title: 'C' }, { position: 4, title: 'D' },
+        { position: 3, title: 'C' },
       ],
-    })).toThrow(/exactly 5/i);
+    })).toThrow(/exactly 4/i);
 
-    const ok = buildCampaignWritePayload({
+    expect(() => buildCampaignWritePayload({
       ...base,
       flowType: '5_pages',
       flowPages: [
@@ -198,9 +200,18 @@ describe('buildCampaignWritePayload — flow', () => {
         { position: 3, title: 'C' }, { position: 4, title: 'D' },
         { position: 5, title: 'E' },
       ],
+    })).toThrow(/exactly 4/i);
+
+    const ok = buildCampaignWritePayload({
+      ...base,
+      flowType: '5_pages',
+      flowPages: [
+        { position: 1, title: 'A' }, { position: 2, title: 'B' },
+        { position: 3, title: 'C' }, { position: 4, title: 'D' },
+      ],
     });
     expect(ok.flow_type).toBe('5_pages');
-    expect(extractFlowPages(ok)).toHaveLength(5);
+    expect(extractFlowPages(ok)).toHaveLength(4);
   });
 
   it('rejects normal + custom pages combination', () => {
@@ -215,7 +226,7 @@ describe('buildCampaignWritePayload — flow', () => {
     const payload = buildCampaignWritePayload({
       ...base,
       flowType: '4_pages',
-      flowPages: pages(4),
+      flowPages: pages(3),
     });
     // The DB has no multiplier column; the flow_type alone drives payouts.
     expect(payload).not.toHaveProperty('multiplier');
@@ -228,21 +239,58 @@ describe('buildCampaignWritePayload — flow', () => {
       ...base,
       description: 'Unlock the good stuff',
       flowType: '5_pages',
-      flowPages: pages(5).map((p, i) => ({
+      flowPages: pages(4).map((p, i) => ({
         position: p.position,
         imageUrl: i === 0 ? 'https://example.com/old-image.png' : undefined,
         buttonText: i === 0 ? 'Custom button' : undefined,
       })),
     });
     const extracted = extractFlowPages(ok);
-    expect(extracted).toHaveLength(5);
+    expect(extracted).toHaveLength(4);
     for (const page of extracted) {
       expect(page.title).toBe('Flow campaign');
       expect(page.description).toBe('Unlock the good stuff');
     }
     expect(extracted[0].image_url).toBe('https://example.com/old-image.png');
     expect(extracted[0].button_text).toBe('Custom button');
+    // Restriction keyed to custom-page position: page 4 (custom position 4)
+    // is stripped even though it is no longer the "last page of 5".
     expect(extracted.slice(3).every(page => page.image_url === null && page.button_text === null)).toBe(true);
+  });
+
+  it('4_pages media/button restrictions follow custom-page position, not overall flow position', () => {
+    // All 3 custom pages of a 4_pages flow sit at custom positions 1–3, so
+    // every one of them may keep its legacy image/button — the old
+    // "positions 4–5 are stripped" rule must NOT bite custom page 3 just
+    // because it is overall visitor step 4 (task page = step 1).
+    const ok = buildCampaignWritePayload({
+      ...base,
+      flowType: '4_pages',
+      flowPages: pages(3).map(p => ({
+        position: p.position,
+        imageUrl: 'https://example.com/img.png',
+        buttonText: 'Next',
+      })),
+    });
+    const extracted = extractFlowPages(ok);
+    expect(extracted).toHaveLength(3);
+    expect(extracted.every(page => page.image_url === 'https://example.com/img.png' && page.button_text === 'Next')).toBe(true);
+  });
+
+  it('5_pages still strips the 4th custom page (custom position > 3)', () => {
+    const ok = buildCampaignWritePayload({
+      ...base,
+      flowType: '5_pages',
+      flowPages: pages(4).map(p => ({
+        position: p.position,
+        imageUrl: 'https://example.com/img.png',
+        buttonText: 'Next',
+      })),
+    });
+    const extracted = extractFlowPages(ok);
+    expect(extracted.slice(0, 3).every(page => page.image_url === 'https://example.com/img.png')).toBe(true);
+    expect(extracted[3].image_url).toBeNull();
+    expect(extracted[3].button_text).toBeNull();
   });
 });
 
@@ -261,38 +309,42 @@ describe('flow tokens', () => {
     expect(createInitialStepToken(CAMPAIGN_ID, 'normal' as never)).toBeNull();
   });
 
-  it('completes a 4-page flow only via sequential advance', () => {
+  it('completes a 4-page flow only via sequential advance through its 3 custom pages', () => {
     const init = createInitialStepToken(CAMPAIGN_ID, '4_pages');
     expect(init).not.toBeNull();
     let token = init!.token;
 
-    for (let step = 1; step <= 3; step++) {
+    for (let step = 1; step <= 2; step++) {
       const res = advanceStepToken({ token, campaignId: CAMPAIGN_ID, flowType: '4_pages', nextStep: step });
       expect(res.ok).toBe(true);
       if (res.ok && !res.done) token = res.token;
     }
-    const done = advanceStepToken({ token, campaignId: CAMPAIGN_ID, flowType: '4_pages', nextStep: 4 });
+    const done = advanceStepToken({ token, campaignId: CAMPAIGN_ID, flowType: '4_pages', nextStep: 3 });
     expect(done.ok).toBe(true);
     if (!done.ok || !done.done) throw new Error('expected completion');
     expect(verifyFlowCompletion(done.completionToken, CAMPAIGN_ID, '4_pages')).toEqual({ ok: true, session: expect.any(String) });
   });
 
-  it('completes a 5-page flow only via sequential advance', () => {
+  it('completes a 5-page flow only via sequential advance through its 4 custom pages', () => {
     const init = createInitialStepToken(CAMPAIGN_ID, '5_pages');
     let token = init!.token;
-    for (let step = 1; step <= 4; step++) {
+    for (let step = 1; step <= 3; step++) {
       const res = advanceStepToken({ token, campaignId: CAMPAIGN_ID, flowType: '5_pages', nextStep: step });
       expect(res.ok).toBe(true);
       if (res.ok && !res.done) token = res.token;
     }
-    const done = advanceStepToken({ token, campaignId: CAMPAIGN_ID, flowType: '5_pages', nextStep: 5 });
+    const done = advanceStepToken({ token, campaignId: CAMPAIGN_ID, flowType: '5_pages', nextStep: 4 });
     expect(done.ok && done.done).toBe(true);
   });
 
   it('rejects skipping directly to the final page', () => {
     const init = createInitialStepToken(CAMPAIGN_ID, '4_pages');
-    const skip = advanceStepToken({ token: init!.token, campaignId: CAMPAIGN_ID, flowType: '4_pages', nextStep: 4 });
+    // Straight to the last custom page from the start token…
+    const skip = advanceStepToken({ token: init!.token, campaignId: CAMPAIGN_ID, flowType: '4_pages', nextStep: 3 });
     expect(skip.ok).toBe(false);
+    // …and beyond the page count is also impossible.
+    const beyond = advanceStepToken({ token: init!.token, campaignId: CAMPAIGN_ID, flowType: '4_pages', nextStep: 4 });
+    expect(beyond.ok).toBe(false);
   });
 
   it('rejects repeating the same page number to inflate progress', () => {
@@ -317,7 +369,7 @@ describe('flow tokens', () => {
   it('rejects completion token for a different campaign', () => {
     const init = createInitialStepToken(CAMPAIGN_ID, '4_pages')!;
     let token = init.token;
-    for (let step = 1; step <= 4; step++) {
+    for (let step = 1; step <= 3; step++) {
       const res = advanceStepToken({ token, campaignId: CAMPAIGN_ID, flowType: '4_pages', nextStep: step });
       if (res.ok && !res.done) token = res.token;
       if (res.ok && res.done) {

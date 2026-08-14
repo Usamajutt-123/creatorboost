@@ -39,6 +39,19 @@ describe('database security invariants', () => {
     expect(s15).toContain('GRANT EXECUTE ON FUNCTION public.save_campaign_with_pages(JSONB, JSONB, UUID) TO authenticated');
   });
 
+  it('enforces 0/3/4 custom pages per flow — the existing Normal task page is implicit stage 1', () => {
+    // 0014 (already applied) must not be edited, so 0015 re-defines the
+    // enforcement function its deferred constraint triggers call. Custom
+    // flows store ONLY the pages after the Normal task page: 4_pages → 3,
+    // 5_pages → 4 custom pages.
+    const s14 = readFileSync(join(MIGRATIONS_DIR, '0014_custom_page_flow.sql'), 'utf8');
+    expect(s14).toContain('CREATE CONSTRAINT TRIGGER trg_campaigns_flow_page_count');
+    const s15 = readFileSync(join(MIGRATIONS_DIR, '0015_atomic_campaign_flow_mutations.sql'), 'utf8');
+    expect(s15).toContain('CREATE OR REPLACE FUNCTION public.enforce_campaign_page_count');
+    expect(s15).toContain("WHEN '4_pages' THEN 3");
+    expect(s15).toContain("WHEN '5_pages' THEN 4");
+  });
+
   it('enables RLS on every sensitive table', () => {
     for (const t of ['profiles', 'campaigns', 'views', 'earnings', 'withdrawals', 'referrals', 'support_tickets', 'notifications']) {
       expect(sql, `RLS not enabled on ${t}`).toMatch(new RegExp(`ALTER TABLE ${t} ENABLE ROW LEVEL SECURITY`));
