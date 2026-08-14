@@ -5,6 +5,7 @@ import FlowClient from './FlowClient';
 import { loadPublicCampaign, PublicCampaignLookupError } from '@/lib/public-campaign';
 import { resolveParams } from '@/lib/route-params';
 import { FLOW_PAGE_COUNT } from '@/lib/flow';
+import { createAdminClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,6 +54,13 @@ export default async function UnlockPage({ params }: PageProps) {
   }
   if (!campaign) notFound();
 
+  const adminSupabase = createAdminClient();
+  const { data: adConfig } = await adminSupabase
+    .from('platform_settings')
+    .select('banner_enabled, banner_code, banner_url, popunder_enabled, popunder_code, popunder_url')
+    .eq('id', 1)
+    .single();
+
   // Custom-page flows take over the visitor experience. If the campaign is
   // set to 4_pages / 5_pages but the DB somehow does not have the correct
   // number of pages we fall back to the normal task flow so visitors are
@@ -64,8 +72,8 @@ export default async function UnlockPage({ params }: PageProps) {
       ...campaign,
       tasks: campaign.tasks || [],
       task_metadata: campaign.task_metadata || {},
-    }} />;
+    }} adConfig={adConfig || null} />;
   }
 
-  return <UnlockClient campaign={{ ...campaign, tasks: campaign.tasks || [], task_metadata: campaign.task_metadata || {} }} />;
+  return <UnlockClient campaign={{ ...campaign, tasks: campaign.tasks || [], task_metadata: campaign.task_metadata || {} }} adConfig={adConfig || null} />;
 }

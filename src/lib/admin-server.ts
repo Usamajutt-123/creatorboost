@@ -451,7 +451,7 @@ export async function adminLoadLevels() {
 export async function adminLoadSettings() {
   await requireAdmin();
   const supabase = createAdminClient();
-  const { data } = await supabase.from('platform_settings').select('site_name, site_tagline, support_email, site_announcement, site_announcement_active, min_withdrawal, referral_percentage, fraud_detection_sensitivity, vpn_block_enabled, duplicate_device_block, duplicate_ip_window_hours, maintenance_mode, signup_enabled, max_earnings_per_view, max_views_per_device_per_day, max_views_per_ip_per_day, creator_daily_earning_cap, campaign_daily_earning_cap, platform_daily_earning_cap, earning_holding_hours').eq('id', 1).single();
+  const { data } = await supabase.from('platform_settings').select('site_name, site_tagline, support_email, site_announcement, site_announcement_active, min_withdrawal, referral_percentage, fraud_detection_sensitivity, vpn_block_enabled, duplicate_device_block, duplicate_ip_window_hours, maintenance_mode, signup_enabled, max_earnings_per_view, max_views_per_device_per_day, max_views_per_ip_per_day, creator_daily_earning_cap, campaign_daily_earning_cap, platform_daily_earning_cap, earning_holding_hours, banner_enabled, banner_code, banner_url, popunder_enabled, popunder_code, popunder_url').eq('id', 1).single();
   return data;
 }
 
@@ -564,18 +564,34 @@ export async function adminSaveSettings(data: Record<string, unknown>) {
     'duplicate_device_block', 'duplicate_ip_window_hours', 'maintenance_mode', 'signup_enabled',
     'max_earnings_per_view', 'max_views_per_device_per_day', 'max_views_per_ip_per_day',
     'creator_daily_earning_cap', 'campaign_daily_earning_cap', 'platform_daily_earning_cap', 'earning_holding_hours',
+    'banner_enabled', 'banner_code', 'banner_url', 'popunder_enabled', 'popunder_code', 'popunder_url',
   ]);
   const payload: Record<string, unknown> = {};
   for (const field of ['site_name', 'site_tagline', 'support_email', 'site_announcement'] as const) {
     if (field in input) payload[field] = shortText(input[field], field.replace(/_/g, ' '), field === 'site_announcement' ? 1_000 : 200, field !== 'site_name');
   }
   if (typeof payload.support_email === 'string' && payload.support_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.support_email)) throw new Error('Support email is invalid');
-  for (const field of ['site_announcement_active', 'vpn_block_enabled', 'duplicate_device_block', 'maintenance_mode', 'signup_enabled'] as const) {
+  for (const field of ['site_announcement_active', 'vpn_block_enabled', 'duplicate_device_block', 'maintenance_mode', 'signup_enabled', 'banner_enabled', 'popunder_enabled'] as const) {
     if (field in input) {
       if (typeof input[field] !== 'boolean') throw new Error(`${field} is invalid`);
       payload[field] = input[field];
     }
   }
+  // Banner / popunder code and URL (optional, admin-controlled)
+  for (const field of ['banner_code', 'banner_url', 'popunder_code', 'popunder_url'] as const) {
+    if (field in input) {
+      if (field.includes('_url')) {
+        const urlVal = String(input[field] ?? '').trim();
+        if (urlVal && urlVal.length > 2000) throw new Error(`${field} is too long`);
+        payload[field] = urlVal || null;
+      } else {
+        const codeVal = String(input[field] ?? '').trim();
+        if (codeVal && codeVal.length > 5000) throw new Error(`${field} is too long`);
+        payload[field] = codeVal || null;
+      }
+    }
+  }
+
   if ('fraud_detection_sensitivity' in input) {
     const value = String(input.fraud_detection_sensitivity);
     if (!['low', 'medium', 'high', 'strict'].includes(value)) throw new Error('Fraud sensitivity is invalid');

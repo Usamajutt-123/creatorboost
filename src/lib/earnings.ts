@@ -383,6 +383,31 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
   }
 
   // ---------------------------------------------------------------
+  // 4.5. 24-hour IP view restriction (race-safe, server-side)
+  // ---------------------------------------------------------------
+  if (finalValid && ipHash) {
+    // Atomic advisory lock per (campaign, IP) pair to prevent concurrent
+    // duplicate credited views.
+    await supabase.rpc('pg_advisory_xact_lock', {
+      p_key: Number('0x' + createHash('sha256').update(`${campaignId}:${ipHash}`).digest('hex').slice(0, 16)),
+    });
+    const since24h = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+    const { data: existingSameIp } = await supabase
+      .from('views')
+      .select('id')
+      .eq('campaign_id', campaignId)
+      .eq('ip_hash', ipHash)
+      .eq('status', 'valid')
+      .gte('created_at', since24h)
+      .limit(1);
+    if (existingSameIp && existingSameIp.length > 0) {
+      finalValid = false;
+      finalReason = 'duplicate_ip_24h';
+      finalEarning = 0;
+    }
+  }
+
+  // ---------------------------------------------------------------
   // 5. Persist the view
   // ---------------------------------------------------------------
   const { data: inserted, error } = await supabase
@@ -401,12 +426,12 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
       is_bot: fraud.isBot,
       is_emulator: fraud.isEmulator,
       fraud_score: fraud.fraudScore,
-      status: decision.valid ? 'valid' : 'invalid',
-      invalid_reason: decision.valid ? null : (decision.reason ?? 'other'),
+      status: finalValid ? 'valid' : 'invalid',
+      invalid_reason: finalValid ? null : (finalReason ?? 'other'),
       cpm_rate: decision.cpm,
-      earnings: decision.valid ? decision.earning : 0,
+      earnings: finalValid ? finalEarning : 0,
       tasks_completed: input.tasksCompleted ?? [],
-      validated_at: decision.valid ? new Date().toISOString() : null,
+      validated_at: finalValid ? new Date().toISOString() : null,
       idempotency_key: idemKey,
       // Flow audit + replay-guard columns (migration 0014).
       flow_type: stampedFlow,

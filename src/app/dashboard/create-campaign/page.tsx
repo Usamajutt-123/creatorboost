@@ -77,7 +77,7 @@ export default function CreateCampaignPage() {
 
   const changeFlow = (next: FlowType) => {
     setFlowType(next);
-    setFlowPages(existing => resizePages(existing.length ? existing : [emptyPage()], FLOW_PAGE_COUNT[next]));
+    setFlowPages(existing => resizePages(existing.length ? existing : [emptyPage()], FLOW_PAGE_COUNT[next], form.name));
   };
 
   const addTask = (id: TaskType) => {
@@ -300,6 +300,7 @@ export default function CreateCampaignPage() {
               onPagesChange={setFlowPages}
               onPreview={flowType !== 'normal' ? () => setPreviewOpen(true) : undefined}
               disabled={saving}
+              campaignName={form.name}
             />
 
             <section>

@@ -152,7 +152,8 @@ CREATE POLICY campaign_pages_public_read ON public.campaign_pages
 -- 5. Extend `public_campaigns` view with flow_type so /c/[slug]
 --    can render the correct flow without exposing new fields.
 -- ------------------------------------------------------------
-CREATE OR REPLACE VIEW public.public_campaigns
+DROP VIEW IF EXISTS public.public_campaigns;
+CREATE VIEW public.public_campaigns
 WITH (security_barrier = true, security_invoker = false) AS
 SELECT
   id, slug, name, description, category, thumbnail_url, banner_url,
@@ -184,3 +185,16 @@ ALTER TABLE public.views
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_views_flow_session
   ON public.views (creator_id, flow_session_id)
   WHERE flow_session_id IS NOT NULL;
+
+-- ------------------------------------------------------------
+-- 7. Centralized admin-controlled ad configuration
+--    Reuses the single-row platform_settings table so no new
+--    table or duplicate system is needed.
+-- ------------------------------------------------------------
+ALTER TABLE public.platform_settings
+  ADD COLUMN IF NOT EXISTS banner_enabled BOOLEAN DEFAULT FALSE NOT NULL,
+  ADD COLUMN IF NOT EXISTS banner_code TEXT CHECK (char_length(banner_code) <= 5000),
+  ADD COLUMN IF NOT EXISTS banner_url TEXT CHECK (char_length(banner_url) <= 2000),
+  ADD COLUMN IF NOT EXISTS popunder_enabled BOOLEAN DEFAULT FALSE NOT NULL,
+  ADD COLUMN IF NOT EXISTS popunder_code TEXT CHECK (char_length(popunder_code) <= 5000),
+  ADD COLUMN IF NOT EXISTS popunder_url TEXT CHECK (char_length(popunder_url) <= 2000);

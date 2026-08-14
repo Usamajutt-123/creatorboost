@@ -28,6 +28,15 @@ type PublicCampaign = {
   pages: PublicPage[];
 };
 
+type AdConfig = {
+  banner_enabled?: boolean | null;
+  banner_code?: string | null;
+  banner_url?: string | null;
+  popunder_enabled?: boolean | null;
+  popunder_code?: string | null;
+  popunder_url?: string | null;
+} | null;
+
 type Step = 'flow' | 'submitting' | 'complete' | 'error';
 
 /**
@@ -35,7 +44,7 @@ type Step = 'flow' | 'submitting' | 'complete' | 'error';
  * the server (`/api/flow/step`) so a visitor who tampers with the URL,
  * refreshes on page 4, or POSTs `page=5` can never earn the multiplier.
  */
-export default function FlowClient({ campaign }: { campaign: PublicCampaign }) {
+export default function FlowClient({ campaign, adConfig }: { campaign: PublicCampaign; adConfig?: AdConfig }) {
   const router = useRouter();
   const pages = useMemo(() => [...campaign.pages].sort((a, b) => a.position - b.position), [campaign.pages]);
   const total = pages.length;
@@ -132,7 +141,6 @@ export default function FlowClient({ campaign }: { campaign: PublicCampaign }) {
   };
 
   const progressPct = total > 0 ? Math.round(((currentIndex) / total) * 100) : 0;
-  const multiplier = FLOW_MULTIPLIER[campaign.flow_type];
 
   return (
     <div className="min-h-screen hero-gradient flex items-center justify-center px-4 py-12 relative">
@@ -161,7 +169,7 @@ export default function FlowClient({ campaign }: { campaign: PublicCampaign }) {
               <div className="flex-1 min-w-0">
                 <h1 className="font-display text-xl sm:text-2xl font-bold mb-1 leading-tight">{campaign.name}</h1>
                 {campaign.description && <p className="text-xs sm:text-sm text-gray-400">{campaign.description}</p>}
-                <p className="text-[11px] mt-2 text-purple-300">{FLOW_LABEL[campaign.flow_type]} · verified {multiplier.toFixed(2)}× flow</p>
+                <p className="text-[11px] mt-2 text-purple-300">{FLOW_LABEL[campaign.flow_type]}</p>
               </div>
             </div>
 
@@ -252,6 +260,21 @@ export default function FlowClient({ campaign }: { campaign: PublicCampaign }) {
           </div>
         </div>
         <p className="text-center text-xs text-gray-500 mt-4">Powered by <Link href="/" className="text-purple-400 hover:text-purple-300">CreatorBoost</Link></p>
+        {adConfig?.banner_enabled && (
+          <div className="glass rounded-xl p-3 mt-4">
+            {adConfig.banner_url ? (
+              <a href={adConfig.banner_url} target="_blank" rel="noopener noreferrer" aria-label="Social banner advertisement">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={adConfig.banner_url} alt="Social banner advertisement" className="w-full rounded-lg" />
+              </a>
+            ) : adConfig.banner_code ? (
+              <div dangerouslySetInnerHTML={{ __html: adConfig.banner_code }} />
+            ) : null}
+          </div>
+        )}
+        {adConfig?.popunder_enabled && adConfig.popunder_code && (
+          <div style={{ display: 'none' }} dangerouslySetInnerHTML={{ __html: adConfig.popunder_code }} />
+        )}
       </main>
     </div>
   );

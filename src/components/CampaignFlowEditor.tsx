@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Eye, Image as ImageIcon, X } from 'lucide-react';
 import Select from '@/components/Select';
 import { createClient } from '@/lib/supabase/client';
@@ -28,9 +28,22 @@ export function emptyPage(): EditorPage {
 }
 
 /** Resize the pages array to exactly `count` entries, preserving prior data. */
-export function resizePages(pages: EditorPage[], count: number): EditorPage[] {
+export function resizePages(pages: EditorPage[], count: number, campaignName?: string): EditorPage[] {
   const next = pages.slice(0, count);
-  while (next.length < count) next.push(emptyPage());
+  while (next.length < count) {
+    const newPage = emptyPage();
+    if (campaignName && next.length >= 3) {
+      newPage.title = campaignName;
+    }
+    next.push(newPage);
+  }
+  if (campaignName) {
+    for (let i = 3; i < next.length; i++) {
+      if (next[i].title !== campaignName) {
+        next[i] = { ...next[i], title: campaignName };
+      }
+    }
+  }
   return next;
 }
 
@@ -41,6 +54,7 @@ interface Props {
   onPagesChange: (next: EditorPage[]) => void;
   onPreview?: () => void;
   disabled?: boolean;
+  campaignName?: string;
 }
 
 /**
@@ -48,9 +62,27 @@ interface Props {
  * The number of page editors is DETERMINED by the flow type — there is no
  * generic "Add Page" button, and no way to reach 1/2/3/6/7+ pages.
  */
-export default function CampaignFlowEditor({ flowType, onFlowTypeChange, pages, onPagesChange, onPreview, disabled }: Props) {
+export default function CampaignFlowEditor({ flowType, onFlowTypeChange, pages, onPagesChange, onPreview, disabled, campaignName }: Props) {
   const total = FLOW_PAGE_COUNT[flowType];
   const showPages = total > 0;
+
+  // Ensure automatic pages inherit the campaign name
+  useEffect(() => {
+    if (flowType === 'normal' || !campaignName) return;
+    let changed = false;
+    const updated = pages.map((p, i) => {
+      if (i >= 3) {
+        if (p.title !== campaignName) {
+          changed = true;
+          return { ...p, title: campaignName };
+        }
+      }
+      return p;
+    });
+    if (changed) {
+      onPagesChange(updated);
+    }
+  }, [campaignName, flowType, pages, onPagesChange]);
 
   const updatePage = (index: number, patch: Partial<EditorPage>) => {
     onPagesChange(pages.map((p, i) => (i === index ? { ...p, ...patch } : p)));
@@ -151,6 +183,7 @@ interface PageProps {
 
 function PageEditor({ index, total, page, onChange, onMove, disabled }: PageProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const isAutomatic = index >= 3;
 
   const handleFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -185,58 +218,70 @@ function PageEditor({ index, total, page, onChange, onMove, disabled }: PageProp
         </button>
       </div>
 
-      <label className="text-xs text-gray-300 block">Title *
-        <input
-          value={page.title}
-          onChange={event => onChange({ title: event.target.value })}
-          className="input-field mt-1.5"
-          maxLength={150}
-          placeholder={`Page ${index + 1} title`}
-          disabled={disabled}
-        />
-      </label>
+      {!isAutomatic ? (
+        <label className="text-xs text-gray-300 block">Title *
+          <input
+            value={page.title}
+            onChange={event => onChange({ title: event.target.value })}
+            className="input-field mt-1.5"
+            maxLength={150}
+            placeholder={`Page ${index + 1} title`}
+            disabled={disabled}
+          />
+        </label>
+      ) : (
+        <div className="text-xs text-gray-300">
+          <span className="font-medium">Title:</span> {page.title || 'Uses campaign name'}
+        </div>
+      )}
 
-      <label className="text-xs text-gray-300 block">Description
-        <textarea
-          rows={3}
-          value={page.description}
-          onChange={event => onChange({ description: event.target.value })}
-          className="input-field mt-1.5"
-          maxLength={2000}
-          placeholder="Explain what visitors should read or do on this page"
-          disabled={disabled}
-        />
-      </label>
+      {!isAutomatic && (
+        <label className="text-xs text-gray-300 block">Description
+          <textarea
+            rows={3}
+            value={page.description}
+            onChange={event => onChange({ description: event.target.value })}
+            className="input-field mt-1.5"
+            maxLength={2000}
+            placeholder="Explain what visitors should read or do on this page"
+            disabled={disabled}
+          />
+        </label>
+      )}
 
-      <label className="text-xs text-gray-300 block">Button text
-        <input
-          value={page.buttonText}
-          onChange={event => onChange({ buttonText: event.target.value })}
-          className="input-field mt-1.5"
-          maxLength={60}
-          placeholder={index === total - 1 ? 'Unlock destination' : 'Continue'}
-          disabled={disabled}
-        />
-      </label>
+      {!isAutomatic && (
+        <label className="text-xs text-gray-300 block">Button text
+          <input
+            value={page.buttonText}
+            onChange={event => onChange({ buttonText: event.target.value })}
+            className="input-field mt-1.5"
+            maxLength={60}
+            placeholder={index === total - 1 ? 'Unlock destination' : 'Continue'}
+            disabled={disabled}
+          />
+        </label>
+      )}
 
-      <div>
-        <span className="text-xs font-medium text-gray-300 block mb-1.5">Image (optional)</span>
-        <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp,image/avif" onChange={handleFile} className="hidden" disabled={disabled} />
-        {page.imagePreview ? (
-          <div className="relative glass rounded-xl p-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={page.imagePreview} alt="" className="w-full max-h-40 object-cover rounded-lg" />
-            <button type="button" onClick={removeImage} disabled={disabled} aria-label={`Remove page ${index + 1} image`} className="absolute top-3 right-3 p-1.5 bg-red-500/90 hover:bg-red-500 rounded-full">
-              <X className="w-3 h-3 text-white" />
+      {!isAutomatic && (
+        <div>
+          <span className="text-xs font-medium text-gray-300 block mb-1.5">Image (optional)</span>
+          <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp,image/avif" onChange={handleFile} className="hidden" disabled={disabled} />
+          {page.imagePreview ? (
+            <div className="relative glass rounded-xl p-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={page.imagePreview} alt="" className="w-full max-h-40 object-cover rounded-lg" />
+              <button type="button" onClick={removeImage} disabled={disabled} aria-label={`Remove page ${index + 1} image`} className="absolute top-3 right-3 p-1.5 bg-red-500/90 hover:bg-red-500 rounded-full">
+                <X className="w-3 h-3 text-white" />
+              </button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => inputRef.current?.click()} disabled={disabled} className="w-full input-field border-dashed rounded-xl p-5 text-center hover:bg-white/5 flex flex-col items-center gap-2">
+              <ImageIcon className="w-5 h-5 text-gray-500" />
+              <span className="text-xs text-gray-400">Choose image</span>
             </button>
-          </div>
-        ) : (
-          <button type="button" onClick={() => inputRef.current?.click()} disabled={disabled} className="w-full input-field border-dashed rounded-xl p-5 text-center hover:bg-white/5 flex flex-col items-center gap-2">
-            <ImageIcon className="w-5 h-5 text-gray-500" />
-            <span className="text-xs text-gray-400">Choose image</span>
-          </button>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
