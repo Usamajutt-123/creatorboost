@@ -65,7 +65,9 @@ export function flowRequiredPageCount(flowType: unknown): number {
 
 export type FlowPageInput = {
   position: number;      // 1-based
-  title: string;
+  // Title/description are no longer collected per-page: every page inherits
+  // the campaign's main name/description, which the server populates.
+  title?: string;
   description?: string | null;
   imageUrl?: string | null;
   buttonText?: string | null;
@@ -75,8 +77,10 @@ export type FlowPageInput = {
  * Validate a page array against the required flow shape.
  *
  * Normal must have zero pages. 4_pages must have exactly 4. 5_pages must
- * have exactly 5. Every non-normal page needs a title. This runs on the
- * server (as part of the server action) AND is enforced again by DB checks.
+ * have exactly 5. Titles/descriptions are no longer required here because
+ * every page inherits the campaign's main name/description (populated
+ * server-side by `buildCampaignWritePayload`). This runs on the server (as
+ * part of the server action) AND is enforced again by DB checks.
  */
 export function validateFlowPages(flowType: FlowType, pages: FlowPageInput[]): string | null {
   const expected = FLOW_PAGE_COUNT[flowType];
@@ -99,10 +103,6 @@ export function validateFlowPages(flowType: FlowType, pages: FlowPageInput[]): s
     if (page.position !== wantedPosition) {
       return `Page positions must be 1..${expected} without gaps`;
     }
-    if (!page.title || !page.title.trim()) {
-      return `Page ${wantedPosition} needs a title`;
-    }
-    if (page.title.length > 150) return `Page ${wantedPosition} title is too long`;
     if (page.description && page.description.length > 2000) return `Page ${wantedPosition} description is too long`;
     if (page.buttonText && page.buttonText.length > 60) return `Page ${wantedPosition} button text is too long`;
     if (page.imageUrl && page.imageUrl.length > 2000) return `Page ${wantedPosition} image URL is too long`;

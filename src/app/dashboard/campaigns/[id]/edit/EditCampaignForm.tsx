@@ -61,7 +61,7 @@ export default function EditCampaignForm({ campaignId }: { campaignId: string })
 
   const changeFlow = (next: FlowType) => {
     setFlowType(next);
-    setFlowPages(existing => resizePages(existing.length ? existing : [emptyPage()], FLOW_PAGE_COUNT[next], form.name));
+    setFlowPages(existing => resizePages(existing.length ? existing : [emptyPage()], FLOW_PAGE_COUNT[next]));
   };
 
   useEffect(() => {
@@ -109,14 +109,12 @@ export default function EditCampaignForm({ campaignId }: { campaignId: string })
           .eq('campaign_id', campaignId)
           .order('position', { ascending: true });
         const loaded: EditorPage[] = (pageRows || []).map(row => ({
-          title: String(row.title || ''),
-          description: String(row.description || ''),
           buttonText: String(row.button_text || ''),
           imageUrl: row.image_url ?? null,
           imageFile: null,
           imagePreview: row.image_url || '',
         }));
-        setFlowPages(resizePages(loaded, FLOW_PAGE_COUNT[savedFlow], form.name));
+        setFlowPages(resizePages(loaded, FLOW_PAGE_COUNT[savedFlow]));
       } else {
         setFlowPages([]);
       }
@@ -179,8 +177,8 @@ export default function EditCampaignForm({ campaignId }: { campaignId: string })
     const requiredCount = FLOW_PAGE_COUNT[flowType];
     if (flowType !== 'normal') {
       const trimmed = flowPages.slice(0, requiredCount);
-      if (trimmed.length !== requiredCount || trimmed.some(p => !p.title.trim())) {
-        toast.error(`${flowType === '4_pages' ? '4 Pages' : '5 Pages'} requires exactly ${requiredCount} pages with titles`);
+      if (trimmed.length !== requiredCount) {
+        toast.error(`${flowType === '4_pages' ? '4 Pages' : '5 Pages'} requires exactly ${requiredCount} pages`);
         return;
       }
     }
@@ -246,10 +244,16 @@ export default function EditCampaignForm({ campaignId }: { campaignId: string })
             onPagesChange={setFlowPages}
             onPreview={flowType !== 'normal' ? () => setPreviewOpen(true) : undefined}
             disabled={saving}
-            campaignName={form.name}
           />
           {previewOpen && flowType !== 'normal' && (
-            <FlowPreviewModal flowType={flowType} pages={flowPages} destinationUrl={form.destinationUrl} onClose={() => setPreviewOpen(false)} />
+            <FlowPreviewModal
+              flowType={flowType}
+              pages={flowPages}
+              destinationUrl={form.destinationUrl}
+              campaignName={form.name}
+              campaignDescription={form.description}
+              onClose={() => setPreviewOpen(false)}
+            />
           )}
 
           <section><h2 className="font-semibold mb-4">Publishing settings</h2><div className="grid sm:grid-cols-2 gap-4"><label className="text-xs font-medium text-gray-300 block">Status<Select value={form.status} onChange={value => setForm({ ...form, status: value as typeof form.status })} className="mt-1.5" options={[{ value: 'active', label: 'Active' }, { value: 'paused', label: 'Paused' }, { value: 'draft', label: 'Draft' }]} /></label><label className="text-xs font-medium text-gray-300 block">Expiry date (optional)<input type="date" value={form.expiresAt} onChange={event => setForm({ ...form, expiresAt: event.target.value })} className="input-field mt-1.5" /></label></div></section>

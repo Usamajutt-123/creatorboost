@@ -112,15 +112,16 @@ export function buildCampaignWritePayload(input: CampaignMutationInput) {
         throw new Error(`Page positions must be between 1 and ${expectedPages}`);
       }
       const isAutoPage = page.position >= 4;
-      if (!isAutoPage && (!page.title || !page.title.trim())) {
-        throw new Error(`Page ${page.position} needs a title`);
-      }
       if (!isAutoPage && page.imageUrl && page.imageUrl.trim() && !isValidHttpUrl(page.imageUrl)) {
         throw new Error(`Page ${page.position} image URL must be a valid http(s) URL`);
       }
     }
   }
 
+  // Every page inherits the campaign's main name/description — the single
+  // source of truth. The creator no longer provides per-page titles or
+  // descriptions, so the server populates the (backward-compatible) DB
+  // columns automatically from the campaign-level values.
   const normalizedPages = flowPages
     .slice()
     .sort((a, b) => a.position - b.position)
@@ -129,8 +130,8 @@ export function buildCampaignWritePayload(input: CampaignMutationInput) {
       const isAutoPage = (flowType !== 'normal' && position >= 4);
       return {
         position,
-        title: isAutoPage ? parsed.name.trim() : (page.title || '').trim(),
-        description: isAutoPage ? null : (page.description?.trim() ? page.description.trim() : null),
+        title: parsed.name.trim(),
+        description: parsed.description?.trim() ? parsed.description.trim() : null,
         image_url: isAutoPage ? null : (page.imageUrl?.trim() ? page.imageUrl.trim() : null),
         button_text: isAutoPage ? null : (page.buttonText?.trim() ? page.buttonText.trim() : null),
       };

@@ -77,7 +77,7 @@ export default function CreateCampaignPage() {
 
   const changeFlow = (next: FlowType) => {
     setFlowType(next);
-    setFlowPages(existing => resizePages(existing.length ? existing : [emptyPage()], FLOW_PAGE_COUNT[next], form.name));
+    setFlowPages(existing => resizePages(existing.length ? existing : [emptyPage()], FLOW_PAGE_COUNT[next]));
   };
 
   const addTask = (id: TaskType) => {
@@ -159,8 +159,8 @@ export default function CreateCampaignPage() {
     const requiredCount = FLOW_PAGE_COUNT[flowType];
     if (flowType !== 'normal') {
       const trimmed = flowPages.slice(0, requiredCount);
-      if (trimmed.length !== requiredCount || trimmed.some(p => !p.title.trim())) {
-        toast.error(`${flowType === '4_pages' ? '4 Pages' : '5 Pages'} requires exactly ${requiredCount} pages with titles`);
+      if (trimmed.length !== requiredCount) {
+        toast.error(`${flowType === '4_pages' ? '4 Pages' : '5 Pages'} requires exactly ${requiredCount} pages`);
         return;
       }
     }
@@ -300,7 +300,6 @@ export default function CreateCampaignPage() {
               onPagesChange={setFlowPages}
               onPreview={flowType !== 'normal' ? () => setPreviewOpen(true) : undefined}
               disabled={saving}
-              campaignName={form.name}
             />
 
             <section>
@@ -324,6 +323,8 @@ export default function CreateCampaignPage() {
                 flowType={flowType}
                 pages={flowPages}
                 destinationUrl={form.destinationUrl}
+                campaignName={form.name}
+                campaignDescription={form.description}
                 onClose={() => setPreviewOpen(false)}
               />
             )}
