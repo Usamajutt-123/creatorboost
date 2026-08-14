@@ -141,14 +141,20 @@ export async function computeViewEarnings(opts: {
   // 4. Creator account status: banned/suspended creators earn nothing.
   const { data: profile } = await supabase
     .from('profiles')
-    .select('level, status, country_code')
+    .select('level, status, cpm_country_code, country_code')
     .eq('id', opts.creatorId)
     .maybeSingle();
   if (profile && (profile.status === 'banned' || profile.status === 'suspended')) {
     return { valid: false, reason: 'account_blocked', cpm: 0, levelMultiplier: 1, earning: 0 };
   }
 
-  const creatorCountry = sanitizeCountryCode(profile?.country_code);
+  // SECURITY: use the admin-controlled cpm_country_code (migration 0017)
+  // instead of the creator-editable country_code. This prevents a creator
+  // from selecting a premium-CPM country and getting inflated earnings.
+  const creatorCountry = sanitizeCountryCode(
+    (profile as Record<string, unknown> | null)?.cpm_country_code as string | null
+      ?? profile?.country_code
+  );
   if (creatorCountry) {
     const { data: countryRow } = await supabase
       .from('country_tiers')
@@ -348,67 +354,141 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
   }
 
   // ---------------------------------------------------------------
-  // 4.5. 24-hour IP view restriction (race-safe, server-side)
+  // 5. Persist the view — using the atomic RPC that combines the
+  //    24h duplicate-IP check with the INSERT in one transaction.
+  //    This prevents two concurrent requests from both crediting
+  //    earnings for the same campaign + IP within 24 hours.
   // ---------------------------------------------------------------
-  if (finalValid && ipHash) {
-    // Atomic advisory lock per (campaign, IP) pair to prevent concurrent
-    // duplicate credited views.
-    await supabase.rpc('pg_advisory_xact_lock', {
-      p_key: Number('0x' + createHash('sha256').update(`${campaignId}:${ipHash}`).digest('hex').slice(0, 16)),
+  const capsIpWindow = caps.duplicateIpWindowHours ?? 24;
+  let inserted: { id: string } | null = null;
+  let duplicateIpDetected = false;
+
+  const viewInsertData = {
+    campaign_id: campaignId,
+    creator_id: creatorId,
+    visitor_ip: input.visitorIp && input.visitorIp !== 'unknown' ? input.visitorIp : null,
+    ip_hash: ipHash,
+    country_code: countryCode,
+    device_fingerprint: input.deviceFingerprint?.trim() || null,
+    user_agent: input.userAgent || null,
+    is_vpn: fraud.isVpn,
+    is_proxy: fraud.isProxy,
+    is_bot: fraud.isBot,
+    is_emulator: fraud.isEmulator,
+    fraud_score: fraud.fraudScore,
+    status: finalValid ? 'valid' : 'invalid',
+    invalid_reason: finalValid ? null : (finalReason ?? 'other'),
+    cpm_rate: decision.cpm,
+    earnings: finalValid ? finalEarning : 0,
+    tasks_completed: input.tasksCompleted ?? [],
+    validated_at: finalValid ? new Date().toISOString() : null,
+    idempotency_key: idemKey,
+  };
+
+  // Try the atomic RPC first (migration 0017). If it doesn't exist
+  // (dev/test environments), fall back to the original approach.
+  let useRpc = true;
+  try {
+    const { data: rpcResult, error: rpcErr } = await supabase.rpc('record_view_with_ip_check', {
+      p_campaign_id: campaignId,
+      p_creator_id: creatorId,
+      p_visitor_ip: viewInsertData.visitor_ip,
+      p_ip_hash: ipHash,
+      p_country_code: countryCode,
+      p_device_fingerprint: viewInsertData.device_fingerprint,
+      p_user_agent: viewInsertData.user_agent,
+      p_is_vpn: fraud.isVpn,
+      p_is_proxy: fraud.isProxy,
+      p_is_bot: fraud.isBot,
+      p_is_emulator: fraud.isEmulator,
+      p_fraud_score: fraud.fraudScore,
+      p_status: viewInsertData.status,
+      p_invalid_reason: viewInsertData.invalid_reason,
+      p_cpm_rate: decision.cpm,
+      p_earnings: viewInsertData.earnings,
+      p_tasks_completed: viewInsertData.tasks_completed,
+      p_validated_at: viewInsertData.validated_at,
+      p_idempotency_key: idemKey,
+      p_ip_window_hours: capsIpWindow,
     });
-    const since24h = new Date(now - 24 * 60 * 60 * 1000).toISOString();
-    const { data: existingSameIp } = await supabase
-      .from('views')
-      .select('id')
-      .eq('campaign_id', campaignId)
-      .eq('ip_hash', ipHash)
-      .eq('status', 'valid')
-      .gte('created_at', since24h)
-      .limit(1);
-    if (existingSameIp && existingSameIp.length > 0) {
-      finalValid = false;
-      finalReason = 'duplicate_ip_24h';
-      finalEarning = 0;
+
+    if (rpcErr) {
+      // If the RPC doesn't exist (404/42881), fall through to direct insert.
+      // 42881 = undefined_function in PostgreSQL.
+      const errCode = (rpcErr as unknown as Record<string, unknown>).code;
+      if (typeof errCode === 'string' && errCode === '42881') {
+        useRpc = false;
+      } else {
+        // Unique constraint violation from the RPC — another request won.
+        if (typeof errCode === 'string' && errCode === '23505') {
+          return invalidResult('duplicate_request');
+        }
+        console.error('[earnings] record_view_with_ip_check failed', rpcErr);
+        return invalidResult('internal');
+      }
+    } else if (rpcResult && typeof rpcResult === 'object') {
+      const result = rpcResult as Record<string, unknown>;
+      inserted = result.view_id ? { id: result.view_id as string } : null;
+      duplicateIpDetected = result.duplicate_ip === true;
+      if (duplicateIpDetected && finalValid) {
+        finalValid = false;
+        finalReason = 'duplicate_ip_24h';
+        finalEarning = 0;
+      }
     }
+  } catch {
+    // RPC invocation failed (function doesn't exist) — fall back.
+    useRpc = false;
   }
 
-  // ---------------------------------------------------------------
-  // 5. Persist the view
-  // ---------------------------------------------------------------
-  const { data: inserted, error } = await supabase
-    .from('views')
-    .insert({
-      campaign_id: campaignId,
-      creator_id: creatorId,
-      // visitor_ip is an INET column — only store valid IPs (never 'unknown').
-      visitor_ip: input.visitorIp && input.visitorIp !== 'unknown' ? input.visitorIp : null,
-      ip_hash: ipHash,
-      country_code: countryCode,
-      device_fingerprint: input.deviceFingerprint?.trim() || null,
-      user_agent: input.userAgent || null,
-      is_vpn: fraud.isVpn,
-      is_proxy: fraud.isProxy,
-      is_bot: fraud.isBot,
-      is_emulator: fraud.isEmulator,
-      fraud_score: fraud.fraudScore,
-      status: finalValid ? 'valid' : 'invalid',
-      invalid_reason: finalValid ? null : (finalReason ?? 'other'),
-      cpm_rate: decision.cpm,
-      earnings: finalValid ? finalEarning : 0,
-      tasks_completed: input.tasksCompleted ?? [],
-      validated_at: finalValid ? new Date().toISOString() : null,
-      idempotency_key: idemKey,
-    })
-    .select()
-    .maybeSingle();
-
-  if (error) {
-    // Unique idempotency violation -> another request won the race.
-    if (typeof error.code === 'string' && error.code === '23505') {
-      return invalidResult('duplicate_request');
+  // Fallback: direct INSERT + advisory lock for environments without
+  // the migration 0017 RPC (development/testing).
+  if (!useRpc) {
+    // Advisory lock per (campaign, IP) pair to prevent concurrent
+    // duplicate credited views.
+    if (finalValid && ipHash) {
+      try {
+        await supabase.rpc('pg_advisory_xact_lock', {
+          p_key: Number('0x' + createHash('sha256').update(`${campaignId}:${ipHash}`).digest('hex').slice(0, 16)),
+        });
+      } catch {
+        // Advisory lock function may not exist in dev — continue
+        // with best-effort duplicate check.
+      }
+      const since24h = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+      const { data: existingSameIp } = await supabase
+        .from('views')
+        .select('id')
+        .eq('campaign_id', campaignId)
+        .eq('ip_hash', ipHash)
+        .eq('status', 'valid')
+        .gte('created_at', since24h)
+        .limit(1);
+      if (existingSameIp && existingSameIp.length > 0) {
+        finalValid = false;
+        finalReason = 'duplicate_ip_24h';
+        finalEarning = 0;
+        viewInsertData.status = 'invalid';
+        viewInsertData.invalid_reason = 'duplicate_ip_24h';
+        viewInsertData.earnings = 0;
+        viewInsertData.validated_at = null;
+      }
     }
-    console.error('[earnings] view insert failed', error);
-    return invalidResult('internal');
+
+    const { data: directInserted, error } = await supabase
+      .from('views')
+      .insert(viewInsertData)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      if (typeof error.code === 'string' && error.code === '23505') {
+        return invalidResult('duplicate_request');
+      }
+      console.error('[earnings] view insert failed', error);
+      return invalidResult('internal');
+    }
+    inserted = directInserted;
   }
 
   // ---------------------------------------------------------------

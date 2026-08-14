@@ -126,7 +126,22 @@ function defaultResponders() {
     'earnings:select': () => ({ data: [], error: null, count: 0 }),
     'campaigns:maybeSingle': () => ({ data: { total_earnings: 0 }, error: null }),
   };
-  supabaseState.rpcResponder = () => ({ error: null });
+  supabaseState.rpcResponder = (name: string, args: any) => {
+    // Handle the atomic record_view_with_ip_check RPC (migration 0017).
+    // Return a successful view insert so the credit_view_earning step runs.
+    if (name === 'record_view_with_ip_check') {
+      return {
+        data: {
+          view_id: '33333333-3333-4333-8333-333333333333',
+          duplicate_ip: false,
+          status: args?.p_status ?? 'valid',
+          earnings: args?.p_earnings ?? 0,
+        },
+        error: null,
+      };
+    }
+    return { error: null };
+  };
 }
 
 beforeEach(() => {

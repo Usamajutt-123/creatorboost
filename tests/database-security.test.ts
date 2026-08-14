@@ -20,8 +20,8 @@ describe('database security invariants', () => {
   it('migrations exist and are ordered', () => {
     expect(migrations.length).toBeGreaterThanOrEqual(7);
     expect(migrations[0]).toMatch(/^0001_/);
-    // Applied migration history currently ends at 0016.
-    expect(migrations[migrations.length - 1]).toMatch(/^0016_/);
+    // Applied migration history currently ends at 0017.
+    expect(migrations[migrations.length - 1]).toMatch(/^0017_/);
   });
 
   it('enables RLS on every sensitive table', () => {

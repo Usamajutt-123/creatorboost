@@ -24,11 +24,12 @@ function SignupContent() {
     }
   }, [ref]);
 
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', country: 'US' });
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', country: '' });
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.country) { toast.error('Please select your country.'); return; }
     setLoading(true);
     const supabase = createClient();
     const { error } = await supabase.auth.signUp({
@@ -119,6 +120,7 @@ function SignupContent() {
               <div className="relative">
                 <Globe2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                 <Select value={form.country} onChange={value => setForm({ ...form, country: value })} ariaLabel="Country" triggerClassName="pl-10" options={[
+                  { value: '', label: 'Select your country...' },
                   { value: 'US', label: 'United States' },
                   { value: 'GB', label: 'United Kingdom' },
                   { value: 'PK', label: 'Pakistan' },

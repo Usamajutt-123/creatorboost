@@ -105,7 +105,7 @@ describe('country CPM security invariants', () => {
   });
 
   it('uses the creator profile country, not a client-supplied CPM', () => {
-    expect(earnings).toContain("select('level, status, country_code')");
+    expect(earnings).toMatch(/select\('level, status, cpm_country_code, country_code'\)/);
     expect(earnings).toContain('resolveCreatorCpm');
     expect(earnings).toContain('country_tiers');
     expect(earnings).not.toMatch(/opts\.cpm/);

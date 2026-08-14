@@ -67,7 +67,10 @@ export async function POST(request: NextRequest) {
     const result = await recordView({
       campaign: campaign as ValidatedCampaign,
       visitorIp: ip,
-      userAgent: userAgent || request.headers.get('user-agent') || '',
+      // SECURITY: always use the server-side User-Agent header, never the
+      // client-supplied body field. The body.userAgent is kept in the schema
+      // for telemetry but is NOT used for fraud or earnings decisions.
+      userAgent: request.headers.get('user-agent') || userAgent || '',
       deviceFingerprint: deviceFingerprint || undefined,
       tasksCompleted: tasksCompleted || [],
       idempotencyKey: idempotencyKey || null,
