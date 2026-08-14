@@ -63,14 +63,21 @@ describe('country CPM admin authorization', () => {
     const updates: unknown[] = [];
     fromMock.mockImplementation((table: string) => {
       if (table === 'country_tiers') {
-        return {
-          update: vi.fn((fields: unknown) => {
-            updates.push(fields);
-            return {
-              eq: vi.fn(async () => ({ data: { id: 1 }, error: null })),
-            };
-          }),
-        };
+        const query = chain({
+          data: {
+            country_code: 'PK', country_name: 'Pakistan', tier: 'tier_3',
+            cpm_min: 0.5, cpm_max: 1.5, cpm_default: 0.5,
+            payout_percentage: 70, active: true,
+          },
+          error: null,
+        });
+        query.update = vi.fn((fields: unknown) => {
+          updates.push(fields);
+          return {
+            eq: vi.fn(async () => ({ data: { id: 1 }, error: null })),
+          };
+        });
+        return query;
       }
       return chain({ data: null, error: null });
     });
@@ -81,11 +88,70 @@ describe('country CPM admin authorization', () => {
     expect(updates).toEqual([{ cpm_default: 0.75 }]);
   });
 
-  it('does not allow unsupported country fields (including creator-owned CPM)', async () => {
+  it('lets a super admin update country identity, range, default, and status', async () => {
+    getSessionUser.mockResolvedValue({ id: 'super-1' });
+    getDashboardProfile.mockResolvedValue({ id: 'super-1', role: 'super_admin' });
+    const updates: unknown[] = [];
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'country_tiers') {
+        const query = chain({
+          data: {
+            country_code: 'US', country_name: 'United States', tier: 'tier_1',
+            cpm_min: 4, cpm_max: 6, cpm_default: 5,
+            payout_percentage: 70, active: true,
+          },
+          error: null,
+        });
+        query.update = vi.fn((fields: unknown) => {
+          updates.push(fields);
+          return { eq: vi.fn(async () => ({ data: { id: 1 }, error: null })) };
+        });
+        return query;
+      }
+      return chain({ data: null, error: null });
+    });
+    rpcMock.mockResolvedValue({ data: null, error: null });
+
+    const { adminSaveCountryUpdates } = await import('@/lib/admin-server');
+    const result = await adminSaveCountryUpdates([{
+      id: 1,
+      fields: {
+        country_code: 'GB', country_name: 'United Kingdom', tier: 'tier_1',
+        cpm_min: '3', cpm_max: '9', cpm_default: '7', active: false,
+      },
+    }]);
+    expect(result).toEqual({ ok: true });
+    expect(updates).toEqual([{
+      country_code: 'GB', country_name: 'United Kingdom', tier: 'tier_1',
+      cpm_min: 3, cpm_max: 9, cpm_default: 7, active: false,
+    }]);
+  });
+
+  it('rejects a country patch that leaves default outside the merged min/max range', async () => {
+    getSessionUser.mockResolvedValue({ id: 'admin-1' });
+    getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin' });
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'country_tiers') {
+        return chain({
+          data: {
+            country_code: 'US', country_name: 'United States', tier: 'tier_1',
+            cpm_min: 4, cpm_max: 6, cpm_default: 5,
+            payout_percentage: 70, active: true,
+          },
+          error: null,
+        });
+      }
+      return chain({ data: null, error: null });
+    });
+    const { adminSaveCountryUpdates } = await import('@/lib/admin-server');
+    await expect(adminSaveCountryUpdates([{ id: 1, fields: { cpm_min: 6.5 } }])).rejects.toThrow(/default.*min|max/i);
+  });
+
+  it('does not allow unsupported fields (including creator-owned CPM country)', async () => {
     getSessionUser.mockResolvedValue({ id: 'admin-1' });
     getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin' });
     const { adminSaveCountryUpdates } = await import('@/lib/admin-server');
-    await expect(adminSaveCountryUpdates([{ id: 1, fields: { country_code: 'US' } }])).rejects.toThrow(/unsupported/i);
+    await expect(adminSaveCountryUpdates([{ id: 1, fields: { cpm_country_code: 'US' } }])).rejects.toThrow(/unsupported/i);
   });
 });
 
@@ -97,6 +163,8 @@ describe('country CPM security invariants', () => {
   const init = readFileSync(join(root, 'supabase/migrations/0001_init.sql'), 'utf8');
   const hardening = readFileSync(join(root, 'supabase/migrations/0004_security_hardening.sql'), 'utf8');
   const repair = readFileSync(join(root, 'supabase/migrations/0008_production_repair.sql'), 'utf8');
+  const countryRepair = readFileSync(join(root, 'supabase/migrations/0019_country_cpm_earnings_repair.sql'), 'utf8');
+  const cpmClient = readFileSync(join(root, 'src/app/admin/cpm/CpmClient.tsx'), 'utf8');
 
   it('keeps country CPM writes behind requireAdmin', () => {
     expect(adminServer).toMatch(/export async function adminSaveCountryUpdates[\s\S]*await requireAdmin\(\)/);
@@ -105,9 +173,10 @@ describe('country CPM security invariants', () => {
   });
 
   it('uses the creator profile country, not a client-supplied CPM', () => {
-    expect(earnings).toMatch(/select\('level, status, cpm_country_code, country_code'\)/);
+    expect(earnings).toMatch(/select\('level, status, cpm_country_code'\)/);
     expect(earnings).toContain('resolveCreatorCpm');
     expect(earnings).toContain('country_tiers');
+    expect(earnings).not.toContain('profile?.country_code');
     expect(earnings).not.toMatch(/opts\.cpm/);
   });
 
@@ -122,5 +191,18 @@ describe('country CPM security invariants', () => {
     expect(init).toContain('CREATE TABLE country_tiers');
     expect(hardening).toContain('CREATE POLICY "admins_manage_country_tiers"');
     expect(init).toContain('CREATE POLICY "public_read_country_tiers"');
+  });
+
+  it('reasserts RLS and non-unrestricted authenticated table privileges in the new migration', () => {
+    expect(countryRepair).toContain('CREATE POLICY "admins_manage_country_tiers"');
+    expect(countryRepair).toContain('USING (public.is_admin())');
+    expect(countryRepair).toContain('REVOKE ALL ON TABLE public.country_tiers FROM PUBLIC, anon, authenticated');
+    expect(countryRepair).toContain('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.country_tiers TO authenticated');
+    expect(countryRepair).toContain('REVOKE UPDATE (cpm_country_code) ON TABLE public.profiles');
+  });
+
+  it('keeps country inputs stable while typing instead of storing NaN', () => {
+    expect(cpmClient).not.toContain("parseFloat(e.target.value)");
+    expect(cpmClient).toContain('await adminSaveCountryUpdates(pending)');
   });
 });

@@ -206,6 +206,9 @@ describe('Fix 3: Duplicate IP protection — atomic RPC path', () => {
     expect(second.valid).toBe(false);
     expect(second.reason).toBe('duplicate_ip_24h');
     expect(second.earning).toBe(0);
+    const credits = supabaseState.rpcCalls.filter(c => c.name === 'credit_view_earning');
+    expect(credits.at(-1)?.args.p_valid).toBe(false);
+    expect(credits.at(-1)?.args.p_earning).toBe(0);
   });
 
   it('different IP → eligible', async () => {
@@ -329,6 +332,7 @@ describe('Fix 3: Fallback path (RPC not available)', () => {
 describe('Fix 3: Migration content checks', () => {
   const root = join(__dirname, '..');
   const migration = readFileSync(join(root, 'supabase/migrations/0017_security_fixes.sql'), 'utf8');
+  const repairMigration = readFileSync(join(root, 'supabase/migrations/0019_country_cpm_earnings_repair.sql'), 'utf8');
 
   it('creates the record_view_with_ip_check RPC', () => {
     expect(migration).toContain('public.record_view_with_ip_check');
@@ -347,5 +351,12 @@ describe('Fix 3: Migration content checks', () => {
   it('the RPC is restricted to service_role only', () => {
     expect(migration).toMatch(/REVOKE EXECUTE ON FUNCTION public\.record_view_with_ip_check/);
     expect(migration).toMatch(/GRANT EXECUTE ON FUNCTION public\.record_view_with_ip_check[\s\S]*TO service_role/);
+  });
+
+  it('the additive repair converts tasks to JSONB and status to the enum', () => {
+    expect(repairMigration).toContain('to_jsonb(COALESCE(p_tasks_completed, ARRAY[]::TEXT[]))');
+    expect(repairMigration).toContain("v_status := 'valid'::view_status");
+    expect(repairMigration).toContain("v_status := 'invalid'::view_status");
+    expect(repairMigration).toContain('duplicate_ip_24h');
   });
 });

@@ -14,6 +14,7 @@ const TIERS = [
 ];
 
 type Country = { id: number; country_code: string; country_name: string; tier: string; cpm_min: number; cpm_max: number; cpm_default: number; payout_percentage: number; active: boolean };
+type CountryField = 'country_code' | 'country_name' | 'tier' | 'cpm_min' | 'cpm_max' | 'cpm_default' | 'payout_percentage' | 'active';
 
 export default function CpmAdminClient({
   initialCountries,
@@ -48,9 +49,10 @@ export default function CpmAdminClient({
   const [loading, setLoading] = useState(false);
   const [levels, setLevels] = useState<any[]>(initialLevels);
   const [editingLevel, setEditingLevel] = useState<any | null>(null);
-  const [referralPct, setReferralPct] = useState(initialReferralPct);
+  const [referralPct, setReferralPct] = useState(String(initialReferralPct));
+  const [savedReferralPct, setSavedReferralPct] = useState(String(initialReferralPct));
   const [addingCountry, setAddingCountry] = useState(false);
-  const [newCountry, setNewCountry] = useState({ code: '', name: '', tier: 'tier_3', cpm_default: 1.0, cpm_min: 0.5, cpm_max: 1.5 });
+  const [newCountry, setNewCountry] = useState({ code: '', name: '', tier: 'tier_3', cpm_default: '1.0', cpm_min: '0.5', cpm_max: '1.5' });
   const [globalCpm, setGlobalCpm] = useState(initialGlobalCpm);
   const [minCpm, setMinCpm] = useState(initialMinCpm);
   const [maxCpm, setMaxCpm] = useState(initialMaxCpm);
@@ -60,13 +62,19 @@ export default function CpmAdminClient({
   const [cpmError, setCpmError] = useState<string | null>(initialCpmError);
   const [pageLoading, setPageLoading] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
+  const [editingCountryId, setEditingCountryId] = useState<number | null>(null);
 
   const load = async () => {
+    setPageLoading(true);
     try {
       const [c, l, s, cpm] = await Promise.all([adminLoadCountries(), adminLoadLevels(), adminLoadSettings(), getCpmSettingsAction()]);
       setCountries(c as Country[]);
       setLevels(l);
-      if (s) setReferralPct(Number(s.referral_percentage));
+      if (s) {
+        const nextReferralPct = String(s.referral_percentage ?? '');
+        setReferralPct(nextReferralPct);
+        setSavedReferralPct(nextReferralPct);
+      }
       if (cpm.ok) {
         setGlobalCpm(String(cpm.settings.cpm ?? ''));
         setMinCpm(String(cpm.settings.min_cpm ?? ''));
@@ -87,21 +95,30 @@ export default function CpmAdminClient({
       setPageLoading(false);
     }
   };
-  const updateField = (id: number, field: keyof Country, value: any) => {
+  const updateField = (id: number, field: CountryField, value: string | boolean) => {
+    // Keep input text while the admin is typing. Converting an empty number
+    // input with parseFloat('') produces NaN, which creates an invalid
+    // controlled value and made server-action failures look like a React
+    // runtime error. The server validates the final string numerically.
     setEdits(prev => ({ ...prev, [id]: { ...(prev[id] || {}), [field]: value } }));
   };
   const cur = (c: Country) => ({ ...c, ...(edits[c.id] || {}) });
 
   const saveAll = async () => {
-    const pending = Object.entries(edits).map(([id, fields]) => ({ id: parseInt(id), fields }));
-    if (pending.length === 0 && referralPct === undefined) return;
+    const pending = Object.entries(edits).map(([id, fields]) => ({ id: parseInt(id, 10), fields }));
+    const referralChanged = referralPct !== savedReferralPct;
+    if (pending.length === 0 && !referralChanged) return;
     setLoading(true);
     try {
       if (pending.length) await adminSaveCountryUpdates(pending);
-      await adminSaveSettings({ referral_percentage: referralPct });
+      if (referralChanged) {
+        await adminSaveSettings({ referral_percentage: Number(referralPct) });
+        setSavedReferralPct(referralPct);
+      }
       toast.success(`Saved ${pending.length} updates — changes apply instantly to earnings calculations`);
       setEdits({});
-      load();
+      setEditingCountryId(null);
+      await load();
     } catch (e: any) {
       toast.error(e.message || 'Save failed');
     } finally {
@@ -122,7 +139,7 @@ export default function CpmAdminClient({
       });
       toast.success(`Level ${editingLevel.name} updated`);
       setEditingLevel(null);
-      load();
+      await load();
     } catch (e: any) {
       toast.error(e.message || 'Save failed');
     }
@@ -132,7 +149,7 @@ export default function CpmAdminClient({
     try {
       await adminSaveCountryUpdates([{ id: c.id, fields: { active: !c.active } }]);
       toast.success(`${c.country_name} ${!c.active ? 'activated' : 'deactivated'}`);
-      load();
+      await load();
     } catch (e: any) { toast.error(e.message || 'Action failed'); }
   };
 
@@ -143,22 +160,22 @@ export default function CpmAdminClient({
         country_code: newCountry.code.toUpperCase().substring(0, 2),
         country_name: newCountry.name,
         tier: newCountry.tier,
-        cpm_min: newCountry.cpm_min,
-        cpm_max: newCountry.cpm_max,
-        cpm_default: newCountry.cpm_default,
+        cpm_min: Number(newCountry.cpm_min),
+        cpm_max: Number(newCountry.cpm_max),
+        cpm_default: Number(newCountry.cpm_default),
         payout_percentage: 70,
         active: true,
       });
       toast.success(`${newCountry.name} added`);
       setAddingCountry(false);
-      setNewCountry({ code: '', name: '', tier: 'tier_3', cpm_default: 1.0, cpm_min: 0.5, cpm_max: 1.5 });
-      load();
+      setNewCountry({ code: '', name: '', tier: 'tier_3', cpm_default: '1.0', cpm_min: '0.5', cpm_max: '1.5' });
+      await load();
     } catch (e: any) { toast.error(e.message || 'Add failed'); }
   };
 
   const deleteCountry = async (id: number, name: string) => {
     if (!confirm(`Delete ${name}?`)) return;
-    try { await adminDeleteCountry(id); toast.success('Country removed'); load(); }
+    try { await adminDeleteCountry(id); toast.success('Country removed'); await load(); }
     catch (e: any) { toast.error(e.message || 'Delete failed'); }
   };
 
@@ -213,8 +230,8 @@ export default function CpmAdminClient({
           <p className="text-sm text-gray-500">Configure trusted CPM inputs per 1000 eligible views. Changes are applied to newly accounted views.</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => { setLoading(true); load(); }} className="btn-ghost px-3 py-2 rounded-lg text-xs flex items-center gap-1.5"><RefreshCw className="w-3.5 h-3.5" /> Refresh</button>
-          <button onClick={saveAll} disabled={loading || (!Object.keys(edits).length && !referralPct)} className="btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-2 disabled:opacity-50">
+          <button onClick={() => { setLoading(true); void load().finally(() => setLoading(false)); }} className="btn-ghost px-3 py-2 rounded-lg text-xs flex items-center gap-1.5"><RefreshCw className="w-3.5 h-3.5" /> Refresh</button>
+          <button onClick={saveAll} disabled={loading || (!Object.keys(edits).length && referralPct === savedReferralPct)} className="btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-2 disabled:opacity-50">
             <Save className="w-4 h-4" /> {loading ? 'Saving...' : `Save ${Object.keys(edits).length || ''} Changes`}
           </button>
         </div>
@@ -271,7 +288,7 @@ export default function CpmAdminClient({
         <h3 className="font-semibold mb-2 flex items-center gap-2"><Globe className="w-4 h-4" /> Referral %</h3>
         <p className="text-xs text-gray-500 mb-3">Percentage of a referred creator&apos;s earnings paid to their referrer</p>
         <div className="flex items-center gap-2">
-          <input type="number" step="0.1" value={referralPct} onChange={e => setReferralPct(parseFloat(e.target.value))} className="input-field flex-1" />
+          <input type="number" step="0.1" min="0" max="100" value={referralPct} onChange={e => setReferralPct(e.target.value)} className="input-field flex-1" />
           <span className="text-sm text-gray-400">%</span>
         </div>
       </div>
@@ -308,7 +325,7 @@ export default function CpmAdminClient({
               { value: 'tier_3', label: 'Tier 3' },
               { value: 'tier_4', label: 'Tier 4' },
             ]} />
-            <input type="number" step="0.01" value={newCountry.cpm_default} onChange={e => setNewCountry({ ...newCountry, cpm_default: parseFloat(e.target.value) })} className="input-field text-sm py-2" placeholder="CPM" />
+            <input type="number" step="0.01" min="0" value={newCountry.cpm_default} onChange={e => setNewCountry({ ...newCountry, cpm_default: e.target.value })} className="input-field text-sm py-2" placeholder="CPM" />
             <div className="flex gap-1">
               <button onClick={addCountry} aria-label="Confirm add country" className="btn-primary flex-1 py-2 rounded-lg text-xs font-semibold text-white"><Check className="w-3.5 h-3.5 inline" /></button>
               <button onClick={() => setAddingCountry(false)} aria-label="Cancel add country" className="btn-ghost flex-1 py-2 rounded-lg text-xs"><X className="w-3.5 h-3.5 inline" /></button>
@@ -342,15 +359,28 @@ export default function CpmAdminClient({
                     const row = cur(c);
                     return (
                       <tr key={c.id} className="border-b border-white/5 table-row">
-                        <td className="py-2.5 font-medium">{row.country_name} <span className="text-gray-500 font-mono text-xs">({row.country_code})</span></td>
-                        <td className="py-2.5"><input type="number" step="0.01" value={row.cpm_default} onChange={e => updateField(c.id, 'cpm_default', parseFloat(e.target.value))} className="input-field py-1.5 text-xs w-24" /></td>
-                        <td className="py-2.5"><input type="number" step="0.01" value={row.cpm_min} onChange={e => updateField(c.id, 'cpm_min', parseFloat(e.target.value))} className="input-field py-1.5 text-xs w-20" /></td>
-                        <td className="py-2.5"><input type="number" step="0.01" value={row.cpm_max} onChange={e => updateField(c.id, 'cpm_max', parseFloat(e.target.value))} className="input-field py-1.5 text-xs w-20" /></td>
+                        <td className="py-2.5 font-medium">
+                          {editingCountryId === c.id ? (
+                            <div className="space-y-1.5">
+                              <input value={row.country_name} onChange={e => updateField(c.id, 'country_name', e.target.value)} className="input-field py-1.5 text-xs w-40" aria-label={`${row.country_name} country name`} />
+                              <div className="flex items-center gap-1.5">
+                                <input value={row.country_code} onChange={e => updateField(c.id, 'country_code', e.target.value.toUpperCase())} maxLength={2} className="input-field py-1.5 text-xs w-14 font-mono uppercase" aria-label={`${row.country_name} country code`} />
+                                <Select value={row.tier} onChange={value => updateField(c.id, 'tier', value)} ariaLabel="Country tier" triggerClassName="text-xs py-1.5" options={TIERS.map(t => ({ value: t.key, label: t.name }))} />
+                              </div>
+                            </div>
+                          ) : <>{row.country_name} <span className="text-gray-500 font-mono text-xs">({row.country_code})</span></>}
+                        </td>
+                        <td className="py-2.5"><input type="number" step="0.01" min="0" value={row.cpm_default} onChange={e => updateField(c.id, 'cpm_default', e.target.value)} className="input-field py-1.5 text-xs w-24" /></td>
+                        <td className="py-2.5"><input type="number" step="0.01" min="0" value={row.cpm_min} onChange={e => updateField(c.id, 'cpm_min', e.target.value)} className="input-field py-1.5 text-xs w-20" /></td>
+                        <td className="py-2.5"><input type="number" step="0.01" min="0" value={row.cpm_max} onChange={e => updateField(c.id, 'cpm_max', e.target.value)} className="input-field py-1.5 text-xs w-20" /></td>
                         <td className="py-2.5 font-semibold">${appliedCountryCpm(c).toFixed(2)}</td>
                         <td className="py-2.5"><span className={`badge ${row.active ? 'status-active' : 'status-rejected'}`}>{row.active ? 'Custom' : 'Global fallback'}</span></td>
                         <td className="py-2.5"><span className={`badge ${row.active ? 'status-active' : 'status-rejected'}`}>{row.active ? 'Active' : 'Inactive'}</span></td>
                         <td className="py-2.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            <button onClick={() => setEditingCountryId(editingCountryId === c.id ? null : c.id)} className="btn-ghost px-2 py-1 rounded text-[10px] flex items-center gap-1">
+                              {editingCountryId === c.id ? <><Check className="w-3 h-3" /> Done</> : <><Edit className="w-3 h-3" /> Edit</>}
+                            </button>
                             <button onClick={() => toggleCountryActive(c)} className="btn-ghost px-2 py-1 rounded text-[10px]">{row.active ? 'Disable' : 'Enable'}</button>
                             <button onClick={() => deleteCountry(c.id, c.country_name)} className="btn-ghost px-2 py-1 rounded text-[10px] text-red-400">Delete</button>
                           </div>

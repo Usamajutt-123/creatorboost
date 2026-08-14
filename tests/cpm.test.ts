@@ -4,6 +4,7 @@ import {
   existingEarningsRecalculatedOnCpmChange,
   parseActiveCpm,
   resolveCreatorCpm,
+  validateCountryTier,
   validateCpmUpdate,
 } from '../src/lib/cpm';
 
@@ -16,6 +17,7 @@ describe('CPM validation (admin source of truth)', () => {
 
   it('rejects invalid, negative, and out-of-range CPM', () => {
     expect(validateCpmUpdate({ cpm: 'nope', minCpm: 0, maxCpm: 10 }).ok).toBe(false);
+    expect(validateCpmUpdate({ cpm: '', minCpm: 0, maxCpm: 10 }).ok).toBe(false);
     expect(validateCpmUpdate({ cpm: -1, minCpm: 0, maxCpm: 10 }).ok).toBe(false);
     expect(validateCpmUpdate({ cpm: 50, minCpm: 1, maxCpm: 10 }).ok).toBe(false);
     expect(validateCpmUpdate({ cpm: 5, minCpm: 10, maxCpm: 1 }).ok).toBe(false);
@@ -25,6 +27,27 @@ describe('CPM validation (admin source of truth)', () => {
     expect(parseActiveCpm({ cpm: 8, is_active: true })).toBe(8);
     expect(parseActiveCpm({ cpm: 8, is_active: false })).toBe(0);
     expect(parseActiveCpm(null)).toBe(0);
+  });
+
+  it('validates a complete country tier after merging an admin patch', () => {
+    expect(validateCountryTier({
+      countryCode: 'us', countryName: 'United States', tier: 'tier_1',
+      cpmMin: '4', cpmMax: '6', cpmDefault: '5', payoutPercentage: 70, active: true,
+    })).toEqual({
+      ok: true, countryCode: 'US', countryName: 'United States', tier: 'tier_1',
+      cpmMin: 4, cpmMax: 6, cpmDefault: 5, payoutPercentage: 70, active: true,
+    });
+  });
+
+  it('rejects a country default outside min/max and non-finite input', () => {
+    expect(validateCountryTier({
+      countryCode: 'US', countryName: 'United States', tier: 'tier_1',
+      cpmMin: 4, cpmMax: 6, cpmDefault: 7, payoutPercentage: 70, active: true,
+    }).ok).toBe(false);
+    expect(validateCountryTier({
+      countryCode: 'US', countryName: 'United States', tier: 'tier_1',
+      cpmMin: '', cpmMax: 6, cpmDefault: 5, payoutPercentage: 70, active: true,
+    }).ok).toBe(false);
   });
 
   it('uses current CPM in the earning formula', () => {
@@ -143,6 +166,26 @@ describe('updateCpmAction authorization', () => {
     const res = await updateCpmAction({ cpm: 8, minCpm: 0, maxCpm: 100 });
     expect(res.ok).toBe(true);
     if (res.ok) expect(res.cpm).toBe(8);
+  });
+
+  it('lets a super admin persist a new global CPM', async () => {
+    authGetUser.mockResolvedValue({ data: { user: { id: 'super-1' } } });
+    const previous = { cpm: 5, min_cpm: 0, max_cpm: 100, is_active: true };
+    const next = { cpm: 9, min_cpm: 0, max_cpm: 100, updated_at: '2026-08-12T15:30:00.000Z' };
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'profiles') return chain({ data: { role: 'super_admin' }, error: null });
+      if (table === 'cpm_settings') {
+        const q = chain({ data: previous, error: null });
+        q.upsert = vi.fn(() => chain({ data: next, error: null }));
+        return q;
+      }
+      if (table === 'cpm_change_log') return { insert: vi.fn(async () => ({ error: null })) };
+      return chain({ data: null, error: null });
+    });
+    rpcMock.mockResolvedValue({ data: null, error: null });
+    const { updateCpmAction } = await import('@/lib/cpm-actions');
+    const result = await updateCpmAction({ cpm: 9, minCpm: 0, maxCpm: 100 });
+    expect(result.ok).toBe(true);
   });
 
   it('rejects an invalid CPM before writing', async () => {
