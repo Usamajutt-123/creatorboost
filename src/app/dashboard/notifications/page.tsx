@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { getSessionUser } from '@/lib/session';
+import { ADMIN_SENT_NOTIFICATION_TYPE } from '@/lib/notification-policy';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import NotificationsClient from './NotificationsClient';
 
@@ -15,12 +16,14 @@ export default async function NotificationsPage() {
       .from('notifications')
       .select('id, type, title, message, link, read, created_at, metadata')
       .eq('user_id', user.id)
+      .eq('type', ADMIN_SENT_NOTIFICATION_TYPE)
       .order('created_at', { ascending: false })
       .limit(50),
     supabase
       .from('notifications')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
+      .eq('type', ADMIN_SENT_NOTIFICATION_TYPE)
       .eq('read', false),
   ]);
 

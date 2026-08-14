@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { ADMIN_SENT_NOTIFICATION_TYPE } from '@/lib/notification-policy';
 import { revalidatePath } from 'next/cache';
 
 export async function markNotificationReadAction(id: string): Promise<{ ok: boolean; error?: string }> {
@@ -13,6 +14,7 @@ export async function markNotificationReadAction(id: string): Promise<{ ok: bool
     .update({ read: true })
     .eq('id', id)
     .eq('user_id', user.id)
+    .eq('type', ADMIN_SENT_NOTIFICATION_TYPE)
     .select('id')
     .maybeSingle();
   if (error) return { ok: false, error: 'Notification could not be updated' };
@@ -29,6 +31,7 @@ export async function markAllNotificationsReadAction(): Promise<{ ok: boolean; e
     .from('notifications')
     .update({ read: true })
     .eq('user_id', user.id)
+    .eq('type', ADMIN_SENT_NOTIFICATION_TYPE)
     .eq('read', false);
   if (error) return { ok: false, error: 'Notifications could not be updated' };
   revalidatePath('/dashboard/notifications');
@@ -43,6 +46,7 @@ export async function getUnreadNotificationCountAction(): Promise<number> {
     .from('notifications')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', user.id)
+    .eq('type', ADMIN_SENT_NOTIFICATION_TYPE)
     .eq('read', false);
   return count ?? 0;
 }
