@@ -48,6 +48,40 @@ function actionError(error: unknown): CampaignActionResult {
   return { success: false, error: 'Campaign could not be saved' };
 }
 
+type DatabaseError = { code?: string; message: string; details?: string; hint?: string };
+
+/** Log the complete Postgres failure on the server, but only expose raw DB
+ * text during development. Production users receive a stable, non-sensitive
+ * message (except for the page-count invariant, which is safe and actionable).
+ */
+function campaignDatabaseError(operation: 'create' | 'update', error: DatabaseError): Error {
+  console.error(`[${operation}Campaign] atomic save failed`, {
+    code: error.code,
+    message: error.message,
+    details: error.details,
+    hint: error.hint,
+  });
+
+  if (error.code === '23514' && error.message.includes('requires exactly')) {
+    return new Error(error.message);
+  }
+  if (process.env.NODE_ENV !== 'production') {
+    return new Error(`${error.message}${error.code ? ` [${error.code}]` : ''}`);
+  }
+  if (error.code === '23505') return new Error('A campaign with that identifier already exists. Please try again.');
+  if (error.code === '42501') return new Error('You do not have permission to save this campaign.');
+  return new Error(operation === 'create'
+    ? 'Campaign could not be created. Please try again.'
+    : 'Campaign not found or could not be updated.');
+}
+
+function pagesForRpc(pages: ReturnType<typeof extractFlowPages>) {
+  return pages.map(page => ({
+    image_url: page.image_url,
+    button_text: page.button_text,
+  }));
+}
+
 export async function createCampaignAction(input: CampaignMutationInput): Promise<CampaignActionResult> {
   try {
     const payload = buildCampaignWritePayload(input);
@@ -56,35 +90,26 @@ export async function createCampaignAction(input: CampaignMutationInput): Promis
     const base = slugify(payload.name).slice(0, 72) || 'campaign';
     const slug = `${base}-${randomUUID().slice(0, 8)}`;
 
-    const { data, error } = await supabase
-      .from('campaigns')
-      .insert({ ...payload, slug, creator_id: user.id })
-      .select('id')
-      .single();
-    if (error) {
-      console.error('[createCampaign] insert failed', error.message);
-      throw new Error('Campaign could not be created. Please try again.');
-    }
-    if (!data) throw new Error('Campaign could not be created. Please try again.');
-
-    // Custom-page flow rows. The DB trigger validates the final count.
-    const syncError = await syncCampaignPages(supabase, data.id, pages);
-    if (syncError) {
-      // Roll the campaign row back so the user is not stuck in a bad state.
-      await supabase.from('campaigns').update({ deleted_at: new Date().toISOString(), status: 'paused' })
-        .eq('id', data.id).eq('creator_id', user.id);
-      throw new Error(syncError);
-    }
+    // One RPC call means one Postgres transaction. This is required because
+    // 0014's deferred trigger checks the campaign and all page rows at commit.
+    const { data, error } = await supabase.rpc('save_campaign_with_pages', {
+      p_campaign: { ...payload, slug },
+      p_pages: pagesForRpc(pages),
+      p_campaign_id: null,
+    });
+    if (error) throw campaignDatabaseError('create', error);
+    const campaignId = typeof data === 'string' ? data : null;
+    if (!campaignId) throw new Error('Campaign save returned no campaign ID');
 
     await createNotification({
       userId: user.id,
       type: 'campaign',
       title: 'Campaign created',
       message: `"${payload.name}" is ready. Share your unlock link to start earning.`,
-      link: `/dashboard/campaigns/${data.id}`,
-      metadata: { campaignId: data.id, status: payload.status },
+      link: `/dashboard/campaigns/${campaignId}`,
+      metadata: { campaignId, status: payload.status },
     });
-    return { success: true, id: data.id };
+    return { success: true, id: campaignId };
   } catch (error) {
     return actionError(error);
   }
@@ -96,65 +121,27 @@ export async function updateCampaignAction(campaignId: string, input: CampaignMu
     const payload = buildCampaignWritePayload(input);
     const pages = extractFlowPages(payload);
     const { supabase, user } = await currentActiveUser();
-    const { data, error } = await supabase
-      .from('campaigns')
-      .update(payload)
-      .eq('id', campaignId)
-      .eq('creator_id', user.id)
-      .is('deleted_at', null)
-      .select('id')
-      .maybeSingle();
-    if (error) {
-      console.error('[updateCampaign] update failed', error.message);
-      throw new Error('Campaign not found or could not be updated');
-    }
-    if (!data) throw new Error('Campaign not found or could not be updated');
-
-    const syncError = await syncCampaignPages(supabase, data.id, pages);
-    if (syncError) throw new Error(syncError);
+    const { data, error } = await supabase.rpc('save_campaign_with_pages', {
+      p_campaign: { ...payload },
+      p_pages: pagesForRpc(pages),
+      p_campaign_id: campaignId,
+    });
+    if (error) throw campaignDatabaseError('update', error);
+    const savedCampaignId = typeof data === 'string' ? data : null;
+    if (!savedCampaignId) throw new Error('Campaign save returned no campaign ID');
 
     await createNotification({
       userId: user.id,
       type: 'campaign',
       title: 'Campaign updated',
       message: `"${payload.name}" was saved.`,
-      link: `/dashboard/campaigns/${data.id}`,
-      metadata: { campaignId: data.id },
+      link: `/dashboard/campaigns/${savedCampaignId}`,
+      metadata: { campaignId: savedCampaignId },
     });
-    return { success: true, id: data.id };
+    return { success: true, id: savedCampaignId };
   } catch (error) {
     return actionError(error);
   }
-}
-
-/**
- * Replace the campaign's custom-page rows to exactly match `pages`.
- * The DB deferred trigger enforces that the final count matches the
- * campaign's flow_type. RLS restricts every write to the owner.
- */
-async function syncCampaignPages(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  campaignId: string,
-  pages: Array<{ position: number; title: string; description: string | null; image_url: string | null; button_text: string | null }>,
-): Promise<string | null> {
-  const { error: delError } = await supabase
-    .from('campaign_pages')
-    .delete()
-    .eq('campaign_id', campaignId);
-  if (delError) {
-    console.error('[syncCampaignPages] delete failed', delError.message);
-    return 'Campaign pages could not be saved';
-  }
-  if (pages.length === 0) return null;
-  const rows = pages.map(page => ({ ...page, campaign_id: campaignId }));
-  const { error: insError } = await supabase.from('campaign_pages').insert(rows);
-  if (insError) {
-    console.error('[syncCampaignPages] insert failed', insError.message);
-    return insError.message.includes('requires exactly')
-      ? insError.message
-      : 'Campaign pages could not be saved';
-  }
-  return null;
 }
 
 export async function setCampaignStatusAction(campaignId: string, status: 'active' | 'paused'): Promise<{ success: boolean; error?: string }> {
