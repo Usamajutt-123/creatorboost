@@ -61,7 +61,7 @@ export default function EditCampaignForm({ campaignId }: { campaignId: string })
 
   const changeFlow = (next: FlowType) => {
     setFlowType(next);
-    setFlowPages(existing => resizePages(existing.length ? existing : [emptyPage()], FLOW_PAGE_COUNT[next]));
+    setFlowPages(existing => resizePages(existing.length ? existing : [emptyPage()], FLOW_PAGE_COUNT[next], form.name));
   };
 
   useEffect(() => {
@@ -116,7 +116,7 @@ export default function EditCampaignForm({ campaignId }: { campaignId: string })
           imageFile: null,
           imagePreview: row.image_url || '',
         }));
-        setFlowPages(resizePages(loaded, FLOW_PAGE_COUNT[savedFlow]));
+        setFlowPages(resizePages(loaded, FLOW_PAGE_COUNT[savedFlow], form.name));
       } else {
         setFlowPages([]);
       }
@@ -246,6 +246,7 @@ export default function EditCampaignForm({ campaignId }: { campaignId: string })
             onPagesChange={setFlowPages}
             onPreview={flowType !== 'normal' ? () => setPreviewOpen(true) : undefined}
             disabled={saving}
+            campaignName={form.name}
           />
           {previewOpen && flowType !== 'normal' && (
             <FlowPreviewModal flowType={flowType} pages={flowPages} destinationUrl={form.destinationUrl} onClose={() => setPreviewOpen(false)} />

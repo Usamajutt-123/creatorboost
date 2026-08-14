@@ -8,6 +8,15 @@ import { configuredTaskUrl, isTaskType, TASK_DETAILS, taskDisplayName, type Task
 
 type Step = 'tasks' | 'verifying' | 'complete' | 'error';
 
+type AdConfig = {
+  banner_enabled?: boolean | null;
+  banner_code?: string | null;
+  banner_url?: string | null;
+  popunder_enabled?: boolean | null;
+  popunder_code?: string | null;
+  popunder_url?: string | null;
+} | null;
+
 type PublicCampaign = {
   id: string;
   slug: string;
@@ -19,7 +28,7 @@ type PublicCampaign = {
   task_metadata?: TaskMetadata | null;
 };
 
-export default function UnlockClient({ campaign }: { campaign: PublicCampaign }) {
+export default function UnlockClient({ campaign, adConfig }: { campaign: PublicCampaign; adConfig?: AdConfig }) {
   const router = useRouter();
   const tasks = useMemo(() => (campaign.tasks || []).filter(isTaskType), [campaign.tasks]);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
@@ -138,6 +147,21 @@ export default function UnlockClient({ campaign }: { campaign: PublicCampaign })
           </div>
         </div>
         <p className="text-center text-xs text-gray-500 mt-4">Powered by <Link href="/" className="text-purple-400 hover:text-purple-300">CreatorBoost</Link></p>
+        {adConfig?.banner_enabled && (
+          <div className="glass rounded-xl p-3 mt-4">
+            {adConfig.banner_url ? (
+              <a href={adConfig.banner_url} target="_blank" rel="noopener noreferrer" aria-label="Social banner advertisement">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={adConfig.banner_url} alt="Social banner advertisement" className="w-full rounded-lg" />
+              </a>
+            ) : adConfig.banner_code ? (
+              <div dangerouslySetInnerHTML={{ __html: adConfig.banner_code }} />
+            ) : null}
+          </div>
+        )}
+        {adConfig?.popunder_enabled && adConfig.popunder_code && (
+          <div style={{ display: 'none' }} dangerouslySetInnerHTML={{ __html: adConfig.popunder_code }} />
+        )}
       </main>
     </div>
   );

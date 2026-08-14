@@ -111,10 +111,11 @@ export function buildCampaignWritePayload(input: CampaignMutationInput) {
       if (page.position < 1 || page.position > expectedPages) {
         throw new Error(`Page positions must be between 1 and ${expectedPages}`);
       }
-      if (!page.title || !page.title.trim()) {
+      const isAutoPage = page.position >= 4;
+      if (!isAutoPage && (!page.title || !page.title.trim())) {
         throw new Error(`Page ${page.position} needs a title`);
       }
-      if (page.imageUrl && page.imageUrl.trim() && !isValidHttpUrl(page.imageUrl)) {
+      if (!isAutoPage && page.imageUrl && page.imageUrl.trim() && !isValidHttpUrl(page.imageUrl)) {
         throw new Error(`Page ${page.position} image URL must be a valid http(s) URL`);
       }
     }
@@ -123,13 +124,17 @@ export function buildCampaignWritePayload(input: CampaignMutationInput) {
   const normalizedPages = flowPages
     .slice()
     .sort((a, b) => a.position - b.position)
-    .map((page, index) => ({
-      position: index + 1,
-      title: (page.title || '').trim(),
-      description: page.description?.trim() ? page.description.trim() : null,
-      image_url: page.imageUrl?.trim() ? page.imageUrl.trim() : null,
-      button_text: page.buttonText?.trim() ? page.buttonText.trim() : null,
-    }));
+    .map((page, index) => {
+      const position = index + 1;
+      const isAutoPage = (flowType !== 'normal' && position >= 4);
+      return {
+        position,
+        title: isAutoPage ? parsed.name.trim() : (page.title || '').trim(),
+        description: isAutoPage ? null : (page.description?.trim() ? page.description.trim() : null),
+        image_url: isAutoPage ? null : (page.imageUrl?.trim() ? page.imageUrl.trim() : null),
+        button_text: isAutoPage ? null : (page.buttonText?.trim() ? page.buttonText.trim() : null),
+      };
+    });
 
   const payload = {
     name: parsed.name,
