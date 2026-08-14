@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { computePerViewEarning } from '../src/lib/finance';
 import {
+  editableNumericString,
   existingEarningsRecalculatedOnCpmChange,
+  finiteNumberOr,
+  normalizeCountryTierPatch,
   parseActiveCpm,
   resolveCreatorCpm,
   validateCountryTier,
@@ -47,6 +50,40 @@ describe('CPM validation (admin source of truth)', () => {
     expect(validateCountryTier({
       countryCode: 'US', countryName: 'United States', tier: 'tier_1',
       cpmMin: '', cpmMax: 6, cpmDefault: 5, payoutPercentage: 70, active: true,
+    }).ok).toBe(false);
+  });
+
+  it('normalizes a merged country patch into one safe database update', () => {
+    expect(normalizeCountryTierPatch({
+      country_code: 'US', country_name: 'United States', tier: 'tier_1',
+      cpm_min: 2, cpm_default: 5, cpm_max: 10, payout_percentage: 70, active: true,
+    }, {
+      cpm_min: '6', cpm_default: '7', cpm_max: '10', payout_percentage: '72.5',
+    })).toEqual({
+      ok: true,
+      merged: {
+        ok: true,
+        countryCode: 'US', countryName: 'United States', tier: 'tier_1',
+        cpmMin: 6, cpmMax: 10, cpmDefault: 7, payoutPercentage: 72.5, active: true,
+      },
+      payload: {
+        cpm_min: 6,
+        cpm_default: 7,
+        cpm_max: 10,
+        payout_percentage: 72.5,
+      },
+    });
+  });
+
+  it('keeps empty edits out of React numeric props and rejects them at validation time', () => {
+    expect(editableNumericString(Number.NaN)).toBe('');
+    expect(editableNumericString('NaN')).toBe('');
+    expect(finiteNumberOr('NaN', 123)).toBe(123);
+    expect(normalizeCountryTierPatch({
+      country_code: 'US', country_name: 'United States', tier: 'tier_1',
+      cpm_min: 2, cpm_default: 5, cpm_max: 10, payout_percentage: 70, active: true,
+    }, {
+      cpm_default: '',
     }).ok).toBe(false);
   });
 

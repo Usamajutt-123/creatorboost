@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Save, Info, Edit, Check, X, Plus, Globe, RefreshCw, Search } from 'lucide-react';
 import Select from '@/components/Select';
 import { adminLoadCountries, adminLoadLevels, adminLoadSettings, adminSaveCountryUpdates, adminAddCountry, adminDeleteCountry, adminSaveLevel, adminSaveSettings } from '@/lib/admin-server';
+import { editableNumericString, finiteNumberOr, normalizeCountryTierPatch, type CountryTierPatch, type CountryTierStoredRow } from '@/lib/cpm';
 import { getCpmSettingsAction, updateCpmAction } from '@/lib/cpm-actions';
 
 const TIERS = [
@@ -13,8 +14,19 @@ const TIERS = [
   { key: 'tier_4', name: 'Tier 4', color: 'from-orange-500/15 to-red-500/15', desc: 'Lower-value' },
 ];
 
-type Country = { id: number; country_code: string; country_name: string; tier: string; cpm_min: number; cpm_max: number; cpm_default: number; payout_percentage: number; active: boolean };
+type Country = {
+  id: number;
+  country_code: string;
+  country_name: string;
+  tier: string;
+  cpm_min: string | number;
+  cpm_max: string | number;
+  cpm_default: string | number;
+  payout_percentage: string | number;
+  active: boolean;
+};
 type CountryField = 'country_code' | 'country_name' | 'tier' | 'cpm_min' | 'cpm_max' | 'cpm_default' | 'payout_percentage' | 'active';
+type CountryEdit = Partial<Record<CountryField, string | boolean>>;
 
 export default function CpmAdminClient({
   initialCountries,
@@ -45,7 +57,7 @@ export default function CpmAdminClient({
   // cards and CPM inputs appear with the first paint instead of after four
   // post-hydration server-action round-trips.
   const [countries, setCountries] = useState<Country[]>(initialCountries);
-  const [edits, setEdits] = useState<Record<number, Partial<Country>>>({});
+  const [edits, setEdits] = useState<Record<number, CountryEdit>>({});
   const [loading, setLoading] = useState(false);
   const [levels, setLevels] = useState<any[]>(initialLevels);
   const [editingLevel, setEditingLevel] = useState<any | null>(null);
@@ -99,13 +111,47 @@ export default function CpmAdminClient({
     // Keep input text while the admin is typing. Converting an empty number
     // input with parseFloat('') produces NaN, which creates an invalid
     // controlled value and made server-action failures look like a React
-    // runtime error. The server validates the final string numerically.
+    // runtime error. The final merged row is validated before any save.
     setEdits(prev => ({ ...prev, [id]: { ...(prev[id] || {}), [field]: value } }));
   };
   const cur = (c: Country) => ({ ...c, ...(edits[c.id] || {}) });
+  const numericInputValue = (value: unknown) => editableNumericString(value);
+  const toStoredCountryRow = (country: Country): CountryTierStoredRow => ({
+    country_code: country.country_code,
+    country_name: country.country_name,
+    tier: country.tier,
+    cpm_min: country.cpm_min,
+    cpm_max: country.cpm_max,
+    cpm_default: country.cpm_default,
+    payout_percentage: country.payout_percentage,
+    active: country.active,
+  });
+  const validatePendingCountryUpdates = () => {
+    const pending: { id: number; fields: Record<string, unknown> }[] = [];
+
+    for (const [rawId, rawFields] of Object.entries(edits)) {
+      const id = parseInt(rawId, 10);
+      const country = countries.find(row => row.id === id);
+      if (!country) {
+        return { ok: false as const, error: 'Country rate could not be found for saving' };
+      }
+
+      const normalized = normalizeCountryTierPatch(toStoredCountryRow(country), rawFields as CountryTierPatch);
+      if (!normalized.ok) return normalized;
+      pending.push({ id, fields: normalized.payload });
+    }
+
+    return { ok: true as const, pending };
+  };
 
   const saveAll = async () => {
-    const pending = Object.entries(edits).map(([id, fields]) => ({ id: parseInt(id, 10), fields }));
+    const validatedPending = validatePendingCountryUpdates();
+    if (!validatedPending.ok) {
+      toast.error(validatedPending.error);
+      return;
+    }
+
+    const pending = validatedPending.pending;
     const referralChanged = referralPct !== savedReferralPct;
     if (pending.length === 0 && !referralChanged) return;
     setLoading(true);
@@ -183,13 +229,14 @@ export default function CpmAdminClient({
   const visibleCountries = search
     ? countries.filter(c => {
       const row = cur(c);
-      return row.country_name.toLowerCase().includes(search) || row.country_code.toLowerCase().includes(search);
+      return String(row.country_name ?? '').toLowerCase().includes(search)
+        || String(row.country_code ?? '').toLowerCase().includes(search);
     })
     : countries;
   const grouped = TIERS.map(t => ({ ...t, items: visibleCountries.filter(c => c.tier === t.key) }));
   const appliedCountryCpm = (c: Country) => {
     const row = cur(c);
-    return row.active ? Number(row.cpm_default) : Number(globalCpm || 0);
+    return row.active ? finiteNumberOr(row.cpm_default) : finiteNumberOr(globalCpm);
   };
 
   const saveGlobalCpm = async () => {
@@ -274,7 +321,7 @@ export default function CpmAdminClient({
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-400">
           <div>
-            <div>Current CPM: <strong className="text-white">${Number(globalCpm || 0).toFixed(4)}</strong></div>
+            <div>Current CPM: <strong className="text-white">${finiteNumberOr(globalCpm).toFixed(4)}</strong></div>
             <div>Last updated: {cpmMeta.updatedAt ? new Date(cpmMeta.updatedAt).toLocaleString() : '—'}</div>
             <div>Updated by: {cpmMeta.updatedBy || '—'}</div>
           </div>
@@ -341,13 +388,14 @@ export default function CpmAdminClient({
               <h4 className="font-semibold">{g.name} <span className="text-xs text-gray-400 font-normal">· {g.desc}</span></h4>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-xs sm:text-sm min-w-[860px]">
+              <table className="w-full text-xs sm:text-sm min-w-[980px]">
                 <thead>
                   <tr className="text-gray-500 border-b border-white/10">
                     <th className="text-left py-2 font-medium">Country</th>
                     <th className="text-left py-2 font-medium">CPM Default</th>
                     <th className="text-left py-2 font-medium">CPM Min</th>
                     <th className="text-left py-2 font-medium">CPM Max</th>
+                    <th className="text-left py-2 font-medium">Payout %</th>
                     <th className="text-left py-2 font-medium">Applied CPM</th>
                     <th className="text-left py-2 font-medium">Source</th>
                     <th className="text-left py-2 font-medium">Status</th>
@@ -362,17 +410,18 @@ export default function CpmAdminClient({
                         <td className="py-2.5 font-medium">
                           {editingCountryId === c.id ? (
                             <div className="space-y-1.5">
-                              <input value={row.country_name} onChange={e => updateField(c.id, 'country_name', e.target.value)} className="input-field py-1.5 text-xs w-40" aria-label={`${row.country_name} country name`} />
+                              <input value={String(row.country_name ?? '')} onChange={e => updateField(c.id, 'country_name', e.target.value)} className="input-field py-1.5 text-xs w-40" aria-label={`${row.country_name} country name`} />
                               <div className="flex items-center gap-1.5">
-                                <input value={row.country_code} onChange={e => updateField(c.id, 'country_code', e.target.value.toUpperCase())} maxLength={2} className="input-field py-1.5 text-xs w-14 font-mono uppercase" aria-label={`${row.country_name} country code`} />
-                                <Select value={row.tier} onChange={value => updateField(c.id, 'tier', value)} ariaLabel="Country tier" triggerClassName="text-xs py-1.5" options={TIERS.map(t => ({ value: t.key, label: t.name }))} />
+                                <input value={String(row.country_code ?? '')} onChange={e => updateField(c.id, 'country_code', e.target.value.toUpperCase())} maxLength={2} className="input-field py-1.5 text-xs w-14 font-mono uppercase" aria-label={`${row.country_name} country code`} />
+                                <Select value={String(row.tier ?? '')} onChange={value => updateField(c.id, 'tier', value)} ariaLabel="Country tier" triggerClassName="text-xs py-1.5" options={TIERS.map(t => ({ value: t.key, label: t.name }))} />
                               </div>
                             </div>
                           ) : <>{row.country_name} <span className="text-gray-500 font-mono text-xs">({row.country_code})</span></>}
                         </td>
-                        <td className="py-2.5"><input type="number" step="0.01" min="0" value={row.cpm_default} onChange={e => updateField(c.id, 'cpm_default', e.target.value)} className="input-field py-1.5 text-xs w-24" /></td>
-                        <td className="py-2.5"><input type="number" step="0.01" min="0" value={row.cpm_min} onChange={e => updateField(c.id, 'cpm_min', e.target.value)} className="input-field py-1.5 text-xs w-20" /></td>
-                        <td className="py-2.5"><input type="number" step="0.01" min="0" value={row.cpm_max} onChange={e => updateField(c.id, 'cpm_max', e.target.value)} className="input-field py-1.5 text-xs w-20" /></td>
+                        <td className="py-2.5"><input type="number" step="0.01" min="0" value={numericInputValue(row.cpm_default)} onChange={e => updateField(c.id, 'cpm_default', e.target.value)} className="input-field py-1.5 text-xs w-24" /></td>
+                        <td className="py-2.5"><input type="number" step="0.01" min="0" value={numericInputValue(row.cpm_min)} onChange={e => updateField(c.id, 'cpm_min', e.target.value)} className="input-field py-1.5 text-xs w-20" /></td>
+                        <td className="py-2.5"><input type="number" step="0.01" min="0" value={numericInputValue(row.cpm_max)} onChange={e => updateField(c.id, 'cpm_max', e.target.value)} className="input-field py-1.5 text-xs w-20" /></td>
+                        <td className="py-2.5"><div className="flex items-center gap-1"><input type="number" step="0.01" min="0" max="100" value={numericInputValue(row.payout_percentage)} onChange={e => updateField(c.id, 'payout_percentage', e.target.value)} className="input-field py-1.5 text-xs w-20" /><span className="text-gray-400">%</span></div></td>
                         <td className="py-2.5 font-semibold">${appliedCountryCpm(c).toFixed(2)}</td>
                         <td className="py-2.5"><span className={`badge ${row.active ? 'status-active' : 'status-rejected'}`}>{row.active ? 'Custom' : 'Global fallback'}</span></td>
                         <td className="py-2.5"><span className={`badge ${row.active ? 'status-active' : 'status-rejected'}`}>{row.active ? 'Active' : 'Inactive'}</span></td>
@@ -388,7 +437,7 @@ export default function CpmAdminClient({
                       </tr>
                     );
                   })}
-                  {!g.items.length && <tr><td colSpan={6} className="py-4 text-center text-gray-500 text-xs">No countries in this tier</td></tr>}
+                  {!g.items.length && <tr><td colSpan={9} className="py-4 text-center text-gray-500 text-xs">No countries in this tier</td></tr>}
                 </tbody>
               </table>
             </div>

@@ -28,7 +28,7 @@ import {
   PLATFORM_AD_CODE_MAX_LENGTH,
   PLATFORM_AD_URL_MAX_LENGTH,
 } from '@/lib/platform-ads';
-import { validateCountryTier } from '@/lib/cpm';
+import { editableNumericString, normalizeCountryTierPatch, validateCountryTier } from '@/lib/cpm';
 
 type Admin = { id: string; role: string };
 
@@ -450,7 +450,13 @@ export async function adminLoadCountries() {
     .order('tier')
     .limit(500);
   if (error) throw new Error('Country CPM rates could not be loaded');
-  return data || [];
+  return (data || []).map((row: any) => ({
+    ...row,
+    cpm_min: editableNumericString(row.cpm_min),
+    cpm_max: editableNumericString(row.cpm_max),
+    cpm_default: editableNumericString(row.cpm_default),
+    payout_percentage: editableNumericString(row.payout_percentage),
+  }));
 }
 
 export async function adminLoadLevels() {
@@ -503,29 +509,10 @@ export async function adminSaveCountryUpdates(updates: { id: number; fields: Rec
     if (loadError) throw new Error('Country rate could not be loaded');
     if (!current) throw new Error('Country rate not found');
 
-    const validated = validateCountryTier({
-      countryCode: fields.country_code ?? current.country_code,
-      countryName: fields.country_name ?? current.country_name,
-      tier: fields.tier ?? current.tier,
-      cpmMin: fields.cpm_min ?? current.cpm_min,
-      cpmMax: fields.cpm_max ?? current.cpm_max,
-      cpmDefault: fields.cpm_default ?? current.cpm_default,
-      payoutPercentage: fields.payout_percentage ?? current.payout_percentage,
-      active: fields.active ?? current.active,
-    });
-    if (!validated.ok) throw new Error(validated.error);
+    const normalized = normalizeCountryTierPatch(current, fields);
+    if (!normalized.ok) throw new Error(normalized.error);
 
-    const payload: Record<string, unknown> = {};
-    if ('country_code' in fields) payload.country_code = validated.countryCode;
-    if ('country_name' in fields) payload.country_name = validated.countryName;
-    if ('tier' in fields) payload.tier = validated.tier;
-    if ('cpm_min' in fields) payload.cpm_min = validated.cpmMin;
-    if ('cpm_max' in fields) payload.cpm_max = validated.cpmMax;
-    if ('cpm_default' in fields) payload.cpm_default = validated.cpmDefault;
-    if ('payout_percentage' in fields) payload.payout_percentage = validated.payoutPercentage;
-    if ('active' in fields) payload.active = validated.active;
-
-    const { error } = await supabase.from('country_tiers').update(payload).eq('id', id);
+    const { error } = await supabase.from('country_tiers').update(normalized.payload).eq('id', id);
     if (error) throw new Error('Country rate could not be saved');
   }
   await audit(admin, 'cpm_update', 'country_tiers', undefined, null, { count: updates.length });

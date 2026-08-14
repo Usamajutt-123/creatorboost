@@ -27,7 +27,10 @@ export default async function CpmAdminPage() {
     ]);
     countries = c as any[];
     levels = l;
-    if (s) referralPct = Number(s.referral_percentage);
+    if (s) {
+      const nextReferralPct = Number(s.referral_percentage);
+      if (Number.isFinite(nextReferralPct)) referralPct = nextReferralPct;
+    }
     if (cpm.ok) {
       globalCpm = String(cpm.settings.cpm ?? '');
       minCpm = String(cpm.settings.min_cpm ?? '');

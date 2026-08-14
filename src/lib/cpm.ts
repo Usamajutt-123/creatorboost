@@ -139,6 +139,79 @@ export function validateCountryTier(input: {
   };
 }
 
+export type CountryTierStoredRow = {
+  country_code: unknown;
+  country_name: unknown;
+  tier: unknown;
+  cpm_min: unknown;
+  cpm_max: unknown;
+  cpm_default: unknown;
+  payout_percentage: unknown;
+  active: unknown;
+};
+
+export type CountryTierPatch = Partial<CountryTierStoredRow>;
+
+export type CountryTierPatchValidation =
+  | { ok: true; merged: Extract<CountryTierValidation, { ok: true }>; payload: Record<string, unknown> }
+  | { ok: false; error: string };
+
+/**
+ * Validate the final country_tiers row the admin is trying to save, then build
+ * a safe patch containing only the changed columns. The UI keeps draft values
+ * as strings so empty inputs never become NaN-controlled values in React; this
+ * helper is the single place where those strings are converted back to numbers.
+ */
+export function normalizeCountryTierPatch(
+  current: CountryTierStoredRow,
+  patch: CountryTierPatch,
+): CountryTierPatchValidation {
+  const validated = validateCountryTier({
+    countryCode: 'country_code' in patch ? patch.country_code : current.country_code,
+    countryName: 'country_name' in patch ? patch.country_name : current.country_name,
+    tier: 'tier' in patch ? patch.tier : current.tier,
+    cpmMin: 'cpm_min' in patch ? patch.cpm_min : current.cpm_min,
+    cpmMax: 'cpm_max' in patch ? patch.cpm_max : current.cpm_max,
+    cpmDefault: 'cpm_default' in patch ? patch.cpm_default : current.cpm_default,
+    payoutPercentage: 'payout_percentage' in patch ? patch.payout_percentage : current.payout_percentage,
+    active: 'active' in patch ? patch.active : current.active,
+  });
+  if (!validated.ok) return validated;
+
+  const payload: Record<string, unknown> = {};
+  if ('country_code' in patch) payload.country_code = validated.countryCode;
+  if ('country_name' in patch) payload.country_name = validated.countryName;
+  if ('tier' in patch) payload.tier = validated.tier;
+  if ('cpm_min' in patch) payload.cpm_min = validated.cpmMin;
+  if ('cpm_max' in patch) payload.cpm_max = validated.cpmMax;
+  if ('cpm_default' in patch) payload.cpm_default = validated.cpmDefault;
+  if ('payout_percentage' in patch) payload.payout_percentage = validated.payoutPercentage;
+  if ('active' in patch) payload.active = validated.active;
+
+  return { ok: true, merged: validated, payload };
+}
+
+/**
+ * Server actions and Server Components must never return NaN to React. Convert
+ * numeric country fields to input-safe strings so legacy/temporary invalid
+ * values stay editable instead of crashing the admin page refresh.
+ */
+export function editableNumericString(value: unknown): string {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    const numeric = Number(trimmed);
+    return Number.isFinite(numeric) ? trimmed : '';
+  }
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? String(numeric) : '';
+}
+
+export function finiteNumberOr(value: unknown, fallback = 0): number {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
 export type CountryCpmOverride = {
   cpm_default?: unknown;
   active?: unknown;

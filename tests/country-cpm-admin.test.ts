@@ -24,6 +24,8 @@ function chain(result: { data: unknown; error: unknown }) {
   const query: any = {
     select: vi.fn(() => query),
     eq: vi.fn(() => query),
+    order: vi.fn(() => query),
+    limit: vi.fn(async () => result),
     maybeSingle: vi.fn(async () => result),
     single: vi.fn(async () => result),
     update: vi.fn(async () => result),
@@ -86,6 +88,74 @@ describe('country CPM admin authorization', () => {
     const res = await adminSaveCountryUpdates([{ id: 1, fields: { cpm_default: 0.75 } }]);
     expect(res).toEqual({ ok: true });
     expect(updates).toEqual([{ cpm_default: 0.75 }]);
+  });
+
+  it('accepts valid single-field min and max saves against the stored row', async () => {
+    getSessionUser.mockResolvedValue({ id: 'admin-1' });
+    getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin' });
+    const updates: unknown[] = [];
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'country_tiers') {
+        const query = chain({
+          data: {
+            country_code: 'US', country_name: 'United States', tier: 'tier_1',
+            cpm_min: 2, cpm_max: 10, cpm_default: 5,
+            payout_percentage: 70, active: true,
+          },
+          error: null,
+        });
+        query.update = vi.fn((fields: unknown) => {
+          updates.push(fields);
+          return { eq: vi.fn(async () => ({ data: { id: 1 }, error: null })) };
+        });
+        return query;
+      }
+      return chain({ data: null, error: null });
+    });
+    rpcMock.mockResolvedValue({ data: null, error: null });
+
+    const { adminSaveCountryUpdates } = await import('@/lib/admin-server');
+    await expect(adminSaveCountryUpdates([{ id: 1, fields: { cpm_min: '4' } }])).resolves.toEqual({ ok: true });
+    await expect(adminSaveCountryUpdates([{ id: 1, fields: { cpm_max: '12' } }])).resolves.toEqual({ ok: true });
+    expect(updates).toEqual([{ cpm_min: 4 }, { cpm_max: 12 }]);
+  });
+
+  it('saves min, max, default, and payout together as one normalized row update', async () => {
+    getSessionUser.mockResolvedValue({ id: 'admin-1' });
+    getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin' });
+    const updates: unknown[] = [];
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'country_tiers') {
+        const query = chain({
+          data: {
+            country_code: 'US', country_name: 'United States', tier: 'tier_1',
+            cpm_min: 2, cpm_max: 10, cpm_default: 5,
+            payout_percentage: 70, active: true,
+          },
+          error: null,
+        });
+        query.update = vi.fn((fields: unknown) => {
+          updates.push(fields);
+          return { eq: vi.fn(async () => ({ data: { id: 1 }, error: null })) };
+        });
+        return query;
+      }
+      return chain({ data: null, error: null });
+    });
+    rpcMock.mockResolvedValue({ data: null, error: null });
+
+    const { adminSaveCountryUpdates } = await import('@/lib/admin-server');
+    const result = await adminSaveCountryUpdates([{
+      id: 1,
+      fields: { cpm_min: '6', cpm_default: '7', cpm_max: '10', payout_percentage: '72.5' },
+    }]);
+    expect(result).toEqual({ ok: true });
+    expect(updates).toEqual([{
+      cpm_min: 6,
+      cpm_default: 7,
+      cpm_max: 10,
+      payout_percentage: 72.5,
+    }]);
   });
 
   it('lets a super admin update country identity, range, default, and status', async () => {
@@ -153,6 +223,42 @@ describe('country CPM admin authorization', () => {
     const { adminSaveCountryUpdates } = await import('@/lib/admin-server');
     await expect(adminSaveCountryUpdates([{ id: 1, fields: { cpm_country_code: 'US' } }])).rejects.toThrow(/unsupported/i);
   });
+
+  it('sanitizes country numeric fields before returning them to React', async () => {
+    getSessionUser.mockResolvedValue({ id: 'admin-1' });
+    getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin' });
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'country_tiers') {
+        return chain({
+          data: [{
+            id: 1,
+            country_code: 'US',
+            country_name: 'United States',
+            tier: 'tier_1',
+            cpm_min: Number.NaN,
+            cpm_max: '10',
+            cpm_default: 5,
+            payout_percentage: 'NaN',
+            active: true,
+          }],
+          error: null,
+        });
+      }
+      return chain({ data: null, error: null });
+    });
+    const { adminLoadCountries } = await import('@/lib/admin-server');
+    await expect(adminLoadCountries()).resolves.toEqual([{
+      id: 1,
+      country_code: 'US',
+      country_name: 'United States',
+      tier: 'tier_1',
+      cpm_min: '',
+      cpm_max: '10',
+      cpm_default: '5',
+      payout_percentage: '',
+      active: true,
+    }]);
+  });
 });
 
 describe('country CPM security invariants', () => {
@@ -203,6 +309,8 @@ describe('country CPM security invariants', () => {
 
   it('keeps country inputs stable while typing instead of storing NaN', () => {
     expect(cpmClient).not.toContain("parseFloat(e.target.value)");
+    expect(cpmClient).toContain('normalizeCountryTierPatch');
+    expect(cpmClient).toContain("'payout_percentage'");
     expect(cpmClient).toContain('await adminSaveCountryUpdates(pending)');
   });
 });
