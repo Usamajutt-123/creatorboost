@@ -6,8 +6,6 @@ import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { recordViewSchema } from '@/lib/view-schema';
 import { configuredTaskUrl, hasCompleteTaskSet, isTaskType, type TaskMetadata } from '@/lib/tasks';
 import { createUnlockToken, UNLOCK_COOKIE, UNLOCK_TOKEN_MAX_AGE_SECONDS } from '@/lib/unlock-token';
-import { coerceFlowType } from '@/lib/flow';
-import { FLOW_COMPLETION_COOKIE, verifyFlowCompletion } from '@/lib/flow-token';
 
 /**
  * POST /api/views/record
@@ -43,13 +41,12 @@ export async function POST(request: NextRequest) {
     // reads just enough campaign data to verify the public request.
     const { data: campaign } = await admin
       .from('campaigns')
-      .select('id, creator_id, status, slug, deleted_at, expires_at, tasks, task_metadata, flow_type')
+      .select('id, creator_id, status, slug, deleted_at, expires_at, tasks, task_metadata')
       .eq('id', campaignId)
       .maybeSingle();
     if (!campaign || campaign.deleted_at || campaign.status !== 'active') {
       return NextResponse.json({ error: 'Campaign is unavailable' }, { status: 404 });
     }
-    const storedFlow = coerceFlowType(campaign.flow_type);
     if (campaign.expires_at && new Date(campaign.expires_at).getTime() <= Date.now()) {
       return NextResponse.json({ error: 'Campaign has expired' }, { status: 410 });
     }
@@ -67,22 +64,6 @@ export async function POST(request: NextRequest) {
 
     const sessionClient = await createClient();
     const { data: { user } } = await sessionClient.auth.getUser();
-
-    // Custom-page flow verification. If the campaign requires a custom flow
-    // the visitor MUST supply a valid HMAC-signed completion token issued
-    // by /api/flow/step; without it the earning multiplier stays at 1.00×
-    // regardless of any client-supplied values. Normal campaigns skip this.
-    let flowCompletionVerified = false;
-    let flowSessionId: string | null = null;
-    if (storedFlow !== 'normal') {
-      const flowCookie = request.cookies.get(`${FLOW_COMPLETION_COOKIE}_${campaign.id}`)?.value;
-      const verification = verifyFlowCompletion(flowCookie, campaign.id, storedFlow);
-      if (verification.ok) {
-        flowCompletionVerified = true;
-        flowSessionId = verification.session;
-      }
-    }
-
     const result = await recordView({
       campaign: campaign as ValidatedCampaign,
       visitorIp: ip,
@@ -91,8 +72,6 @@ export async function POST(request: NextRequest) {
       tasksCompleted: tasksCompleted || [],
       idempotencyKey: idempotencyKey || null,
       sessionUserId: user?.id ?? null,
-      flowCompletionVerified,
-      flowSessionId,
     });
 
     const token = createUnlockToken(campaign.id);
@@ -119,20 +98,6 @@ export async function POST(request: NextRequest) {
       path: '/',
       maxAge: UNLOCK_TOKEN_MAX_AGE_SECONDS,
     });
-    // Consume the one-shot flow completion cookie so a page refresh cannot
-    // reuse it for a second credited view. The `flow_session_id` UNIQUE
-    // index in the database is the authoritative replay guard.
-    if (storedFlow !== 'normal') {
-      response.cookies.set({
-        name: `${FLOW_COMPLETION_COOKIE}_${campaign.id}`,
-        value: '',
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-        maxAge: 0,
-      });
-    }
     return response;
   } catch (error) {
     console.error('[views/record] unexpected error', error);

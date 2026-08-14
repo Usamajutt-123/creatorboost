@@ -7,7 +7,6 @@ import { deleteCampaignAction, setCampaignStatusAction } from '@/lib/campaign-ac
 import { toast } from 'sonner';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import { formatNumber, formatCurrency } from '@/lib/utils';
-import { coerceFlowType, FLOW_LABEL, FLOW_MULTIPLIER } from '@/lib/flow';
 
 type Campaign = {
   id: string;
@@ -18,7 +17,6 @@ type Campaign = {
   total_views: number;
   valid_views: number;
   total_earnings: number;
-  flow_type?: string | null;
 };
 
 /**
@@ -41,7 +39,7 @@ export default function CampaignsClient({ initial, userId, unreadCount }: { init
       // destination_url and the full tasks payload into the browser for every
       // campaign — wasted bytes, and data this screen never shows.
       .from('campaigns')
-      .select('id, name, slug, status, thumbnail_url, total_views, valid_views, total_earnings, flow_type')
+      .select('id, name, slug, status, thumbnail_url, total_views, valid_views, total_earnings')
       .eq('creator_id', user.id)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
@@ -108,15 +106,6 @@ export default function CampaignsClient({ initial, userId, unreadCount }: { init
                   </div>
                   <span className={`badge status-${c.status}`}>{c.status}</span>
                 </div>
-                {(() => {
-                  const flow = coerceFlowType(c.flow_type);
-                  return (
-                    <div className="text-[11px] mb-2 flex items-center gap-2 flex-wrap">
-                      <span className="glass rounded-full px-2 py-0.5 text-purple-200">Flow: {FLOW_LABEL[flow]}</span>
-                      <span className="text-gray-500">Verified {FLOW_MULTIPLIER[flow].toFixed(2)}× multiplier</span>
-                    </div>
-                  );
-                })()}
                 <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
                   <div><div className="text-gray-500">Views</div><div className="font-semibold text-sm">{formatNumber(c.total_views)}</div></div>
                   <div><div className="text-gray-500">Valid</div><div className="font-semibold text-sm">{formatNumber(c.valid_views)}</div></div>

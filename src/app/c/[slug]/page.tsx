@@ -1,10 +1,8 @@
 import { cache } from 'react';
 import { notFound } from 'next/navigation';
 import UnlockClient from './UnlockClient';
-import FlowClient from './FlowClient';
 import { loadPublicCampaign, PublicCampaignLookupError } from '@/lib/public-campaign';
 import { resolveParams } from '@/lib/route-params';
-import { FLOW_PAGE_COUNT } from '@/lib/flow';
 import { createAdminClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -60,21 +58,6 @@ export default async function UnlockPage({ params }: PageProps) {
     .select('banner_enabled, banner_code, banner_url, popunder_enabled, popunder_code, popunder_url')
     .eq('id', 1)
     .single();
-
-  // Custom-page flows EXTEND the Normal flow: FlowClient renders the exact
-  // same task page (UnlockClient) as stage 1 and the custom pages after it.
-  // If the campaign is set to 4_pages / 5_pages but the DB somehow does not
-  // have the correct number of custom pages we fall back to the normal task
-  // flow so visitors are never stuck; the page-count constraint triggers
-  // keep this from happening when campaigns are saved through the app.
-  const expectedPages = FLOW_PAGE_COUNT[campaign.flow_type];
-  if (campaign.flow_type !== 'normal' && campaign.pages.length === expectedPages) {
-    return <FlowClient campaign={{
-      ...campaign,
-      tasks: campaign.tasks || [],
-      task_metadata: campaign.task_metadata || {},
-    }} adConfig={adConfig || null} />;
-  }
 
   return <UnlockClient campaign={{ ...campaign, tasks: campaign.tasks || [], task_metadata: campaign.task_metadata || {} }} adConfig={adConfig || null} />;
 }
