@@ -9,8 +9,6 @@ import { FLOW_LABEL, FLOW_MULTIPLIER, type FlowType } from '@/lib/flow';
 
 type PublicPage = {
   position: number;
-  title: string;
-  description: string | null;
   image_url: string | null;
   button_text: string | null;
 };
@@ -193,14 +191,14 @@ export default function FlowClient({ campaign, adConfig }: { campaign: PublicCam
                 <article className="glass rounded-xl p-5 space-y-4">
                   <header className="flex items-center gap-3">
                     <span className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500/40 to-blue-500/40 flex items-center justify-center text-sm font-semibold">{currentPage.position}</span>
-                    <h2 className="text-lg font-semibold flex-1 min-w-0 break-words">{currentPage.title}</h2>
+                    <h2 className="text-lg font-semibold flex-1 min-w-0 break-words">{campaign.name}</h2>
                   </header>
                   {currentPage.image_url && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={currentPage.image_url} alt="" className="w-full max-h-64 object-cover rounded-lg border border-white/10" />
                   )}
-                  {currentPage.description && (
-                    <p className="text-sm text-gray-300 whitespace-pre-line break-words">{currentPage.description}</p>
+                  {campaign.description && (
+                    <p className="text-sm text-gray-300 whitespace-pre-line break-words">{campaign.description}</p>
                   )}
                   <button
                     type="button"

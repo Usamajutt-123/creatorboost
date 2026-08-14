@@ -114,9 +114,9 @@ describe('validateFlowPages', () => {
     expect(validateFlowPages('5_pages', pages(6))).toMatch(/exactly 5/i);
   });
 
-  it('requires titles on every custom page', () => {
-    const missing = pages(4).map((p, i) => (i === 2 ? { ...p, title: '' } : p));
-    expect(validateFlowPages('4_pages', missing)).toMatch(/needs a title/i);
+  it('does not require per-page titles (they inherit the campaign name)', () => {
+    const noTitles = pages(4).map(p => ({ position: p.position }));
+    expect(validateFlowPages('4_pages', noTitles)).toBeNull();
   });
 
   it('requires contiguous positions 1..N', () => {
@@ -221,6 +221,28 @@ describe('buildCampaignWritePayload — flow', () => {
     expect(payload).not.toHaveProperty('multiplier');
     expect(payload).not.toHaveProperty('flow_multiplier');
     expect(payload).not.toHaveProperty('earning_multiplier');
+  });
+
+  it('every page inherits the campaign name and description (single source of truth)', () => {
+    const ok = buildCampaignWritePayload({
+      ...base,
+      description: 'Unlock the good stuff',
+      flowType: '5_pages',
+      flowPages: pages(5).map((p, i) => ({ position: p.position, buttonText: i === 0 ? 'Continue' : undefined })),
+    });
+    const extracted = extractFlowPages(ok);
+    expect(extracted).toHaveLength(5);
+    for (const page of extracted) {
+      expect(page.title).toBe('Flow campaign');
+      expect(page.description).toBe('Unlock the good stuff');
+    }
+    // Pages 4/5 never carry an image or button.
+    expect(extracted[3].image_url).toBeNull();
+    expect(extracted[3].button_text).toBeNull();
+    expect(extracted[4].image_url).toBeNull();
+    expect(extracted[4].button_text).toBeNull();
+    // Pages 1-3 keep the creator-configured button text.
+    expect(extracted[0].button_text).toBe('Continue');
   });
 });
 

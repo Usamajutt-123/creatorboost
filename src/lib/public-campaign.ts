@@ -8,8 +8,6 @@ export const PUBLIC_CAMPAIGN_COLUMNS =
 
 export type PublicCampaignPage = {
   position: number;
-  title: string;
-  description: string | null;
   image_url: string | null;
   button_text: string | null;
 };
@@ -55,7 +53,7 @@ async function loadPagesFor(campaignId: string): Promise<PublicCampaignPage[]> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from('campaign_pages')
-    .select('position, title, description, image_url, button_text')
+    .select('position, image_url, button_text')
     .eq('campaign_id', campaignId)
     .order('position', { ascending: true });
   if (error) {
@@ -64,8 +62,6 @@ async function loadPagesFor(campaignId: string): Promise<PublicCampaignPage[]> {
   }
   return (data || []).map(page => ({
     position: Number(page.position),
-    title: String(page.title || ''),
-    description: page.description ?? null,
     image_url: page.image_url ?? null,
     button_text: page.button_text ?? null,
   }));

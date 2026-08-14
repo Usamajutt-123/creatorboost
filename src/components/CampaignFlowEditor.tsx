@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Eye, Image as ImageIcon, X } from 'lucide-react';
 import Select from '@/components/Select';
 import { createClient } from '@/lib/supabase/client';
@@ -14,9 +14,12 @@ import {
 import { isValidHttpUrl } from '@/lib/tasks';
 import { toast } from 'sonner';
 
+/**
+ * A single custom flow page. Every page shares the campaign's main name and
+ * description, so the only per-page content a creator configures is the
+ * button text and an optional image (and only on the first three pages).
+ */
 export type EditorPage = {
-  title: string;
-  description: string;
   buttonText: string;
   imageUrl: string | null;
   imageFile: File | null;
@@ -24,25 +27,14 @@ export type EditorPage = {
 };
 
 export function emptyPage(): EditorPage {
-  return { title: '', description: '', buttonText: '', imageUrl: null, imageFile: null, imagePreview: '' };
+  return { buttonText: '', imageUrl: null, imageFile: null, imagePreview: '' };
 }
 
 /** Resize the pages array to exactly `count` entries, preserving prior data. */
-export function resizePages(pages: EditorPage[], count: number, campaignName?: string): EditorPage[] {
+export function resizePages(pages: EditorPage[], count: number): EditorPage[] {
   const next = pages.slice(0, count);
   while (next.length < count) {
-    const newPage = emptyPage();
-    if (campaignName && next.length >= 3) {
-      newPage.title = campaignName;
-    }
-    next.push(newPage);
-  }
-  if (campaignName) {
-    for (let i = 3; i < next.length; i++) {
-      if (next[i].title !== campaignName) {
-        next[i] = { ...next[i], title: campaignName };
-      }
-    }
+    next.push(emptyPage());
   }
   return next;
 }
@@ -54,35 +46,20 @@ interface Props {
   onPagesChange: (next: EditorPage[]) => void;
   onPreview?: () => void;
   disabled?: boolean;
-  campaignName?: string;
 }
 
 /**
  * Renders the "Campaign Flow" section used in both Create and Edit forms.
  * The number of page editors is DETERMINED by the flow type — there is no
  * generic "Add Page" button, and no way to reach 1/2/3/6/7+ pages.
+ *
+ * Page titles and descriptions are NOT collected here: every page uses the
+ * campaign's main name and description (populated server-side), so the
+ * creator only enters that information once.
  */
-export default function CampaignFlowEditor({ flowType, onFlowTypeChange, pages, onPagesChange, onPreview, disabled, campaignName }: Props) {
+export default function CampaignFlowEditor({ flowType, onFlowTypeChange, pages, onPagesChange, onPreview, disabled }: Props) {
   const total = FLOW_PAGE_COUNT[flowType];
   const showPages = total > 0;
-
-  // Ensure automatic pages inherit the campaign name
-  useEffect(() => {
-    if (flowType === 'normal' || !campaignName) return;
-    let changed = false;
-    const updated = pages.map((p, i) => {
-      if (i >= 3) {
-        if (p.title !== campaignName) {
-          changed = true;
-          return { ...p, title: campaignName };
-        }
-      }
-      return p;
-    });
-    if (changed) {
-      onPagesChange(updated);
-    }
-  }, [campaignName, flowType, pages, onPagesChange]);
 
   const updatePage = (index: number, patch: Partial<EditorPage>) => {
     onPagesChange(pages.map((p, i) => (i === index ? { ...p, ...patch } : p)));
@@ -102,7 +79,7 @@ export default function CampaignFlowEditor({ flowType, onFlowTypeChange, pages, 
       <p className="text-xs text-gray-500 mb-4">
         Normal keeps the original CreatorBoost flow. Custom flows send visitors through the
         pages below in order, and the server applies the verified earning multiplier only
-        after every page is completed.
+        after every page is completed. Every page uses your campaign name and description.
       </p>
       <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Campaign flow type">
         {FLOW_TYPES.map(type => {
@@ -218,69 +195,40 @@ function PageEditor({ index, total, page, onChange, onMove, disabled }: PageProp
         </button>
       </div>
 
-      {!isAutomatic ? (
-        <label className="text-xs text-gray-300 block">Title *
-          <input
-            value={page.title}
-            onChange={event => onChange({ title: event.target.value })}
-            className="input-field mt-1.5"
-            maxLength={150}
-            placeholder={`Page ${index + 1} title`}
-            disabled={disabled}
-          />
-        </label>
+      {isAutomatic ? (
+        <p className="text-xs text-gray-400">This page automatically uses your campaign name and description.</p>
       ) : (
-        <div className="text-xs text-gray-300">
-          <span className="font-medium">Title:</span> {page.title || 'Uses campaign name'}
-        </div>
-      )}
+        <>
+          <label className="text-xs text-gray-300 block">Button text
+            <input
+              value={page.buttonText}
+              onChange={event => onChange({ buttonText: event.target.value })}
+              className="input-field mt-1.5"
+              maxLength={60}
+              placeholder={index === total - 1 ? 'Unlock destination' : 'Continue'}
+              disabled={disabled}
+            />
+          </label>
 
-      {!isAutomatic && (
-        <label className="text-xs text-gray-300 block">Description
-          <textarea
-            rows={3}
-            value={page.description}
-            onChange={event => onChange({ description: event.target.value })}
-            className="input-field mt-1.5"
-            maxLength={2000}
-            placeholder="Explain what visitors should read or do on this page"
-            disabled={disabled}
-          />
-        </label>
-      )}
-
-      {!isAutomatic && (
-        <label className="text-xs text-gray-300 block">Button text
-          <input
-            value={page.buttonText}
-            onChange={event => onChange({ buttonText: event.target.value })}
-            className="input-field mt-1.5"
-            maxLength={60}
-            placeholder={index === total - 1 ? 'Unlock destination' : 'Continue'}
-            disabled={disabled}
-          />
-        </label>
-      )}
-
-      {!isAutomatic && (
-        <div>
-          <span className="text-xs font-medium text-gray-300 block mb-1.5">Image (optional)</span>
-          <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp,image/avif" onChange={handleFile} className="hidden" disabled={disabled} />
-          {page.imagePreview ? (
-            <div className="relative glass rounded-xl p-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={page.imagePreview} alt="" className="w-full max-h-40 object-cover rounded-lg" />
-              <button type="button" onClick={removeImage} disabled={disabled} aria-label={`Remove page ${index + 1} image`} className="absolute top-3 right-3 p-1.5 bg-red-500/90 hover:bg-red-500 rounded-full">
-                <X className="w-3 h-3 text-white" />
+          <div>
+            <span className="text-xs font-medium text-gray-300 block mb-1.5">Image (optional)</span>
+            <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp,image/avif" onChange={handleFile} className="hidden" disabled={disabled} />
+            {page.imagePreview ? (
+              <div className="relative glass rounded-xl p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={page.imagePreview} alt="" className="w-full max-h-40 object-cover rounded-lg" />
+                <button type="button" onClick={removeImage} disabled={disabled} aria-label={`Remove page ${index + 1} image`} className="absolute top-3 right-3 p-1.5 bg-red-500/90 hover:bg-red-500 rounded-full">
+                  <X className="w-3 h-3 text-white" />
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => inputRef.current?.click()} disabled={disabled} className="w-full input-field border-dashed rounded-xl p-5 text-center hover:bg-white/5 flex flex-col items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-gray-500" />
+                <span className="text-xs text-gray-400">Choose image</span>
               </button>
-            </div>
-          ) : (
-            <button type="button" onClick={() => inputRef.current?.click()} disabled={disabled} className="w-full input-field border-dashed rounded-xl p-5 text-center hover:bg-white/5 flex flex-col items-center gap-2">
-              <ImageIcon className="w-5 h-5 text-gray-500" />
-              <span className="text-xs text-gray-400">Choose image</span>
-            </button>
-          )}
-        </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
@@ -288,21 +236,15 @@ function PageEditor({ index, total, page, onChange, onMove, disabled }: PageProp
 
 /** Upload any pending page image files and produce the payload sent to the server. */
 export async function collectFlowPagesForSubmit(pages: EditorPage[], total: number): Promise<{
-  pages: Array<{ position: number; title: string; description: string; imageUrl: string | null; buttonText: string }>;
+  pages: Array<{ position: number; imageUrl: string | null; buttonText: string }>;
   error?: string;
 }> {
   const trimmed = pages.slice(0, total);
-  if (total > 0) {
-    for (let i = 0; i < total; i++) {
-      const p = trimmed[i];
-      if (!p || !p.title.trim()) return { pages: [], error: `Page ${i + 1} needs a title` };
-    }
-  }
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (total > 0 && !user) return { pages: [], error: 'Your session has expired. Please sign in again.' };
 
-  const uploaded: Array<{ position: number; title: string; description: string; imageUrl: string | null; buttonText: string }> = [];
+  const uploaded: Array<{ position: number; imageUrl: string | null; buttonText: string }> = [];
   for (let i = 0; i < total; i++) {
     const p = trimmed[i];
     let imageUrl = p.imageUrl ?? null;
@@ -316,8 +258,6 @@ export async function collectFlowPagesForSubmit(pages: EditorPage[], total: numb
     if (imageUrl && !isValidHttpUrl(imageUrl)) return { pages: [], error: `Page ${i + 1} image URL is invalid` };
     uploaded.push({
       position: i + 1,
-      title: p.title.trim(),
-      description: p.description.trim(),
       imageUrl,
       buttonText: p.buttonText.trim(),
     });
@@ -329,11 +269,15 @@ export function FlowPreviewModal({
   flowType,
   pages,
   destinationUrl,
+  campaignName,
+  campaignDescription,
   onClose,
 }: {
   flowType: FlowType;
   pages: EditorPage[];
   destinationUrl: string;
+  campaignName?: string;
+  campaignDescription?: string;
   onClose: () => void;
 }) {
   const total = FLOW_PAGE_COUNT[flowType];
@@ -356,21 +300,17 @@ export function FlowPreviewModal({
           ))}
         </div>
 
-        {active ? (
-          <article className="glass rounded-xl p-4 space-y-3">
-            <header className="flex items-center gap-2">
-              <span className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500/40 to-blue-500/40 flex items-center justify-center text-xs font-semibold">{step + 1}</span>
-              <h4 className="text-base font-semibold break-words">{active.title || `Page ${step + 1}`}</h4>
-            </header>
-            {active.imagePreview && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={active.imagePreview} alt="" className="w-full max-h-40 object-cover rounded-lg border border-white/10" />
-            )}
-            {active.description && <p className="text-xs text-gray-300 whitespace-pre-line">{active.description}</p>}
-          </article>
-        ) : (
-          <p className="text-sm text-gray-400">No pages configured yet.</p>
-        )}
+        <article className="glass rounded-xl p-4 space-y-3">
+          <header className="flex items-center gap-2">
+            <span className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500/40 to-blue-500/40 flex items-center justify-center text-xs font-semibold">{step + 1}</span>
+            <h4 className="text-base font-semibold break-words">{campaignName || `Page ${step + 1}`}</h4>
+          </header>
+          {active?.imagePreview && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={active.imagePreview} alt="" className="w-full max-h-40 object-cover rounded-lg border border-white/10" />
+          )}
+          {campaignDescription && <p className="text-xs text-gray-300 whitespace-pre-line">{campaignDescription}</p>}
+        </article>
 
         <div className="flex items-center justify-between mt-4 gap-2">
           <button type="button" disabled={step === 0} onClick={() => setStep(s => Math.max(s - 1, 0))} className="btn-ghost px-3 py-1.5 rounded-lg text-xs disabled:opacity-30">Previous</button>
