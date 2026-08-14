@@ -36,7 +36,10 @@ export default async function DashboardPage() {
   // DashboardCharts used to fire from the browser after hydration, moved here
   // so the charts paint without any client-side Supabase round-trip.
   const profilePromise = getDashboardProfile();
-  const creatorCountry = sanitizeCountryCode((await profilePromise)?.country_code);
+  // Display the same server-controlled CPM country the earnings engine uses.
+  // The editable profile country remains available for creator-facing display,
+  // but must not change the financial CPM shown here.
+  const creatorCountry = sanitizeCountryCode((await profilePromise)?.cpm_country_code);
   const [
     profile,
     { data: todayEarnings },

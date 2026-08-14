@@ -244,7 +244,7 @@ describe('recordView — creator country CPM', () => {
   function setCreatorCountry(code: string | null, countryRate: { cpm_default: number; active: boolean } | null) {
     supabaseState.responders['cpm_settings:maybeSingle'] = () => ({ data: { cpm: 1, is_active: true }, error: null });
     supabaseState.responders['profiles:maybeSingle'] = () => ({
-      data: { level: 'bronze', status: 'active', country_code: code, referred_by: null },
+      data: { level: 'bronze', status: 'active', country_code: code, cpm_country_code: code, referred_by: null },
       error: null,
     });
     supabaseState.responders['creator_levels:maybeSingle'] = () => ({ data: { cpm_multiplier: 1 }, error: null });
@@ -282,14 +282,17 @@ describe('recordView — creator country CPM', () => {
     expect(res.cpm).toBe(1);
   });
 
-  it('uses the updated country CPM on the next valid view', async () => {
+  it('uses the updated country CPM on the next valid view and passes it to the ledger RPC', async () => {
     setCreatorCountry('PK', { cpm_default: 0.5, active: true });
     const first = await recordView({ campaign: CAMPAIGN, visitorIp: '8.8.8.8' });
     expect(first.cpm).toBe(0.5);
     setCreatorCountry('PK', { cpm_default: 0.75, active: true });
-    const second = await recordView({ campaign: CAMPAIGN, visitorIp: '8.8.8.8' });
+    const second = await recordView({ campaign: CAMPAIGN, visitorIp: '1.1.1.1' });
     expect(second.cpm).toBe(0.75);
     expect(second.earning).toBeCloseTo(0.00075, 10);
+    const credit = supabaseState.rpcCalls.filter(c => c.name === 'credit_view_earning').at(-1);
+    expect(credit?.args.p_cpm).toBe(0.75);
+    expect(credit?.args.p_earning).toBeCloseTo(0.00075, 10);
   });
 
   it('still applies the creator level multiplier on top of country CPM', async () => {

@@ -109,7 +109,7 @@ describe('Fix 1: Country CPM manipulation prevention', () => {
     expect(result.earning).toBeCloseTo(0.0005, 10);
   });
 
-  it('falls back to country_code when cpm_country_code is null (legacy profiles)', async () => {
+  it('uses Global CPM when cpm_country_code is null instead of trusting editable country_code', async () => {
     fromMock.mockImplementation((table: string) => {
       if (table === 'platform_settings') return chain({ data: CAPS, error: null });
       if (table === 'cpm_settings') return chain({ data: { cpm: 5, is_active: true }, error: null });
@@ -138,8 +138,8 @@ describe('Fix 1: Country CPM manipulation prevention', () => {
       fraud: { isBot: false, isVpn: false, isProxy: false, isEmulator: false, isTor: false, isRepeat: false, fraudScore: 0, reasons: [] },
     });
 
-    // Should fall back to PK (from country_code).
-    expect(result.cpm).toBe(0.5);
+    // A missing trusted country must not fall back to creator-editable PK.
+    expect(result.cpm).toBe(5);
   });
 
   it('uses global CPM when both cpm_country_code and country_code are null', async () => {

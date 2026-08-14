@@ -10,9 +10,10 @@
  *   campaignId (or slug), deviceFingerprint, userAgent, tasksCompleted,
  *   idempotencyKey — and even those are re-validated server-side.
  *
- * Country is resolved from the visitor IP server-side. Fraud signals are
- * produced server-side. Earnings, caps, and idempotency are enforced here
- * and, additionally, guarded in the database.
+ * Visitor country is resolved from the visitor IP server-side for analytics.
+ * The CPM country is a separate, trusted profile field provisioned by the
+ * server/admin. Fraud signals are produced server-side. Earnings, caps, and
+ * idempotency are enforced here and, additionally, guarded in the database.
  */
 
 import { createHash } from 'node:crypto';
@@ -122,8 +123,8 @@ export async function computeViewEarnings(opts: {
 
   // 3. Active platform CPM (admin-configurable Global CPM).
   //    A missing/inactive cpm_settings row yields $0 — never a hardcoded rate.
-  //    An active country_tiers rate for the creator's profile country then
-  //    overrides Global CPM. Visitor country stays analytics-only.
+  //    An active country_tiers rate for the trusted CPM country then overrides
+  //    Global CPM. Visitor country stays analytics-only.
   let cpm = 0;
   const { data: cpmRow } = await supabase
     .from('cpm_settings')
@@ -141,19 +142,20 @@ export async function computeViewEarnings(opts: {
   // 4. Creator account status: banned/suspended creators earn nothing.
   const { data: profile } = await supabase
     .from('profiles')
-    .select('level, status, cpm_country_code, country_code')
+    // country_code is creator-editable display data. It is deliberately not
+    // selected here: it must never be an input to the earnings decision.
+    .select('level, status, cpm_country_code')
     .eq('id', opts.creatorId)
     .maybeSingle();
   if (profile && (profile.status === 'banned' || profile.status === 'suspended')) {
     return { valid: false, reason: 'account_blocked', cpm: 0, levelMultiplier: 1, earning: 0 };
   }
 
-  // SECURITY: use the admin-controlled cpm_country_code (migration 0017)
-  // instead of the creator-editable country_code. This prevents a creator
-  // from selecting a premium-CPM country and getting inflated earnings.
+  // SECURITY: use only the server/admin-controlled cpm_country_code
+  // (migration 0017). A missing trusted country intentionally falls back to
+  // Global CPM; never substitute the creator-editable country_code.
   const creatorCountry = sanitizeCountryCode(
     (profile as Record<string, unknown> | null)?.cpm_country_code as string | null
-      ?? profile?.country_code
   );
   if (creatorCountry) {
     const { data: countryRow } = await supabase
@@ -501,9 +503,12 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
       p_view_id: inserted.id,
       p_campaign_id: campaignId,
       p_creator_id: creatorId,
-      p_valid: decision.valid,
+      // The atomic IP RPC is authoritative. Pass its final result into the
+      // ledger RPC as well; the database still re-checks the inserted view
+      // status, so this is defense in depth rather than a client trust change.
+      p_valid: finalValid,
       p_cpm: decision.cpm,
-      p_earning: decision.valid ? decision.earning : 0,
+      p_earning: finalValid ? finalEarning : 0,
       p_level_multiplier: decision.levelMultiplier,
       p_description: description,
     });

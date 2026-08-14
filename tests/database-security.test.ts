@@ -20,8 +20,9 @@ describe('database security invariants', () => {
   it('migrations exist and are ordered', () => {
     expect(migrations.length).toBeGreaterThanOrEqual(7);
     expect(migrations[0]).toMatch(/^0001_/);
-    // Applied migration history currently ends at 0018.
-    expect(migrations[migrations.length - 1]).toMatch(/^0018_/);
+    // The additive country CPM/earnings repair is the next migration after
+    // the already-applied 0018 baseline.
+    expect(migrations[migrations.length - 1]).toMatch(/^0019_/);
   });
 
   it('enables RLS on every sensitive table', () => {

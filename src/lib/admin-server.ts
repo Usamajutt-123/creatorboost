@@ -28,6 +28,7 @@ import {
   PLATFORM_AD_CODE_MAX_LENGTH,
   PLATFORM_AD_URL_MAX_LENGTH,
 } from '@/lib/platform-ads';
+import { validateCountryTier } from '@/lib/cpm';
 
 type Admin = { id: string; role: string };
 
@@ -443,7 +444,12 @@ export async function adminDeleteAdRevenue(id: number) {
 export async function adminLoadCountries() {
   await requireAdmin();
   const supabase = createAdminClient();
-  const { data } = await supabase.from('country_tiers').select('id, country_code, country_name, tier, cpm_min, cpm_max, cpm_default, payout_percentage, active').order('tier').limit(500);
+  const { data, error } = await supabase
+    .from('country_tiers')
+    .select('id, country_code, country_name, tier, cpm_min, cpm_max, cpm_default, payout_percentage, active')
+    .order('tier')
+    .limit(500);
+  if (error) throw new Error('Country CPM rates could not be loaded');
   return data || [];
 }
 
@@ -475,15 +481,51 @@ export async function adminSaveCountryUpdates(updates: { id: number; fields: Rec
   const admin = await requireAdmin();
   if (!Array.isArray(updates) || updates.length < 1 || updates.length > 500) throw new Error('Invalid country update batch');
   const supabase = createAdminClient();
+  const allowedFields = [
+    'country_code', 'country_name', 'tier',
+    'cpm_min', 'cpm_max', 'cpm_default', 'payout_percentage', 'active',
+  ] as const;
+
   for (const update of updates) {
+    if (!update || typeof update !== 'object') throw new Error('Invalid country update');
     const id = finiteNumber(update.id, 'Country ID', 1, 1_000_000);
-    const fields = safeFields(update.fields, ['cpm_min', 'cpm_max', 'cpm_default', 'payout_percentage', 'active']);
-    if ('cpm_min' in fields) fields.cpm_min = finiteNumber(fields.cpm_min, 'CPM minimum', 0, 10_000);
-    if ('cpm_max' in fields) fields.cpm_max = finiteNumber(fields.cpm_max, 'CPM maximum', 0, 10_000);
-    if ('cpm_default' in fields) fields.cpm_default = finiteNumber(fields.cpm_default, 'Default CPM', 0, 10_000);
-    if ('payout_percentage' in fields) fields.payout_percentage = finiteNumber(fields.payout_percentage, 'Payout percentage', 0, 100);
-    if ('active' in fields && typeof fields.active !== 'boolean') throw new Error('Country active flag is invalid');
-    const { error } = await supabase.from('country_tiers').update(fields).eq('id', id);
+    const fields = safeFields(update.fields, allowedFields);
+
+    // Read the complete current row before applying a patch. The database
+    // constraint validates min <= default <= max on every UPDATE; merging
+    // first means an admin can change all three values in any UI order without
+    // the first individual keystroke causing a partial constraint failure.
+    const { data: current, error: loadError } = await supabase
+      .from('country_tiers')
+      .select('country_code, country_name, tier, cpm_min, cpm_max, cpm_default, payout_percentage, active')
+      .eq('id', id)
+      .maybeSingle();
+    if (loadError) throw new Error('Country rate could not be loaded');
+    if (!current) throw new Error('Country rate not found');
+
+    const validated = validateCountryTier({
+      countryCode: fields.country_code ?? current.country_code,
+      countryName: fields.country_name ?? current.country_name,
+      tier: fields.tier ?? current.tier,
+      cpmMin: fields.cpm_min ?? current.cpm_min,
+      cpmMax: fields.cpm_max ?? current.cpm_max,
+      cpmDefault: fields.cpm_default ?? current.cpm_default,
+      payoutPercentage: fields.payout_percentage ?? current.payout_percentage,
+      active: fields.active ?? current.active,
+    });
+    if (!validated.ok) throw new Error(validated.error);
+
+    const payload: Record<string, unknown> = {};
+    if ('country_code' in fields) payload.country_code = validated.countryCode;
+    if ('country_name' in fields) payload.country_name = validated.countryName;
+    if ('tier' in fields) payload.tier = validated.tier;
+    if ('cpm_min' in fields) payload.cpm_min = validated.cpmMin;
+    if ('cpm_max' in fields) payload.cpm_max = validated.cpmMax;
+    if ('cpm_default' in fields) payload.cpm_default = validated.cpmDefault;
+    if ('payout_percentage' in fields) payload.payout_percentage = validated.payoutPercentage;
+    if ('active' in fields) payload.active = validated.active;
+
+    const { error } = await supabase.from('country_tiers').update(payload).eq('id', id);
     if (error) throw new Error('Country rate could not be saved');
   }
   await audit(admin, 'cpm_update', 'country_tiers', undefined, null, { count: updates.length });
@@ -495,22 +537,26 @@ export async function adminSaveCountryUpdates(updates: { id: number; fields: Rec
 export async function adminAddCountry(data: Record<string, unknown>) {
   const admin = await requireAdmin();
   const input = safeFields(data, ['country_code', 'country_name', 'tier', 'cpm_min', 'cpm_max', 'cpm_default', 'payout_percentage', 'active']);
-  const countryCode = shortText(input.country_code, 'Country code', 2).toUpperCase();
-  if (!/^[A-Z]{2}$/.test(countryCode)) throw new Error('Country code must have two letters');
-  const tier = String(input.tier || '');
-  if (!['tier_1', 'tier_2', 'tier_3', 'tier_4'].includes(tier)) throw new Error('Country tier is invalid');
-  const cpmMin = finiteNumber(input.cpm_min, 'CPM minimum', 0, 10_000);
-  const cpmMax = finiteNumber(input.cpm_max, 'CPM maximum', cpmMin, 10_000);
-  const cpmDefault = finiteNumber(input.cpm_default, 'Default CPM', cpmMin, cpmMax);
-  const payload = {
-    country_code: countryCode,
-    country_name: shortText(input.country_name, 'Country name', 100),
-    tier,
-    cpm_min: cpmMin,
-    cpm_max: cpmMax,
-    cpm_default: cpmDefault,
-    payout_percentage: finiteNumber(input.payout_percentage, 'Payout percentage', 0, 100),
+  const validated = validateCountryTier({
+    countryCode: input.country_code,
+    countryName: input.country_name,
+    tier: input.tier,
+    cpmMin: input.cpm_min,
+    cpmMax: input.cpm_max,
+    cpmDefault: input.cpm_default,
+    payoutPercentage: input.payout_percentage,
     active: typeof input.active === 'boolean' ? input.active : true,
+  });
+  if (!validated.ok) throw new Error(validated.error);
+  const payload = {
+    country_code: validated.countryCode,
+    country_name: validated.countryName,
+    tier: validated.tier,
+    cpm_min: validated.cpmMin,
+    cpm_max: validated.cpmMax,
+    cpm_default: validated.cpmDefault,
+    payout_percentage: validated.payoutPercentage,
+    active: validated.active,
   };
   const supabase = createAdminClient();
   const { error } = await supabase.from('country_tiers').insert(payload);
