@@ -207,7 +207,7 @@ export default function FlowClient({ campaign, adConfig }: { campaign: PublicCam
                     className="btn-primary w-full py-3.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {advancing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                    {currentPage.button_text?.trim() || (currentIndex + 1 === total ? 'Unlock destination' : 'Continue')}
+                    {currentPage.button_text?.trim() || (currentIndex + 1 === total ? 'Unlock destination' : 'Next Page')}
                   </button>
                 </article>
 

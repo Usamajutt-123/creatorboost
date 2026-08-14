@@ -223,26 +223,25 @@ describe('buildCampaignWritePayload — flow', () => {
     expect(payload).not.toHaveProperty('earning_multiplier');
   });
 
-  it('every page inherits the campaign name and description (single source of truth)', () => {
+  it('every page inherits campaign basics and uses automatic navigation', () => {
     const ok = buildCampaignWritePayload({
       ...base,
       description: 'Unlock the good stuff',
       flowType: '5_pages',
-      flowPages: pages(5).map((p, i) => ({ position: p.position, buttonText: i === 0 ? 'Continue' : undefined })),
+      flowPages: pages(5).map((p, i) => ({
+        position: p.position,
+        imageUrl: i === 0 ? 'https://example.com/old-image.png' : undefined,
+        buttonText: i === 0 ? 'Custom button' : undefined,
+      })),
     });
     const extracted = extractFlowPages(ok);
     expect(extracted).toHaveLength(5);
     for (const page of extracted) {
       expect(page.title).toBe('Flow campaign');
       expect(page.description).toBe('Unlock the good stuff');
+      expect(page.image_url).toBeNull();
+      expect(page.button_text).toBeNull();
     }
-    // Pages 4/5 never carry an image or button.
-    expect(extracted[3].image_url).toBeNull();
-    expect(extracted[3].button_text).toBeNull();
-    expect(extracted[4].image_url).toBeNull();
-    expect(extracted[4].button_text).toBeNull();
-    // Pages 1-3 keep the creator-configured button text.
-    expect(extracted[0].button_text).toBe('Continue');
   });
 });
 
