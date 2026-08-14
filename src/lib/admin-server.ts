@@ -22,6 +22,13 @@ import { getClientIpFromHeaders } from '@/lib/request-ip';
 import { sendTemplateEmail } from '@/lib/email';
 import { validateManualRevenueRow, type ManualRevenueInput } from '@/lib/ad-revenue/manual';
 import { createNotification } from '@/lib/notifications';
+import {
+  isValidPlatformAdUrl,
+  normalizePlatformAdCode,
+  normalizePlatformAdUrl,
+  PLATFORM_AD_CODE_MAX_LENGTH,
+  PLATFORM_AD_URL_MAX_LENGTH,
+} from '@/lib/platform-ads';
 
 type Admin = { id: string; role: string };
 
@@ -577,19 +584,28 @@ export async function adminSaveSettings(data: Record<string, unknown>) {
       payload[field] = input[field];
     }
   }
-  // Banner / popunder code and URL (optional, admin-controlled)
-  for (const field of ['banner_code', 'banner_url', 'popunder_code', 'popunder_url'] as const) {
-    if (field in input) {
-      if (field.includes('_url')) {
-        const urlVal = String(input[field] ?? '').trim();
-        if (urlVal && urlVal.length > 2000) throw new Error(`${field} is too long`);
-        payload[field] = urlVal || null;
-      } else {
-        const codeVal = String(input[field] ?? '').trim();
-        if (codeVal && codeVal.length > 5000) throw new Error(`${field} is too long`);
-        payload[field] = codeVal || null;
-      }
+  // Banner / popunder settings are platform-owned. They are accepted only by
+  // this already-authorized server action, never through a campaign payload.
+  for (const field of ['banner_code', 'popunder_code'] as const) {
+    if (!(field in input)) continue;
+    const rawCode = input[field];
+    if (rawCode !== null && rawCode !== undefined && typeof rawCode !== 'string') {
+      throw new Error(`${field} is invalid`);
     }
+    const code = typeof rawCode === 'string' ? rawCode.trim() : '';
+    if (code.length > PLATFORM_AD_CODE_MAX_LENGTH) throw new Error(`${field} is too long`);
+    payload[field] = normalizePlatformAdCode(code);
+  }
+  for (const field of ['banner_url', 'popunder_url'] as const) {
+    if (!(field in input)) continue;
+    const rawUrl = input[field];
+    if (rawUrl !== null && rawUrl !== undefined && typeof rawUrl !== 'string') {
+      throw new Error(`${field} is invalid`);
+    }
+    const url = typeof rawUrl === 'string' ? rawUrl.trim() : '';
+    if (url.length > PLATFORM_AD_URL_MAX_LENGTH) throw new Error(`${field} is too long`);
+    if (url && !isValidPlatformAdUrl(url)) throw new Error(`${field} must be a valid http(s) URL`);
+    payload[field] = normalizePlatformAdUrl(url);
   }
 
   if ('fraud_detection_sensitivity' in input) {

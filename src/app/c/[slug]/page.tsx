@@ -4,6 +4,7 @@ import UnlockClient from './UnlockClient';
 import { loadPublicCampaign, PublicCampaignLookupError } from '@/lib/public-campaign';
 import { resolveParams } from '@/lib/route-params';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getPublicPlatformAds } from '@/lib/platform-ads';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,11 +54,15 @@ export default async function UnlockPage({ params }: PageProps) {
   if (!campaign) notFound();
 
   const adminSupabase = createAdminClient();
-  const { data: adConfig } = await adminSupabase
+  // Platform ads are read with the server-only client from the single
+  // platform_settings row. Campaign data is never consulted for ads, and the
+  // browser receives only enabled, renderable placements.
+  const { data: adSettings } = await adminSupabase
     .from('platform_settings')
     .select('banner_enabled, banner_code, banner_url, popunder_enabled, popunder_code, popunder_url')
     .eq('id', 1)
     .single();
+  const platformAds = getPublicPlatformAds(adSettings);
 
-  return <UnlockClient campaign={{ ...campaign, tasks: campaign.tasks || [], task_metadata: campaign.task_metadata || {} }} adConfig={adConfig || null} />;
+  return <UnlockClient campaign={{ ...campaign, tasks: campaign.tasks || [], task_metadata: campaign.task_metadata || {} }} platformAds={platformAds} />;
 }

@@ -30,7 +30,7 @@ export const campaignSchema = z.object({
   thumbnailUrl: z.string().trim().max(2_000).nullable().optional(),
   bannerUrl: z.string().trim().max(2_000).nullable().optional(),
   tasks: z.array(taskSchema).min(1, 'Choose at least one task').max(TASK_TYPES.length),
-});
+}).strict();
 
 export type CampaignMutationInput = z.input<typeof campaignSchema>;
 
