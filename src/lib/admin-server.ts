@@ -29,6 +29,7 @@ import {
   PLATFORM_AD_URL_MAX_LENGTH,
 } from '@/lib/platform-ads';
 import { editableNumericString, normalizeCountryTierPatch, validateCountryTier } from '@/lib/cpm';
+import { summarizeTraffic, type ViewTrafficSummary } from '@/lib/view-eligibility';
 
 type Admin = { id: string; role: string };
 
@@ -478,6 +479,117 @@ export async function adminLoadAdNetworks() {
   const supabase = createAdminClient();
   const { data } = await supabase.from('ad_networks').select('id, name, status, total_revenue, weight, avg_cpm, fill_rate').order('total_revenue', { ascending: false }).limit(100);
   return data || [];
+}
+
+// ------------------------------------------------------------------
+// VIEW TRAFFIC QUALITY (admin analytics)
+// ------------------------------------------------------------------
+
+/**
+ * Aggregated paid vs non-paid traffic attribution.
+ *
+ * ADMIN ONLY. `requireAdmin()` derives the acting identity from the verified
+ * session, and the `admin_view_traffic_summary` RPC re-checks `is_admin()` in
+ * SQL, so a creator cannot reach this breakdown even by calling the RPC
+ * directly.
+ *
+ * PRIVACY: the aggregate contains only safe category buckets and counts —
+ * no raw visitor IP, no ip_hash, no device fingerprint, no fraud score and
+ * no threshold. Aggregation runs in the database, so a large `views` table
+ * never gets streamed into a browser.
+ */
+export async function adminLoadViewTrafficSummary(options?: {
+  sinceDays?: number;
+  campaignId?: string | null;
+  creatorId?: string | null;
+}): Promise<ViewTrafficSummary> {
+  await requireAdmin();
+  const supabase = createAdminClient();
+
+  const sinceDays = Number(options?.sinceDays);
+  const since = Number.isFinite(sinceDays) && sinceDays > 0
+    ? new Date(Date.now() - Math.min(sinceDays, 365) * 86_400_000).toISOString()
+    : null;
+
+  const { data, error } = await supabase.rpc('admin_view_traffic_summary', {
+    p_since: since,
+    p_campaign_id: options?.campaignId ?? null,
+    p_creator_id: options?.creatorId ?? null,
+  });
+
+  if (error) {
+    // The RPC ships with migration 0020. Fall back to a bounded aggregate so
+    // an un-migrated environment still renders (empty rather than wrong).
+    console.error('[admin] view traffic summary unavailable', error);
+    return summarizeTraffic([]);
+  }
+
+  return summarizeTraffic(
+    (data as Array<{ category: string; views: number; earnings: number }> | null) || [],
+  );
+}
+
+/** Daily paid / duplicate / fraud-blocked trend for the admin chart. */
+export async function adminLoadViewTrafficDaily(days = 14): Promise<Array<{
+  day: string;
+  total: number;
+  paid: number;
+  duplicates: number;
+  fraudBlocked: number;
+  earnings: number;
+}>> {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const safeDays = Math.min(Math.max(Math.trunc(Number(days) || 14), 1), 90);
+
+  const { data, error } = await supabase.rpc('admin_view_traffic_daily', { p_days: safeDays });
+  if (error) {
+    console.error('[admin] view traffic daily unavailable', error);
+    return [];
+  }
+
+  return ((data as Array<Record<string, unknown>> | null) || []).map(row => ({
+    day: String(row.day),
+    total: Number(row.total) || 0,
+    paid: Number(row.paid) || 0,
+    duplicates: Number(row.duplicates) || 0,
+    fraudBlocked: Number(row.fraud_blocked) || 0,
+    earnings: Number(row.earnings) || 0,
+  }));
+}
+
+/**
+ * Top visitor countries for the admin dashboard chart.
+ *
+ * The GROUP BY runs in the database and only the top N buckets come back, so
+ * the admin dashboard never downloads one row per recorded view. Country is
+ * the only visitor attribute returned — never an IP, an ip_hash or a
+ * fingerprint.
+ */
+export async function adminLoadViewCountries(
+  days = 7,
+  limit = 8,
+): Promise<{ labels: string[]; data: number[] }> {
+  await requireAdmin();
+  const supabase = createAdminClient();
+
+  const safeDays = Math.min(Math.max(Math.trunc(Number(days) || 7), 1), 365);
+  const safeLimit = Math.min(Math.max(Math.trunc(Number(limit) || 8), 1), 50);
+
+  const { data, error } = await supabase.rpc('admin_view_country_stats', {
+    p_days: safeDays,
+    p_limit: safeLimit,
+  });
+  if (error) {
+    console.error('[admin] view country stats unavailable', error);
+    return { labels: [], data: [] };
+  }
+
+  const rows = (data as Array<{ country_code: string | null; views: number }> | null) || [];
+  return {
+    labels: rows.map(row => row.country_code || 'XX'),
+    data: rows.map(row => Number(row.views) || 0),
+  };
 }
 
 // ------------------------------------------------------------------

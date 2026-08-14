@@ -1,16 +1,21 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { adminGetCampaign } from '@/lib/admin-server';
+import { adminGetCampaign, adminLoadViewTrafficSummary } from '@/lib/admin-server';
 import { isCampaignUuid, resolveParams } from '@/lib/route-params';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { configuredTaskUrl, isTaskType, taskDisplayName } from '@/lib/tasks';
+import AdminTrafficQuality from '@/components/AdminTrafficQuality';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminCampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await resolveParams(params);
   if (!isCampaignUuid(id)) notFound();
-  const campaign = await adminGetCampaign(id);
+  const [campaign, trafficSummary] = await Promise.all([
+    adminGetCampaign(id),
+    // Per-campaign paid vs non-paid attribution, aggregated in the database.
+    adminLoadViewTrafficSummary({ campaignId: id }),
+  ]);
   if (!campaign) notFound();
 
   const tasks = ((campaign.tasks || []) as string[]).filter(isTaskType);
@@ -28,6 +33,8 @@ export default async function AdminCampaignDetailPage({ params }: { params: Prom
         <div className="glass rounded-xl p-4"><div className="text-gray-500 text-xs">Invalid</div><div className="font-semibold">{formatNumber(campaign.invalid_views)}</div></div>
         <div className="glass rounded-xl p-4"><div className="text-gray-500 text-xs">Earnings</div><div className="font-semibold text-green-400">{formatCurrency(campaign.total_earnings)}</div></div>
       </div>
+      <AdminTrafficQuality summary={trafficSummary} windowLabel="all time, this campaign" />
+
       <div className="glass rounded-2xl p-5 space-y-3">
         <h2 className="font-semibold">Configured tasks</h2>
         {tasks.map((task, index) => (

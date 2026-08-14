@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { AlertCircle, Check, ExternalLink, Loader2, Lock, Shield, Unlock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -32,8 +32,11 @@ export default function UnlockClient({ campaign, platformAds }: {
   const [error, setError] = useState('');
   const [progress, setProgress] = useState(0);
   const [idempotencyKey, setIdempotencyKey] = useState('');
-  const [payoutEligible, setPayoutEligible] = useState<boolean | null>(null);
   const triggerPopunder = usePlatformPopunder(platformAds.popunder);
+  // When this visitor started the flow. Sent as a timing hint the server may
+  // use to LOWER trust (impossible completion speed); the server clock is
+  // authoritative and an implausible value is simply discarded.
+  const startedAtRef = useRef<number>(Date.now());
 
   const totalSteps = tasks.length;
   const completedCount = completed.size;
@@ -73,9 +76,9 @@ export default function UnlockClient({ campaign, platformAds }: {
         body: JSON.stringify({
           campaignId: campaign.id,
           deviceFingerprint: fingerprint,
-          userAgent: navigator.userAgent,
           tasksCompleted: tasks,
           idempotencyKey: requestKey,
+          startedAt: startedAtRef.current,
         }),
       });
       window.clearInterval(interval);
@@ -87,7 +90,6 @@ export default function UnlockClient({ campaign, platformAds }: {
         return;
       }
 
-      setPayoutEligible(Boolean(data.payoutEligible));
       setStep('complete');
       window.setTimeout(() => router.push(`/destination/${campaign.slug}`), 1_500);
     } catch {
@@ -141,7 +143,7 @@ export default function UnlockClient({ campaign, platformAds }: {
 
             {step === 'verifying' && <div className="text-center py-8"><Loader2 className="w-12 h-12 mx-auto mb-4 text-purple-400 animate-spin" /><h2 className="font-semibold mb-2">Preparing your unlock…</h2><p className="text-sm text-gray-400 mb-6">Checking the campaign and traffic signals</p><div className="w-full h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-purple-500 to-blue-500 transition-all" style={{ width: `${progress}%` }} /></div></div>}
 
-            {step === 'complete' && <div className="text-center py-8"><div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center mx-auto mb-4 animate-pulse-glow"><Check className="w-8 h-8 text-white" /></div><h2 className="font-semibold text-xl mb-2 text-green-400">Destination unlocked</h2><p className="text-sm text-gray-400">Redirecting to the creator&apos;s destination…</p>{payoutEligible === false && <p className="text-xs text-yellow-300 mt-3">This visit was not eligible for creator earnings, but your destination is available.</p>}</div>}
+            {step === 'complete' && <div className="text-center py-8"><div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center mx-auto mb-4 animate-pulse-glow"><Check className="w-8 h-8 text-white" /></div><h2 className="font-semibold text-xl mb-2 text-green-400">Destination unlocked</h2><p className="text-sm text-gray-400">Redirecting to the creator&apos;s destination…</p></div>}
 
             {step === 'error' && <div className="text-center py-8"><div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4"><AlertCircle className="w-8 h-8 text-red-400" /></div><h2 className="font-semibold text-xl mb-2 text-red-400">Could not unlock yet</h2><p className="text-sm text-gray-400 mb-6">{error}</p><button onClick={() => { setStep('tasks'); setError(''); }} className="btn-ghost px-5 py-2.5 rounded-xl text-sm">Try again</button></div>}
           </div>
