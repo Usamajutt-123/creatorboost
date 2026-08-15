@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from 'sonner';
+import SiteAnnouncement from '@/components/SiteAnnouncement';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://creatorboost.io';
 
@@ -68,6 +69,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }),
           }}
         />
+        {/*
+          Platform announcement banner. Renders nothing unless an admin has
+          both written an announcement and enabled it, so no page layout
+          changes by default. This is what makes the existing (previously
+          inert) `site_announcement_active` setting actually do something.
+        */}
+        <SiteAnnouncement />
         {children}
         <Toaster theme="dark" position="top-right" richColors />
         {/* Real PWA: service worker registration (see public/sw.js). */}

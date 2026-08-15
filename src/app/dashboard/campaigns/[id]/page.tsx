@@ -49,16 +49,18 @@ export default async function CampaignStatsPage({ params }: { params: Promise<{ 
     supabase.from('campaign_country_stats').select('*').eq('campaign_id', id).order('views', { ascending: false }),
     // Creator-facing recent activity.
     //
-    // PRIVACY: only earning-eligible views are listed, and the query selects
-    // no anti-fraud column at all — `is_vpn`, `is_bot`, `fraud_score`,
-    // `invalid_reason`, `ip_hash` and `visitor_ip` are deliberately absent.
-    // A creator must never be able to see (or infer) that a specific visit
-    // was rejected as a duplicate, a bot or a proxy.
+    // PRIVACY: read through `creator_view_analytics` (migration 0021), the
+    // creator-safe projection. The raw `views` table is not readable by the
+    // `authenticated` role, so the anti-fraud columns (`is_vpn`, `is_bot`,
+    // `fraud_score`, `invalid_reason`, `ip_hash`, `visitor_ip`,
+    // `device_fingerprint`, `user_agent`) are unreachable from a creator
+    // session — not merely unselected here. Only earning-eligible rows exist
+    // in the projection, so a creator cannot see or infer that a specific
+    // visit was rejected as a duplicate, a bot or a proxy.
     supabase
-      .from('views')
+      .from('creator_view_analytics')
       .select('id, country_code, created_at, earnings')
       .eq('campaign_id', id)
-      .eq('status', 'valid')
       .order('created_at', { ascending: false })
       .limit(20),
   ]);

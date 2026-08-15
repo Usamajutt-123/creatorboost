@@ -25,11 +25,17 @@ export default async function AnalyticsPage() {
   // reach a creator surface — not as rows, not as counts, not as a reason.
   const [profile, { data: daily }, unreadCount] = await Promise.all([
     getDashboardProfile(),
+    // PRIVACY BOUNDARY: `creator_view_analytics` (migration 0021) is the only
+    // traffic source a creator may read. The raw `views` table is no longer
+    // granted to the `authenticated` role at all, so this is enforced by the
+    // database rather than by which columns this file happens to select.
+    // The projection exposes campaign/country/device-bucket/timestamp/earning
+    // and contains no IP, ip_hash, fingerprint, user agent, fraud score,
+    // invalid_reason or traffic category, and only earning-eligible rows.
     supabase
-      .from('views')
+      .from('creator_view_analytics')
       .select('created_at, country_code, earnings')
       .eq('creator_id', user.id)
-      .eq('status', 'valid')
       .gte('created_at', since),
     getUnreadNotificationCount(user.id),
   ]);

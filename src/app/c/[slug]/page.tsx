@@ -5,6 +5,7 @@ import { loadPublicCampaign, PublicCampaignLookupError } from '@/lib/public-camp
 import { resolveParams } from '@/lib/route-params';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getPublicPlatformAds } from '@/lib/platform-ads';
+import { createTaskSession } from '@/lib/task-session';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,5 +65,19 @@ export default async function UnlockPage({ params }: PageProps) {
     .single();
   const platformAds = getPublicPlatformAds(adSettings);
 
-  return <UnlockClient campaign={{ ...campaign, tasks: campaign.tasks || [], task_metadata: campaign.task_metadata || {} }} platformAds={platformAds} />;
+  // Server-issued task session. The unlock endpoint will only accept a task
+  // submission that carries this token, so the task list a visitor submits
+  // must have been issued by the server for THIS campaign and THIS task
+  // configuration. It is short-lived and is re-issued on every page load.
+  const tasks = campaign.tasks || [];
+  const taskMetadata = campaign.task_metadata || {};
+  const taskSession = createTaskSession(campaign.id, tasks, taskMetadata);
+
+  return (
+    <UnlockClient
+      campaign={{ ...campaign, tasks, task_metadata: taskMetadata }}
+      platformAds={platformAds}
+      taskSession={taskSession}
+    />
+  );
 }

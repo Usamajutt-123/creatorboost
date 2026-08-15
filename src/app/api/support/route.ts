@@ -3,6 +3,10 @@ import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { rateLimit } from '@/lib/rate-limit';
 import { getClientIp } from '@/lib/request-ip';
 import { sendTemplateEmail } from '@/lib/email';
+import { exceedsPayloadLimit, validateJsonRequestEnvelope } from '@/lib/bot-detection';
+
+/** Support submissions are small; 16 KB is generous for a 5,000-char message. */
+const MAX_SUPPORT_PAYLOAD_BYTES = 16 * 1024;
 
 /**
  * Public contact endpoint. It validates all user input, derives an optional
@@ -16,11 +20,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 });
     }
 
+    // Transport validation, matching the views endpoint.
+    //
+    // CSRF: this is a POST that only accepts `application/json`. A browser
+    // cannot send that content type cross-origin via an HTML form (forms are
+    // limited to urlencoded/multipart/text-plain), and any cross-origin
+    // fetch/XHR that sets it is subject to a CORS preflight this app does not
+    // answer. Combined with Supabase's SameSite session cookies, that is the
+    // CSRF boundary — no token is needed for an endpoint that creates a
+    // support ticket and is rate limited per IP. Enforcing the content type
+    // is what makes that argument hold, and it was previously missing here.
+    const envelope = validateJsonRequestEnvelope({
+      method: req.method,
+      contentType: req.headers.get('content-type'),
+      contentLength: req.headers.get('content-length'),
+      maxBytes: MAX_SUPPORT_PAYLOAD_BYTES,
+    });
+    if (!envelope.ok) {
+      return NextResponse.json({ error: envelope.error }, { status: envelope.status });
+    }
+
+    let raw: string;
+    try {
+      raw = await req.text();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    }
+    if (exceedsPayloadLimit(raw, MAX_SUPPORT_PAYLOAD_BYTES)) {
+      return NextResponse.json({ error: 'Request payload is too large' }, { status: 413 });
+    }
+
     let body: Record<string, unknown>;
     try {
-      body = await req.json() as Record<string, unknown>;
+      body = JSON.parse(raw) as Record<string, unknown>;
     } catch {
       return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    }
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
     }
     // Accept both contact-page field names while normalizing them once.
     const first = String(body.first ?? body.firstName ?? '').trim();

@@ -7,6 +7,7 @@ import {
   isVerifyEmailPath,
   resolveAccountGate,
 } from '@/lib/account-status';
+import { getOperationalSettings, isMaintenanceExempt } from '@/lib/operational-settings';
 
 function loginRedirect(request: NextRequest, error?: string) {
   const url = request.nextUrl.clone();
@@ -47,6 +48,24 @@ export async function updateSession(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
+
+  // Maintenance mode. Checked AFTER the session is resolved so an admin can
+  // still reach /admin and switch it back off, and only for non-exempt paths
+  // (see isMaintenanceExempt). The settings read is cached for 30s, so this
+  // does not add a database round-trip to every request.
+  if (!isMaintenanceExempt(pathname)) {
+    const { maintenanceMode } = await getOperationalSettings();
+    if (maintenanceMode) {
+      let isAdmin = false;
+      if (user) {
+        const { data } = await supabase.from('profiles').select('role, status').eq('id', user.id).maybeSingle();
+        isAdmin = (data?.role === 'admin' || data?.role === 'super_admin') && data?.status === 'active';
+      }
+      if (!isAdmin) {
+        return NextResponse.rewrite(new URL('/maintenance', request.url));
+      }
+    }
+  }
 
   // Profile status/role must be read from the server-backed session, never a
   // browser role value. Fetch it for every route where it affects a redirect.

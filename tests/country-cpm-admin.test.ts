@@ -46,7 +46,7 @@ describe('country CPM admin authorization', () => {
 
   it('rejects a creator who tries to update country CPM rates', async () => {
     getSessionUser.mockResolvedValue({ id: 'creator-1' });
-    getDashboardProfile.mockResolvedValue({ id: 'creator-1', role: 'creator' });
+    getDashboardProfile.mockResolvedValue({ id: 'creator-1', role: 'creator', status: 'active' });
     const { adminSaveCountryUpdates } = await import('@/lib/admin-server');
     await expect(adminSaveCountryUpdates([{ id: 1, fields: { cpm_default: 0.5 } }])).rejects.toThrow(/admin/i);
     expect(fromMock).not.toHaveBeenCalled();
@@ -61,7 +61,7 @@ describe('country CPM admin authorization', () => {
 
   it('lets an admin update a country CPM rate', async () => {
     getSessionUser.mockResolvedValue({ id: 'admin-1' });
-    getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin' });
+    getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin', status: 'active' });
     const updates: unknown[] = [];
     fromMock.mockImplementation((table: string) => {
       if (table === 'country_tiers') {
@@ -92,7 +92,7 @@ describe('country CPM admin authorization', () => {
 
   it('accepts valid single-field min and max saves against the stored row', async () => {
     getSessionUser.mockResolvedValue({ id: 'admin-1' });
-    getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin' });
+    getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin', status: 'active' });
     const updates: unknown[] = [];
     fromMock.mockImplementation((table: string) => {
       if (table === 'country_tiers') {
@@ -122,7 +122,7 @@ describe('country CPM admin authorization', () => {
 
   it('saves min, max, default, and payout together as one normalized row update', async () => {
     getSessionUser.mockResolvedValue({ id: 'admin-1' });
-    getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin' });
+    getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin', status: 'active' });
     const updates: unknown[] = [];
     fromMock.mockImplementation((table: string) => {
       if (table === 'country_tiers') {
@@ -160,7 +160,7 @@ describe('country CPM admin authorization', () => {
 
   it('lets a super admin update country identity, range, default, and status', async () => {
     getSessionUser.mockResolvedValue({ id: 'super-1' });
-    getDashboardProfile.mockResolvedValue({ id: 'super-1', role: 'super_admin' });
+    getDashboardProfile.mockResolvedValue({ id: 'super-1', role: 'super_admin', status: 'active' });
     const updates: unknown[] = [];
     fromMock.mockImplementation((table: string) => {
       if (table === 'country_tiers') {
@@ -199,7 +199,7 @@ describe('country CPM admin authorization', () => {
 
   it('rejects a country patch that leaves default outside the merged min/max range', async () => {
     getSessionUser.mockResolvedValue({ id: 'admin-1' });
-    getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin' });
+    getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin', status: 'active' });
     fromMock.mockImplementation((table: string) => {
       if (table === 'country_tiers') {
         return chain({
@@ -219,14 +219,14 @@ describe('country CPM admin authorization', () => {
 
   it('does not allow unsupported fields (including creator-owned CPM country)', async () => {
     getSessionUser.mockResolvedValue({ id: 'admin-1' });
-    getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin' });
+    getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin', status: 'active' });
     const { adminSaveCountryUpdates } = await import('@/lib/admin-server');
     await expect(adminSaveCountryUpdates([{ id: 1, fields: { cpm_country_code: 'US' } }])).rejects.toThrow(/unsupported/i);
   });
 
   it('sanitizes country numeric fields before returning them to React', async () => {
     getSessionUser.mockResolvedValue({ id: 'admin-1' });
-    getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin' });
+    getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin', status: 'active' });
     fromMock.mockImplementation((table: string) => {
       if (table === 'country_tiers') {
         return chain({

@@ -27,6 +27,10 @@ export const recordViewSchema = z
     deviceFingerprint: z.string().trim().max(200).optional().or(z.literal('')),
     userAgent: z.string().trim().max(500).optional().or(z.literal('')),
     tasksCompleted: z.array(z.string().max(64)).max(50).optional(),
+    // Server-issued task session (see src/lib/task-session.ts). Optional in
+    // the schema so an in-flight page load from before a deploy is not hard
+    // -failed at the parser; the route decides how to treat its absence.
+    taskSession: z.string().trim().max(2_000).optional().or(z.literal('')),
     idempotencyKey: z.string().trim().max(100).optional().or(z.literal('')),
     // Epoch milliseconds when the visitor opened the campaign page. Used only
     // as a risk signal (impossible completion speed) — never to grant credit.

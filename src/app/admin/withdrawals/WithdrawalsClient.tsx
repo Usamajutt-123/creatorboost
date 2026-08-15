@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { Check, X, DollarSign, RefreshCw } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import Select from '@/components/Select';
-import { adminListWithdrawals, adminApproveWithdrawal, adminRejectWithdrawal, adminPayWithdrawal } from '@/lib/admin-server';
+import { adminListWithdrawals, adminApproveWithdrawal, adminRejectWithdrawal, adminPayWithdrawal, adminRevealWithdrawalAccount } from '@/lib/admin-server';
 
 /**
  * The withdrawal queue is server-rendered (see page.tsx); the
@@ -22,6 +22,18 @@ export default function AdminWithdrawalsClient({
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  // Full payment destinations are never shipped with the list. An operator
+  // reveals one row at a time, and each reveal is audited server-side.
+  const [revealed, setRevealed] = useState<Record<string, string>>({});
+
+  const reveal = async (id: string) => {
+    try {
+      const { account } = await adminRevealWithdrawalAccount(id);
+      setRevealed(prev => ({ ...prev, [id]: account || '—' }));
+    } catch (e: any) {
+      toast.error(e.message || 'Could not load account details');
+    }
+  };
 
   useEffect(() => {
     if (!initialError) return;
@@ -86,7 +98,13 @@ export default function AdminWithdrawalsClient({
                     <td className="py-3"><div className="font-medium">{w.user?.full_name || '—'}</div><div className="text-xs text-gray-500">{w.user?.email}</div></td>
                     <td className="py-3 text-green-400 font-semibold">{formatCurrency(w.amount)}</td>
                     <td className="py-3 capitalize">{w.method}</td>
-                    <td className="py-3 text-gray-400 text-xs font-mono max-w-[200px] truncate">{w.account_details?.account || '—'}</td>
+                    <td className="py-3 text-gray-400 text-xs font-mono max-w-[200px] truncate">
+                      {revealed[w.id] ? revealed[w.id] : (
+                        <button onClick={() => reveal(w.id)} className="hover:text-white" title="Reveal full account details">
+                          {w.account_masked || '—'}
+                        </button>
+                      )}
+                    </td>
                     <td className="py-3 text-gray-400">{new Date(w.created_at).toLocaleDateString()}</td>
                     <td className="py-3"><span className={`badge status-${w.status}`}>{w.status}</span></td>
                     <td className="py-3">

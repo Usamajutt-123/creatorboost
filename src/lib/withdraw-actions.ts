@@ -12,6 +12,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { sendTemplateEmail } from '@/lib/email';
+import { isSupportedWithdrawalMethod } from '@/lib/withdrawal-methods';
 
 export type WithdrawalRequestInput = {
   amount: number;
@@ -32,9 +33,14 @@ export async function requestWithdrawalAction(input: WithdrawalRequestInput): Pr
 
   const amount = Number(input.amount);
   if (!Number.isFinite(amount) || amount <= 0) return { success: false, error: 'Invalid amount' };
-  const method = String(input.method || '').trim();
+  const method = String(input.method || '').trim().toLowerCase();
   const account = String(input.account || '').trim();
   if (!method || !account) return { success: false, error: 'Missing method or account details' };
+  // Reject a method the database enum cannot represent before the RPC hits an
+  // opaque cast error. The RPC and a CHECK constraint enforce this too.
+  if (!isSupportedWithdrawalMethod(method)) {
+    return { success: false, error: 'This withdrawal method is not supported' };
+  }
   if (account.length > 500) return { success: false, error: 'Account details too long' };
 
   const { data, error } = await supabase.rpc('request_withdrawal', {

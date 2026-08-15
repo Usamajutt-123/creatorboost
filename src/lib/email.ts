@@ -62,20 +62,45 @@ function escapeHtml(value: string | number): string {
     .replace(/'/g, '&#39;');
 }
 
-/** Build subject + HTML body for a template. Pure, unit-testable. */
+/**
+ * Build subject + HTML body for a template. Pure, unit-testable.
+ *
+ * ESCAPING RULE: every interpolated value in the HTML below must be escaped.
+ *   * `d[...]` — caller-supplied data (names, messages, ticket ids, rejection
+ *     reasons, transaction ids). Escaped once, up front, in the loop below.
+ *   * `s` and `support` — environment-derived, escaped here too. They are
+ *     operator-controlled rather than user-controlled, but an unescaped quote
+ *     in EMAIL_FROM/SUPPORT_EMAIL/NEXT_PUBLIC_SITE_URL would still break out
+ *     of the surrounding `href="..."` attribute, so they get the same
+ *     treatment rather than relying on the operator to be careful.
+ *
+ * Subjects and the plain-text alternative body are NOT an HTML context, so
+ * they use the RAW values (`r[...]`). Escaping them would surface literal
+ * `&amp;` / `&#39;` in the user's inbox — an appearance regression, not a
+ * security win. Only the `html` field needs escaping.
+ */
 export function renderTemplate(template: EmailTemplate, data: TemplateData): { subject: string; html: string; text: string } {
-  const s = siteUrl();
+  const s = escapeHtml(siteUrl());
+  const support = escapeHtml(process.env.SUPPORT_EMAIL || 'support@creatorboost.io');
+  // `d` = HTML-escaped (used only inside the `html` field).
+  // `r` = raw (used only in `subject` / `text`, which are not HTML).
   const d: Record<string, string> = {};
-  for (const [k, v] of Object.entries(data)) d[k] = escapeHtml(v);
+  const r: Record<string, string> = {};
+  for (const [k, v] of Object.entries(data)) {
+    r[k] = String(v);
+    d[k] = escapeHtml(v);
+  }
 
-  const layout = (title: string, bodyHtml: string): string => `
+  // `title` is always a literal below, but escaping it keeps the helper safe
+  // if a future caller ever passes user input.
+  const layout = (rawTitle: string, bodyHtml: string): string => `
     <div style="font-family:Inter,-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#0a0716;color:#e2e8f0;border-radius:16px">
       <div style="font-size:20px;font-weight:700;margin-bottom:16px">Creator<span style="color:#a78bfa">Boost</span></div>
-      <h1 style="font-size:18px;margin:0 0 12px;color:#ffffff">${title}</h1>
+      <h1 style="font-size:18px;margin:0 0 12px;color:#ffffff">${escapeHtml(rawTitle)}</h1>
       <div style="font-size:14px;line-height:1.6;color:#cbd5e1">${bodyHtml}</div>
       <p style="font-size:12px;color:#64748b;margin-top:24px;border-top:1px solid #1e293b;padding-top:12px">
         You received this email because you have an account on CreatorBoost.
-        <br/>Visit <a href="${s}" style="color:#a78bfa">${s}</a> · Support: <a href="mailto:${process.env.SUPPORT_EMAIL || 'support@creatorboost.io'}" style="color:#a78bfa">${process.env.SUPPORT_EMAIL || 'support@creatorboost.io'}</a>
+        <br/>Visit <a href="${s}" style="color:#a78bfa">${s}</a> · Support: <a href="mailto:${support}" style="color:#a78bfa">${support}</a>
       </p>
     </div>`;
 
@@ -98,7 +123,7 @@ export function renderTemplate(template: EmailTemplate, data: TemplateData): { s
           <p>A withdrawal of <strong>$${d.amount}</strong> via <strong>${d.method}</strong> has been received
              and is now pending review.</p>
           <p>You will be notified when it is approved and when it is paid.</p>`),
-        text: `Your withdrawal of $${d.amount} via ${d.method} is pending review.`,
+        text: `Your withdrawal of $${r.amount} via ${r.method} is pending review.`,
       };
     case 'withdrawal_approved':
       return {
@@ -106,7 +131,7 @@ export function renderTemplate(template: EmailTemplate, data: TemplateData): { s
         html: layout('Withdrawal approved', `
           <p>Your withdrawal of <strong>$${d.amount}</strong> has been approved and will be processed shortly.</p>
           <p>We will email you again as soon as it is paid.</p>`),
-        text: `Your withdrawal of $${d.amount} has been approved.`,
+        text: `Your withdrawal of $${r.amount} has been approved.`,
       };
     case 'withdrawal_rejected':
       return {
@@ -115,7 +140,7 @@ export function renderTemplate(template: EmailTemplate, data: TemplateData): { s
           <p>Your withdrawal of <strong>$${d.amount}</strong> was rejected.</p>
           <p>Reason: <strong>${d.reason || 'Not specified'}</strong></p>
           <p>The full amount has been returned to your available balance.</p>`),
-        text: `Your withdrawal of $${d.amount} was rejected: ${d.reason || 'Not specified'}.`,
+        text: `Your withdrawal of $${r.amount} was rejected: ${r.reason || 'Not specified'}.`,
       };
     case 'withdrawal_paid':
       return {
@@ -124,7 +149,7 @@ export function renderTemplate(template: EmailTemplate, data: TemplateData): { s
           <p>Your withdrawal of <strong>$${d.amount}</strong> has been paid out
              ${d.txId ? `(transaction: <code>${d.txId}</code>)` : ''}.</p>
           <p>Thank you for using CreatorBoost!</p>`),
-        text: `Your withdrawal of $${d.amount} has been paid.`,
+        text: `Your withdrawal of $${r.amount} has been paid.`,
       };
     case 'account_suspended':
       return {
@@ -132,7 +157,7 @@ export function renderTemplate(template: EmailTemplate, data: TemplateData): { s
         html: layout('Account suspended', `
           <p>Your CreatorBoost account has been <strong>suspended</strong>.</p>
           <p>You cannot access your dashboard while suspended. If you believe this is a mistake,
-             contact <a href="mailto:${process.env.SUPPORT_EMAIL || 'support@creatorboost.io'}">${process.env.SUPPORT_EMAIL || 'support@creatorboost.io'}</a>.</p>`),
+             contact <a href="mailto:${support}">${support}</a>.</p>`),
         text: 'Your CreatorBoost account has been suspended. Contact support for details.',
       };
     case 'account_banned':
@@ -141,18 +166,18 @@ export function renderTemplate(template: EmailTemplate, data: TemplateData): { s
         html: layout('Account banned', `
           <p>Your CreatorBoost account has been <strong>banned</strong>.</p>
           <p>This decision was made after review of your account activity. Contact
-             <a href="mailto:${process.env.SUPPORT_EMAIL || 'support@creatorboost.io'}">${process.env.SUPPORT_EMAIL || 'support@creatorboost.io'}</a>
+             <a href="mailto:${support}">${support}</a>
              if you believe this is an error.</p>`),
         text: 'Your CreatorBoost account has been banned.',
       };
     case 'support_confirmation':
       return {
-        subject: `Support request received: ${d.subject || 'Your ticket'}`,
+        subject: `Support request received: ${r.subject || 'Your ticket'}`,
         html: layout('Support request received', `
           <p>Hi ${d.name || 'there'},</p>
           <p>We received your support request <strong>#${d.ticketId}</strong> and will reply within 24 hours.</p>
           <p>Your message: <em>"${d.message}"</em></p>`),
-        text: `We received your support request #${d.ticketId}. We will reply within 24 hours.`,
+        text: `We received your support request #${r.ticketId}. We will reply within 24 hours.`,
       };
   }
 }
