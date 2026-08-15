@@ -30,8 +30,9 @@ import {
 } from '@/lib/platform-ads';
 import { editableNumericString, normalizeCountryTierPatch, validateCountryTier } from '@/lib/cpm';
 import { summarizeTraffic, type ViewTrafficSummary } from '@/lib/view-eligibility';
+import { isSupportedWithdrawalMethod, SUPPORTED_WITHDRAWAL_METHODS } from '@/lib/withdrawal-methods';
 
-type Admin = { id: string; role: string };
+type Admin = { id: string; role: string; status: string };
 
 function finiteNumber(value: unknown, label: string, min = 0, max = Number.MAX_SAFE_INTEGER): number {
   const number = Number(value);
@@ -66,7 +67,29 @@ async function requireAuth(): Promise<Admin> {
   if (!user) throw new Error('Not authenticated');
   const profile = await getDashboardProfile();
   if (!profile) throw new Error('Profile not found');
-  return { id: user.id, role: profile.role };
+  return { id: user.id, role: profile.role, status: profile.status };
+}
+
+/**
+ * A privileged ROLE is not, by itself, authorization.
+ *
+ * `requireAdmin`/`requireSuperAdmin` additionally require the acting account
+ * to be ACTIVE, exactly like `public.is_admin()` / `public.is_super_admin()`
+ * do in the database (migration 0021). Without this, suspending or banning an
+ * admin removed their UI access via the layout redirect but left every server
+ * action fully usable — the role column still said 'admin'.
+ *
+ * The rule is now identical in all four places: UI (admin layout), server
+ * actions (here), RLS policies and SECURITY DEFINER RPCs.
+ *
+ *   authorized  <=>  role IN ('admin','super_admin') AND status = 'active'
+ *
+ * Creators are unaffected: they never satisfy the role predicate.
+ */
+function assertActive(admin: Admin): void {
+  if (admin.status !== 'active') {
+    throw new Error('Admin privileges required');
+  }
 }
 
 async function requireAdmin(): Promise<Admin> {
@@ -74,6 +97,7 @@ async function requireAdmin(): Promise<Admin> {
   if (admin.role !== 'admin' && admin.role !== 'super_admin') {
     throw new Error('Admin privileges required');
   }
+  assertActive(admin);
   return admin;
 }
 
@@ -82,6 +106,7 @@ async function requireSuperAdmin(): Promise<Admin> {
   if (admin.role !== 'super_admin') {
     throw new Error('Super admin privileges required');
   }
+  assertActive(admin);
   return admin;
 }
 
@@ -103,10 +128,49 @@ async function getProfileEmail(userId: string): Promise<string | null> {
   }
 }
 
+/**
+ * Security-sensitive admin actions that MUST leave an audit record.
+ *
+ * For these, a failed audit write is itself a security event: the mutation
+ * would otherwise complete with no trace of who did it. `audit()` therefore
+ * THROWS for these actions, and the callers below run the audit BEFORE (or
+ * as part of) considering the action successful.
+ *
+ * Everything not listed here is routine bookkeeping (list views, ad-network
+ * toggles, ticket status). A logging hiccup there should not take down an
+ * unrelated operation, so those keep the previous best-effort behaviour.
+ */
+const CRITICAL_AUDIT_ACTIONS = new Set([
+  'role_change',
+  'user_status_active',
+  'user_status_suspended',
+  'user_status_banned',
+  'cpm_changed',
+  'country_cpm_update',
+  'withdrawal_approve',
+  'withdrawal_pay',
+  'withdrawal_reject',
+  'campaign_delete',
+  'settings_update',
+  'wm_update',
+  'wm_add',
+  'wm_delete',
+]);
+
+// Internal: not exported, because a `use server` module may only export async
+// functions. Callers see it as a plain Error with a clear message.
+class AuditLogError extends Error {
+  constructor(action: string, readonly cause?: unknown) {
+    super(`This action was blocked because it could not be recorded in the audit log (${action}).`);
+    this.name = 'AuditLogError';
+  }
+}
+
 async function audit(admin: Admin, action: string, entityType: string, entityId?: string, oldValues?: unknown, newValues?: unknown) {
+  const critical = CRITICAL_AUDIT_ACTIONS.has(action);
   try {
     const supabase = createAdminClient();
-    await supabase.rpc('audit_action', {
+    const { error } = await supabase.rpc('audit_action', {
       p_action: action,
       p_entity_type: entityType,
       p_entity_id: entityId || null,
@@ -115,8 +179,18 @@ async function audit(admin: Admin, action: string, entityType: string, entityId?
       p_ip: await clientIp(),
       p_actor_id: admin.id,
     });
+    // A PostgREST error was previously swallowed entirely: `await
+    // supabase.rpc(...)` resolves rather than throwing, so a broken audit RPC
+    // produced NO log line at all and every critical mutation succeeded
+    // silently and untracked.
+    if (error) {
+      console.error('[admin] audit failed', { action, entityType, entityId, message: error.message, code: error.code });
+      if (critical) throw new AuditLogError(action, error);
+    }
   } catch (e) {
-    console.error('[admin] audit failed', e);
+    if (e instanceof AuditLogError) throw e;
+    console.error('[admin] audit failed', { action, entityType, entityId, error: e });
+    if (critical) throw new AuditLogError(action, e);
   }
 }
 
@@ -262,18 +336,70 @@ export async function adminListCampaigns() {
 // ------------------------------------------------------------------
 // WITHDRAWALS
 // ------------------------------------------------------------------
+/**
+ * Mask a payment destination for display.
+ *
+ * Keeps just enough for an operator to recognise the row (last 4 characters,
+ * or the domain of an email) and drops the rest.
+ */
+function maskAccountDetail(value: unknown): string | null {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (!raw) return null;
+  if (raw.includes('@')) {
+    const [local, domain] = raw.split('@');
+    return `${local.slice(0, 2)}${'•'.repeat(Math.max(local.length - 2, 1))}@${domain}`;
+  }
+  if (raw.length <= 4) return '•'.repeat(raw.length);
+  return `${'•'.repeat(Math.min(raw.length - 4, 12))}${raw.slice(-4)}`;
+}
+
 export async function adminListWithdrawals() {
   await requireAdmin();
   const supabase = createAdminClient();
   // Only the columns the table renders, with the user's name/email embedded by
   // PostgREST — previously `select('*')` plus a second profiles round-trip.
+  //
+  // PRIVACY: `account_details` holds a real payment destination (wallet
+  // address, IBAN, phone number, PayPal address). It used to be serialised in
+  // full for up to 200 withdrawals into the admin page's RSC payload — i.e.
+  // sent to the browser, kept in memory and exposed to anything that can read
+  // the document. The list now carries only a MASKED string; the full value is
+  // fetched on demand, per row, through `adminRevealWithdrawalAccount` and is
+  // audited. No creator-facing surface receives this column at all.
   const { data } = await supabase
     .from('withdrawals')
     .select('id, amount, method, account_details, created_at, status, rejection_reason, user:profiles!withdrawals_user_id_fkey(full_name, email)')
     .order('created_at', { ascending: false })
     .limit(200);
   const rows = data || [];
-  return rows.map((w: any) => ({ ...w, user: w.user || null }));
+  return rows.map((w: any) => {
+    const { account_details, ...rest } = w;
+    return {
+      ...rest,
+      user: w.user || null,
+      account_masked: maskAccountDetail(account_details?.account),
+    };
+  });
+}
+
+/**
+ * Reveal one withdrawal's full payment destination.
+ *
+ * Admin-only, one record at a time, and recorded in the audit log so a
+ * bulk harvest of payment data is visible after the fact.
+ */
+export async function adminRevealWithdrawalAccount(withdrawalId: string): Promise<{ account: string | null }> {
+  const admin = await requireAdmin();
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('withdrawals')
+    .select('account_details')
+    .eq('id', withdrawalId)
+    .maybeSingle();
+  if (error) throw new Error('Withdrawal could not be loaded');
+  await audit(admin, 'withdrawal_account_reveal', 'withdrawal', withdrawalId);
+  const account = (data?.account_details as { account?: unknown } | null)?.account;
+  return { account: typeof account === 'string' ? account : null };
 }
 
 async function withdrawalUserEmail(withdrawalId: string): Promise<{ email: string | null; amount: number; method: string }> {
@@ -794,6 +920,12 @@ function withdrawalMethodPayload(data: Record<string, unknown>, includeMethod: b
   if (includeMethod) {
     const method = shortText(input.method, 'Method key', 40).toLowerCase();
     if (!/^[a-z][a-z0-9_]*$/.test(method)) throw new Error('Method key is invalid');
+    // A method the database cannot process must never become selectable.
+    if (!isSupportedWithdrawalMethod(method)) {
+      throw new Error(
+        `"${method}" is not a supported withdrawal method. Supported methods: ${SUPPORTED_WITHDRAWAL_METHODS.join(', ')}.`,
+      );
+    }
     payload.method = method;
   }
   if ('label' in input) payload.label = shortText(input.label, 'Method label', 80);

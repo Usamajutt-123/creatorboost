@@ -18,8 +18,23 @@ export function computePerViewEarning(cpm: number, levelMultiplier: number, maxE
 
 /**
  * Pure referral commission calculation, unit-tested.
- * commission = round(earning * pct, 2), capped at the earning itself and
- * at a hard maximum, and never negative.
+ *
+ *   commission = earning * pct / 100
+ *
+ * capped at the earning itself and at a hard maximum, and never negative.
+ *
+ * PRECISION: the result is deliberately NOT rounded to 2 decimals. A single
+ * view earns fractions of a cent (e.g. $0.00625), so a 10% commission is
+ * $0.000625 — rounding it to cents here would floor it to $0.00 and the
+ * referrer would earn nothing at all until an individual view happened to be
+ * worth more than 5 cents. The earnings ledger stores NUMERIC(12,6) and
+ * `referrals.total_commission` was widened to NUMERIC(14,6) in migration
+ * 0021, so the fraction accumulates correctly and is only presented as
+ * currency at render time.
+ *
+ * (The doc comment previously claimed a `round(..., 2)` that the code never
+ * performed — the behaviour here is unchanged; the description is now
+ * accurate and the database precision now matches it.)
  */
 export function computeReferralCommission(earning: number, percentage: number, maxCommission = 100): number {
   const e = Number(earning);

@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase/server';
 import { isCampaignUuid } from '@/lib/route-params';
 import { slugify } from '@/lib/utils';
 import { buildCampaignWritePayload, type CampaignMutationInput } from '@/lib/campaign-payload';
+import { createAdminClient } from '@/lib/supabase/server';
 
 export type { CampaignMutationInput };
 
@@ -37,6 +38,70 @@ async function currentActiveUser() {
     throw new Error('Verify your email before managing campaigns');
   }
   return { supabase, user };
+}
+
+const CAMPAIGN_BUCKET = 'campaigns';
+
+/**
+ * Convert a public storage URL back into its object path, or null when the URL
+ * does not belong to this project's `campaigns` bucket.
+ *
+ * Anything that is not clearly one of our own objects returns null and is
+ * therefore never deleted — an external image URL a creator pasted in must not
+ * be interpreted as something we own.
+ */
+function campaignStoragePath(url: string | null | undefined): string | null {
+  if (typeof url !== 'string' || !url) return null;
+  const marker = `/storage/v1/object/public/${CAMPAIGN_BUCKET}/`;
+  const index = url.indexOf(marker);
+  if (index === -1) return null;
+  try {
+    const path = decodeURIComponent(url.slice(index + marker.length).split('?')[0]);
+    // Reject traversal and empty paths.
+    return path && !path.includes('..') ? path : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Remove campaign images that are no longer referenced by ANY campaign.
+ *
+ * Replacing a campaign's thumbnail/banner previously left the old object in
+ * the `campaigns` bucket forever — every edit leaked one file, and the bucket
+ * grew without bound with images nothing pointed at.
+ *
+ * SAFETY: an object is only removed after confirming with a service-role read
+ * that no campaign row (including soft-deleted ones, which can be restored)
+ * still references it. A shared or re-used image is therefore never deleted
+ * out from under another record. Cleanup is best effort: a storage failure is
+ * logged and never fails the campaign save.
+ */
+async function removeUnreferencedCampaignImages(urls: Array<string | null | undefined>): Promise<void> {
+  const candidates = [...new Set(urls.map(campaignStoragePath).filter((p): p is string => Boolean(p)))];
+  if (candidates.length === 0) return;
+
+  try {
+    const admin = createAdminClient();
+    const stillReferenced = new Set<string>();
+    for (const path of candidates) {
+      const { data, error } = await admin
+        .from('campaigns')
+        .select('id')
+        .or(`thumbnail_url.ilike.%${path},banner_url.ilike.%${path}`)
+        .limit(1);
+      // On ANY doubt (query error included), keep the object.
+      if (error || (data && data.length > 0)) stillReferenced.add(path);
+    }
+
+    const removable = candidates.filter(path => !stillReferenced.has(path));
+    if (removable.length === 0) return;
+
+    const { error } = await admin.storage.from(CAMPAIGN_BUCKET).remove(removable);
+    if (error) console.error('[campaign] orphaned image cleanup failed', { message: error.message });
+  } catch (e) {
+    console.error('[campaign] orphaned image cleanup threw', e);
+  }
 }
 
 function actionError(error: unknown): CampaignActionResult {
@@ -75,6 +140,16 @@ export async function updateCampaignAction(campaignId: string, input: CampaignMu
     if (!isCampaignUuid(campaignId)) throw new Error('Campaign not found');
     const payload = buildCampaignWritePayload(input);
     const { supabase, user } = await currentActiveUser();
+    // Read the current image URLs BEFORE the update so a replaced image can be
+    // cleaned up afterwards.
+    const { data: previous } = await supabase
+      .from('campaigns')
+      .select('thumbnail_url, banner_url')
+      .eq('id', campaignId)
+      .eq('creator_id', user.id)
+      .is('deleted_at', null)
+      .maybeSingle();
+
     const { data, error } = await supabase
       .from('campaigns')
       .update(payload)
@@ -88,6 +163,14 @@ export async function updateCampaignAction(campaignId: string, input: CampaignMu
       throw new Error('Campaign not found or could not be updated');
     }
     if (!data) throw new Error('Campaign not found or could not be updated');
+
+    // Best-effort: drop images this campaign replaced, but only once no
+    // campaign references them any more.
+    const replaced: Array<string | null | undefined> = [];
+    if (previous?.thumbnail_url && previous.thumbnail_url !== payload.thumbnail_url) replaced.push(previous.thumbnail_url);
+    if (previous?.banner_url && previous.banner_url !== payload.banner_url) replaced.push(previous.banner_url);
+    if (replaced.length > 0) await removeUnreferencedCampaignImages(replaced);
+
     return { success: true, id: data.id };
   } catch (error) {
     return actionError(error);

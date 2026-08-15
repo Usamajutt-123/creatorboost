@@ -9,7 +9,7 @@
  * Update strategy: versioned cache name + skipWaiting/clients.claim,
  * so a new deploy replaces the old cache on the next load.
  */
-const CACHE = 'creatorboost-v2';
+const CACHE = 'creatorboost-v3';
 const PRECACHE = ['/', '/offline.html', '/favicon.png', '/site.webmanifest'];
 
 /**
@@ -47,6 +47,8 @@ const PRIVATE_NAV_PREFIXES = [
   '/forgot-password',
   '/verify-email',
   '/settings',
+  '/withdraw',
+  '/maintenance',
 ];
 
 /** Check if a pathname is a cacheable public route. */
@@ -69,6 +71,29 @@ function isPublicRoute(pathname) {
     }
   }
   return false;
+}
+
+/**
+ * Requests that must never be served from, or written to, the cache —
+ * regardless of request mode.
+ *
+ * The navigation whitelist alone was NOT sufficient. Only `request.mode ===
+ * 'navigate'` went through `isPublicRoute`; every other same-origin GET fell
+ * through to the stale-while-revalidate branch at the bottom. That included
+ * Next.js RSC payload requests (`/dashboard?_rsc=...`, issued with mode
+ * 'cors'/'no-cors' by router prefetch and client navigation), which carry the
+ * rendered private page data. Authenticated dashboard and admin content could
+ * therefore be written into a cache that survives sign-out and is readable by
+ * the next user of the device.
+ */
+function isPrivateRequest(url, request) {
+  // Any RSC / Next data payload is treated as private: it is a serialised
+  // render of a page whose privacy we cannot judge from the URL alone.
+  if (url.searchParams.has('_rsc')) return true;
+  if (request.headers.get('RSC') === '1') return true;
+  if (request.headers.get('Next-Router-Prefetch') === '1') return true;
+  if (url.pathname.startsWith('/_next/data/')) return true;
+  return !isPublicRoute(url.pathname);
 }
 
 /**
@@ -145,6 +170,12 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
+
+  // Non-navigation requests. Anything that is (or might be) private — an RSC
+  // payload, a prefetch, a private route — is passed straight through to the
+  // network and never touches the cache. Only genuinely public, cacheable
+  // assets reach the stale-while-revalidate branch below.
+  if (isPrivateRequest(url, request)) return;
 
   // Static assets: stale-while-revalidate, only for public assets.
   // The precache whitelist handles the shell; this handles other

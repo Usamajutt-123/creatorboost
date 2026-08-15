@@ -96,35 +96,49 @@ export function PlatformAdPreview({
 }
 
 /**
- * Appends trusted, administrator-configured popunder markup only after the
- * visitor begins the first task. Re-creating script nodes makes standard ad
- * network snippets execute; `dangerouslySetInnerHTML` would leave scripts
- * inert. This is intentionally reserved for platform-admin code, never
- * campaign data.
+ * Mounts administrator-configured popunder markup inside a SANDBOXED,
+ * hidden iframe.
+ *
+ * WHAT CHANGED AND WHY
+ * The previous implementation injected the configured markup into the unlock
+ * page's own document and re-created every `<script>` node so it would
+ * execute — on the MAIN ORIGIN, with full access to `document`, `cookie`,
+ * `localStorage`, the visitor's session and the application's own fetch
+ * origin. The banner placement was already sandboxed; the popunder was the
+ * asymmetry. That meant an arbitrary third-party snippet (or a compromised /
+ * careless admin settings value) could read creator campaign data off the
+ * page, call the application's APIs with the visitor's cookies, or rewrite
+ * the task links.
+ *
+ * The popunder now runs in the same isolation the banner already used:
+ *
+ *   * `srcdoc` iframe -> a unique opaque origin, so no access to the parent
+ *     document, its cookies, its storage or its DOM,
+ *   * `sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"`
+ *     -> the snippet can still run and still open its popunder window, which
+ *     is the entire required behaviour,
+ *   * NO `allow-same-origin` -> this is what makes the isolation real.
+ *
+ * The advertising functionality is preserved: the frame is created from the
+ * visitor's task click, so the browser still attributes the popup to a user
+ * gesture, and popup policy applies exactly as before.
  */
-function mountTrustedPopunderMarkup(markup: string): () => void {
-  const host = document.createElement('div');
-  host.hidden = true;
-  host.dataset.creatorboostPlatformAd = 'popunder';
+function mountSandboxedPopunder(markup: string): () => void {
+  const frame = document.createElement('iframe');
+  frame.setAttribute(
+    'sandbox',
+    // Deliberately WITHOUT allow-same-origin: the frame must stay in an
+    // opaque origin or the sandbox provides no isolation at all.
+    'allow-scripts allow-popups allow-popups-to-escape-sandbox',
+  );
+  frame.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+  frame.setAttribute('aria-hidden', 'true');
+  frame.dataset.creatorboostPlatformAd = 'popunder';
+  frame.style.cssText = 'position:absolute;width:0;height:0;border:0;left:-9999px;top:-9999px;';
+  frame.srcdoc = adDocument(markup);
 
-  const template = document.createElement('template');
-  template.innerHTML = markup;
-  host.append(template.content.cloneNode(true));
-
-  // Scripts inserted via template/innerHTML do not execute. Replacing each
-  // one with a newly created script preserves network attributes and allows
-  // the configured provider's approved snippet to run from the click event.
-  for (const oldScript of Array.from(host.querySelectorAll('script'))) {
-    const script = document.createElement('script');
-    for (const attribute of oldScript.getAttributeNames()) {
-      script.setAttribute(attribute, oldScript.getAttribute(attribute) || '');
-    }
-    if (!oldScript.src) script.text = oldScript.text || oldScript.textContent || '';
-    oldScript.replaceWith(script);
-  }
-
-  document.body.append(host);
-  return () => host.remove();
+  document.body.append(frame);
+  return () => frame.remove();
 }
 
 /**
@@ -156,7 +170,7 @@ export function usePlatformPopunder(ad: PlatformAdPlacement | null) {
     openedRef.current = true;
     try {
       if (placement.code) {
-        cleanupRef.current = mountTrustedPopunderMarkup(placement.code);
+        cleanupRef.current = mountSandboxedPopunder(placement.code);
         return;
       }
 

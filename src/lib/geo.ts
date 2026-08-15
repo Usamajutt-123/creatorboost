@@ -211,14 +211,42 @@ export function resetGeoProviders(): void {
 }
 
 // ------------------------------------------------------------------
-// Small TTL cache to keep provider load low (and protect providers)
+// Bounded LRU-ish TTL cache to keep provider load low
 // ------------------------------------------------------------------
+// PREVIOUS BEHAVIOUR: a 500-entry Map that was CLEARED WHOLESALE the moment
+// it filled. On a busy instance that threw away every warm entry — including
+// the hot ones — every ~500 distinct visitors, so the provider was hit again
+// for IPs that had just been resolved, and one burst of unique traffic could
+// evict the entire working set.
+//
+// NOW: a larger bound, and on overflow only the OLDEST ~10% are evicted
+// (Map preserves insertion order, and a cache hit re-inserts the key so
+// recently-used entries move to the back). A hot IP therefore survives.
+// Negative results are cached with a shorter TTL so a transient provider
+// failure does not pin an IP to "unknown" for a full hour.
+//
+// Deliberately still process-local: this is a latency/cost optimisation, not
+// a correctness mechanism, and adding shared infrastructure for it is not
+// justified. Every instance converges on its own warm set.
 const CACHE_TTL_MS = 60 * 60 * 1000;
-const CACHE_MAX = 500;
+const NEGATIVE_CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_MAX = 5_000;
+const CACHE_EVICT_BATCH = Math.ceil(CACHE_MAX / 10);
 const cache = new Map<string, { code: string | null; at: number }>();
 
 export function clearGeoCache(): void {
   cache.clear();
+}
+
+function rememberGeo(ip: string, code: string | null): void {
+  if (cache.size >= CACHE_MAX) {
+    let evicted = 0;
+    for (const key of cache.keys()) {
+      cache.delete(key);
+      if (++evicted >= CACHE_EVICT_BATCH) break;
+    }
+  }
+  cache.set(ip, { code, at: Date.now() });
 }
 
 /**
@@ -233,14 +261,22 @@ export async function getCountryFromIP(ip: string | null | undefined): Promise<s
   if (!parsed || isPrivateIp(parsed)) return null;
 
   const hit = cache.get(parsed);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.code;
-  if (cache.size >= CACHE_MAX) cache.clear();
+  if (hit) {
+    const ttl = hit.code ? CACHE_TTL_MS : NEGATIVE_CACHE_TTL_MS;
+    if (Date.now() - hit.at < ttl) {
+      // Re-insert so this key moves to the back of the eviction order.
+      cache.delete(parsed);
+      cache.set(parsed, hit);
+      return hit.code;
+    }
+    cache.delete(parsed);
+  }
 
   for (const provider of getProviders()) {
     try {
       const code = await provider.resolve(parsed);
       if (code && /^[A-Z]{2}$/.test(code)) {
-        cache.set(parsed, { code, at: Date.now() });
+        rememberGeo(parsed, code);
         return code;
       }
     } catch {
@@ -248,7 +284,7 @@ export async function getCountryFromIP(ip: string | null | undefined): Promise<s
     }
   }
 
-  cache.set(parsed, { code: null, at: Date.now() });
+  rememberGeo(parsed, null);
   return null;
 }
 

@@ -21,9 +21,15 @@ type PublicCampaign = {
   task_metadata?: TaskMetadata | null;
 };
 
-export default function UnlockClient({ campaign, platformAds }: {
+export default function UnlockClient({ campaign, platformAds, taskSession }: {
   campaign: PublicCampaign;
   platformAds: PublicPlatformAds;
+  /**
+   * Short-lived, server-issued token binding this task list to this campaign
+   * and this task configuration. The browser only relays it; it cannot mint
+   * or alter one.
+   */
+  taskSession: string | null;
 }) {
   const router = useRouter();
   const tasks = useMemo(() => (campaign.tasks || []).filter(isTaskType), [campaign.tasks]);
@@ -79,6 +85,7 @@ export default function UnlockClient({ campaign, platformAds }: {
           tasksCompleted: tasks,
           idempotencyKey: requestKey,
           startedAt: startedAtRef.current,
+          ...(taskSession ? { taskSession } : {}),
         }),
       });
       window.clearInterval(interval);

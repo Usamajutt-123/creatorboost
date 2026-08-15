@@ -68,8 +68,33 @@ export function aggregateViewCountries(
 }
 
 /**
+ * Mobile/desktop/tablet split from a database-derived device category.
+ *
+ * Creator surfaces read `creator_view_analytics.device_category`, a coarse
+ * bucket computed by `public.view_device_category()` using the SAME branch
+ * order as `aggregateViewDevices` below — so the rendered chart is unchanged.
+ * The difference is that the raw `user_agent` string never leaves the
+ * database for a creator session.
+ */
+export function aggregateDeviceCategories(
+  rows: Array<{ device_category: string | null }> | null | undefined,
+): DeviceCounts {
+  let mobile = 0, desktop = 0, tablet = 0;
+  (rows || []).forEach((v) => {
+    if (v.device_category === 'tablet') tablet++;
+    else if (v.device_category === 'mobile') mobile++;
+    else desktop++;
+  });
+  return { mobile, desktop, tablet };
+}
+
+/**
  * Mobile/desktop/tablet split from user-agent strings. Timezone-independent.
  * Identical branch order to the previous client-side implementation.
+ *
+ * Retained for ADMIN surfaces, which legitimately read raw user agents
+ * through the service role. Creator surfaces must use
+ * `aggregateDeviceCategories` above.
  */
 export function aggregateViewDevices(
   rows: Array<{ user_agent: string | null }> | null | undefined,

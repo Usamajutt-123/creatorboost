@@ -5,7 +5,7 @@ import { getUnreadNotificationCount } from '@/lib/notifications';
 import DashboardTopbar from '@/components/DashboardTopbar';
 import StatCard from '@/components/StatCard';
 import DashboardCharts from '@/components/DashboardCharts';
-import { aggregateViewCountries, aggregateViewDevices, compactEarnings } from '@/lib/chart-data';
+import { aggregateViewCountries, aggregateDeviceCategories, compactEarnings } from '@/lib/chart-data';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { sanitizeCountryCode } from '@/lib/geo';
 import { resolveCreatorCpm } from '@/lib/cpm';
@@ -64,9 +64,15 @@ export default async function DashboardPage() {
     creatorCountry
       ? supabase.from('country_tiers').select('cpm_default, active').eq('country_code', creatorCountry).maybeSingle()
       : Promise.resolve({ data: null }),
-    // Week view trend (real)
-    supabase.from('views').select('id', { count: 'exact', head: true }).eq('creator_id', user.id).gte('created_at', priorWeekStart).lt('created_at', weekStart),
-    supabase.from('views').select('id', { count: 'exact', head: true }).eq('creator_id', user.id).gte('created_at', weekStart),
+    // Week view trend.
+    //
+    // PRIVACY: counted over `creator_view_analytics`, the creator-safe
+    // projection (migration 0021). Counting the raw `views` table here used
+    // to include duplicate/bot/proxy rows, so the week-over-week number moved
+    // with hidden security traffic and let a creator infer it. The trend now
+    // reflects exactly the traffic the creator is allowed to see.
+    supabase.from('creator_view_analytics').select('id', { count: 'exact', head: true }).eq('creator_id', user.id).gte('created_at', priorWeekStart).lt('created_at', weekStart),
+    supabase.from('creator_view_analytics').select('id', { count: 'exact', head: true }).eq('creator_id', user.id).gte('created_at', weekStart),
     // Recent campaigns — only the columns this table renders.
     supabase
       .from('campaigns')
@@ -84,15 +90,15 @@ export default async function DashboardPage() {
       .limit(6),
     // Chart inputs (30 days).
     supabase.from('earnings').select('amount, created_at').eq('creator_id', user.id).gte('created_at', chartSince),
-    // PRIVACY: creator charts read earning-eligible views only, and only the
-    // two analytics columns the country/device breakdowns need. Non-paid
-    // traffic never reaches a creator surface, and no ip_hash, visitor_ip,
-    // fraud_score or invalid_reason is selected here.
+    // PRIVACY: creator charts read the creator-safe projection. The device
+    // split now comes from `device_category`, a coarse mobile/desktop/tablet
+    // bucket the DATABASE derives, instead of the raw `user_agent` string —
+    // so full visitor user agents are neither readable by the creator role
+    // nor serialised into the page payload.
     supabase
-      .from('views')
-      .select('country_code, user_agent')
+      .from('creator_view_analytics')
+      .select('country_code, device_category')
       .eq('creator_id', user.id)
-      .eq('status', 'valid')
       .gte('created_at', chartSince)
       .limit(5000),
     getUnreadNotificationCount(user.id),
@@ -152,7 +158,7 @@ export default async function DashboardPage() {
           level={profile?.level || 'bronze'}
           earningsRows={compactEarnings(chartEarnings)}
           country={aggregateViewCountries(chartViews)}
-          devices={aggregateViewDevices(chartViews)}
+          devices={aggregateDeviceCategories(chartViews)}
         />
 
         <div className="glass rounded-2xl p-5">

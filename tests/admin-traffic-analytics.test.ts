@@ -51,7 +51,7 @@ function readCode(rel: string): string {
 
 function asAdmin() {
   getSessionUser.mockResolvedValue({ id: 'admin-1' });
-  getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin' });
+  getDashboardProfile.mockResolvedValue({ id: 'admin-1', role: 'admin', status: 'active' });
 }
 
 /** A realistic mixed-traffic day, as the DB aggregate would return it. */
@@ -77,7 +77,7 @@ afterEach(() => {
 describe('admin traffic summary — authorization', () => {
   it('rejects a creator', async () => {
     getSessionUser.mockResolvedValue({ id: 'creator-1' });
-    getDashboardProfile.mockResolvedValue({ id: 'creator-1', role: 'creator' });
+    getDashboardProfile.mockResolvedValue({ id: 'creator-1', role: 'creator', status: 'active' });
     const { adminLoadViewTrafficSummary } = await import('@/lib/admin-server');
     await expect(adminLoadViewTrafficSummary()).rejects.toThrow(/admin/i);
     expect(rpcMock).not.toHaveBeenCalled();
@@ -92,14 +92,14 @@ describe('admin traffic summary — authorization', () => {
 
   it('rejects a creator asking for the daily trend', async () => {
     getSessionUser.mockResolvedValue({ id: 'creator-1' });
-    getDashboardProfile.mockResolvedValue({ id: 'creator-1', role: 'creator' });
+    getDashboardProfile.mockResolvedValue({ id: 'creator-1', role: 'creator', status: 'active' });
     const { adminLoadViewTrafficDaily } = await import('@/lib/admin-server');
     await expect(adminLoadViewTrafficDaily()).rejects.toThrow(/admin/i);
   });
 
   it('allows a super admin', async () => {
     getSessionUser.mockResolvedValue({ id: 'sa-1' });
-    getDashboardProfile.mockResolvedValue({ id: 'sa-1', role: 'super_admin' });
+    getDashboardProfile.mockResolvedValue({ id: 'sa-1', role: 'super_admin', status: 'active' });
     rpcMock.mockResolvedValue({ data: SUMMARY_ROWS, error: null });
     const { adminLoadViewTrafficSummary } = await import('@/lib/admin-server');
     await expect(adminLoadViewTrafficSummary()).resolves.toBeTruthy();
@@ -286,9 +286,12 @@ describe('creator surfaces leak nothing about anti-fraud', () => {
     }
   });
 
-  it('the creator campaign page reads only valid views', () => {
+  it('the creator campaign page reads only the creator-safe projection', () => {
     const source = readCode('src/app/dashboard/campaigns/[id]/page.tsx');
-    expect(source).toContain("'valid'");
+    // The projection itself contains earning-eligible rows only, so the page
+    // no longer needs (or is able) to filter the raw table by status.
+    expect(source).toContain('creator_view_analytics');
+    expect(source).not.toContain(".from('views')");
     expect(source).toContain('Recent Valid Views');
   });
 

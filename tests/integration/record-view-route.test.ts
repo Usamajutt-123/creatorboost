@@ -60,6 +60,7 @@ vi.mock('@/lib/earnings', () => ({
 }));
 
 import { POST, GET, PUT, PATCH, DELETE } from '@/app/api/views/record/route';
+import { createTaskSession } from '@/lib/task-session';
 
 // --- fixtures ---------------------------------------------------------
 const CAMPAIGN_ID = '11111111-1111-4111-8111-111111111111';
@@ -116,7 +117,21 @@ function makeRequest(
   });
 }
 
-const validBody = { campaignId: CAMPAIGN_ID, tasksCompleted: ['website_visit'], deviceFingerprint: 'fp-1' };
+// A real visitor's body always carries the task session the campaign page
+// issued. Minted here with the same helper the server uses, so these tests
+// exercise the real signature/expiry/config-fingerprint path.
+const TASK_SESSION = createTaskSession(
+  CAMPAIGN_ID,
+  ['website_visit'],
+  { website_visit: { url: 'https://example.com' } },
+)!;
+
+const validBody = {
+  campaignId: CAMPAIGN_ID,
+  tasksCompleted: ['website_visit'],
+  deviceFingerprint: 'fingerprint-abcdef-1234',
+  taskSession: TASK_SESSION,
+};
 
 beforeEach(() => {
   state.campaign = activeCampaign();
@@ -129,13 +144,15 @@ beforeEach(() => {
 
 // =====================================================================
 describe('happy path', () => {
-  it('unlocks and reports the earning without any fraud detail', async () => {
+  it('unlocks without disclosing eligibility or the earning amount', async () => {
     const res = await POST(makeRequest(validBody));
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toEqual({ unlocked: true, payoutEligible: true, earning: 0.00625 });
-    // No leaked internals.
-    expect(Object.keys(json)).toEqual(['unlocked', 'payoutEligible', 'earning']);
+    // The response is an unlock signal and nothing else. Returning
+    // `payoutEligible`/`earning` would turn this public endpoint into an
+    // oracle for the fraud threshold, the duplicate window and the live CPM.
+    expect(json).toEqual({ unlocked: true });
+    expect(Object.keys(json)).toEqual(['unlocked']);
   });
 
   it('sets an HttpOnly unlock cookie', async () => {
@@ -174,14 +191,13 @@ describe('the client user agent is never authoritative', () => {
     expect(signals.score).toBeGreaterThanOrEqual(70);
   });
 
-  it('a bot-flagged visit still unlocks but is not payout-eligible', async () => {
+  it('a bot-flagged visit still unlocks and discloses nothing about it', async () => {
     state.recordViewResult = paidResult({ valid: false, reason: 'bot', earning: 0, category: 'bot_or_automation' });
     const res = await POST(makeRequest(validBody, { headers: { 'user-agent': 'curl/8.4.0' } }));
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.payoutEligible).toBe(false);
-    expect(json.earning).toBe(0);
-    // The reason and category never reach the client.
+    // Byte-identical to the paid response: the visitor cannot tell.
+    expect(json).toEqual({ unlocked: true });
     expect(JSON.stringify(json)).not.toContain('bot');
     expect(JSON.stringify(json)).not.toContain('category');
   });
@@ -224,11 +240,13 @@ describe('the client cannot submit financial or security values', () => {
     expect(input.campaign.creator_id).toBe(CREATOR_ID);
   });
 
-  it('reports only the server-computed earning, not a client-claimed one', async () => {
+  it('never returns an earning amount at all, server-computed or otherwise', async () => {
     state.recordViewResult = paidResult({ earning: 0.00625 });
     const res = await POST(makeRequest(validBody));
     const json = await res.json();
-    expect(json.earning).toBe(0.00625);
+    expect(json).not.toHaveProperty('earning');
+    expect(json).not.toHaveProperty('cpm');
+    expect(JSON.stringify(json)).not.toContain('0.00625');
   });
 });
 
@@ -374,19 +392,66 @@ describe('server-side campaign and task verification', () => {
   });
 
   it('derives requiredTasks from the campaign, not from the client array', async () => {
-    state.campaign = activeCampaign({
-      tasks: ['website_visit', 'youtube_subscribe'],
-      task_metadata: {
-        website_visit: { url: 'https://example.com' },
-        youtube_subscribe: { url: 'https://youtube.com/@demo' },
-      },
-    });
+    const tasks = ['website_visit', 'youtube_subscribe'];
+    const metadata = {
+      website_visit: { url: 'https://example.com' },
+      youtube_subscribe: { url: 'https://youtube.com/@demo' },
+    };
+    state.campaign = activeCampaign({ tasks, task_metadata: metadata });
     const res = await POST(makeRequest({
       ...validBody,
-      tasksCompleted: ['website_visit', 'youtube_subscribe'],
+      tasksCompleted: tasks,
+      taskSession: createTaskSession(CAMPAIGN_ID, tasks, metadata)!,
     }));
     expect(res.status).toBe(200);
     expect(state.recordViewCalls[0].requiredTasks).toBe(2);
+  });
+});
+
+// =====================================================================
+describe('server-issued task session', () => {
+  it('rejects a submission with no task session at all', async () => {
+    const { taskSession: _omitted, ...withoutSession } = validBody;
+    const res = await POST(makeRequest(withoutSession));
+    expect(res.status).toBe(409);
+    expect(state.recordViewCalls).toHaveLength(0);
+  });
+
+  it('rejects a forged/tampered task session', async () => {
+    const res = await POST(makeRequest({ ...validBody, taskSession: `${TASK_SESSION}x` }));
+    expect(res.status).toBe(409);
+    expect(state.recordViewCalls).toHaveLength(0);
+  });
+
+  it("rejects a session issued for a different campaign", async () => {
+    const other = '99999999-9999-4999-8999-999999999999';
+    const foreign = createTaskSession(
+      other,
+      ['website_visit'],
+      { website_visit: { url: 'https://example.com' } },
+    )!;
+    const res = await POST(makeRequest({ ...validBody, taskSession: foreign }));
+    expect(res.status).toBe(409);
+    expect(state.recordViewCalls).toHaveLength(0);
+  });
+
+  it('rejects a session issued before the creator changed the task URLs', async () => {
+    // Same task ids, different destination: the configuration fingerprint
+    // changes, so the previously-issued session no longer unlocks.
+    state.campaign = activeCampaign({
+      task_metadata: { website_visit: { url: 'https://somewhere-else.example' } },
+    });
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(409);
+    expect(state.recordViewCalls).toHaveLength(0);
+  });
+
+  it('never explains WHY a session was refused', async () => {
+    const res = await POST(makeRequest({ ...validBody, taskSession: 'garbage' }));
+    const body = JSON.stringify(await res.json());
+    for (const leak of ['signature', 'expired', 'mismatch', 'fingerprint', 'config_changed']) {
+      expect(body).not.toContain(leak);
+    }
   });
 });
 
@@ -431,7 +496,7 @@ describe('disclosure rule — the visitor learns nothing about anti-fraud', () =
     state.recordViewResult = paidResult({ valid: false, reason, earning: 0, category, fraudScore: 88 });
     const res = await POST(makeRequest(validBody));
     const json = await res.json();
-    expect(json).toEqual({ unlocked: true, payoutEligible: false, earning: 0 });
+    expect(json).toEqual({ unlocked: true });
     const serialised = JSON.stringify(json);
     expect(serialised).not.toContain(reason);
     expect(serialised).not.toContain(category);

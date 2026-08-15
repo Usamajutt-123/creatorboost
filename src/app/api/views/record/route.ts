@@ -5,7 +5,8 @@ import { getClientIp } from '@/lib/request-ip';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { recordViewSchema } from '@/lib/view-schema';
 import { configuredTaskUrl, hasCompleteTaskSet, isTaskType, type TaskMetadata } from '@/lib/tasks';
-import { createUnlockToken, UNLOCK_COOKIE, UNLOCK_TOKEN_MAX_AGE_SECONDS } from '@/lib/unlock-token';
+import { createUnlockToken, unlockSubject, UNLOCK_COOKIE, UNLOCK_TOKEN_MAX_AGE_SECONDS } from '@/lib/unlock-token';
+import { verifyTaskSession } from '@/lib/task-session';
 import {
   deriveRequestSignals,
   exceedsPayloadLimit,
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
     const parsed = recordViewSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
 
-    const { campaignId, deviceFingerprint, tasksCompleted, idempotencyKey, startedAt } = parsed.data;
+    const { campaignId, deviceFingerprint, tasksCompleted, idempotencyKey, startedAt, taskSession } = parsed.data;
 
     // Per-campaign limiter. The site-wide limiter above allows a visitor to
     // browse many campaigns; this one stops one IP hammering a single
@@ -130,6 +131,35 @@ export async function POST(request: NextRequest) {
     }
 
     // ---------------------------------------------------------------
+    // 3b. Server-issued task session.
+    //
+    // The task list is only accepted when it arrives with an HMAC token this
+    // server issued for THIS campaign, whose signature validates, which has
+    // not expired, and whose task-configuration fingerprint still matches the
+    // campaign. That prevents submitting arbitrary/borrowed task ids, replaying
+    // a session against another campaign, and using a session issued before
+    // the creator changed the task configuration.
+    //
+    // HONESTY: this verifies task INTERACTION with CreatorBoost, not the
+    // external social action. No third-party verification exists.
+    //
+    // The failure message is deliberately identical for every failure reason —
+    // signature, expiry, campaign mismatch and config change must not be
+    // distinguishable by a prober.
+    const session = verifyTaskSession(taskSession || null, campaign.id, configuredTasks, metadata);
+    if (!session.ok) {
+      if (session.reason === 'not_configured') {
+        console.error('[views/record] task session secret is not configured');
+        return NextResponse.json({ error: 'Unlock service is not configured' }, { status: 503 });
+      }
+      console.warn('[views/record] task session rejected', { campaignId: campaign.id, reason: session.reason });
+      return NextResponse.json(
+        { error: 'This unlock session is no longer valid. Please reload the campaign page and try again.' },
+        { status: 409 },
+      );
+    }
+
+    // ---------------------------------------------------------------
     // 4. Server-derived security context.
     //    `deriveRequestSignals` reads the REAL headers; `startedAt` is a
     //    client hint that is only ever used to *lower* trust (a shorter
@@ -157,7 +187,13 @@ export async function POST(request: NextRequest) {
       requiredTasks: configuredTasks.length,
     });
 
-    const token = createUnlockToken(campaign.id);
+    // Bind the unlock cookie to this visitor's coarse network + browser so it
+    // cannot be replayed from elsewhere during its (now 5-minute) lifetime.
+    const token = createUnlockToken(
+      campaign.id,
+      Date.now(),
+      unlockSubject(ip === 'unknown' ? null : ip, request.headers.get('user-agent')),
+    );
     if (!token) {
       console.error('[views/record] unlock token secret is not configured');
       return NextResponse.json({ error: 'Unlock service is not configured' }, { status: 503 });
@@ -167,14 +203,23 @@ export async function POST(request: NextRequest) {
     // browser-confirmed task flow can still receive the creator's destination
     // without the platform claiming their traffic was payable.
     //
-    // PRIVACY: the payload carries no reason, category, fraud score or
-    // duplicate flag. Revealing "duplicate" or "bot" here would both leak the
-    // anti-fraud rules and let a creator infer them from their own browser.
-    const response = NextResponse.json({
-      unlocked: true,
-      payoutEligible: result.valid,
-      earning: result.valid ? result.earning : 0,
-    });
+    // PRIVACY / ANTI-ORACLE: the response body is exactly `{ unlocked: true }`.
+    //
+    // It previously also returned `payoutEligible` and the exact `earning`.
+    // Both turned this public, unauthenticated endpoint into an oracle: an
+    // attacker could probe it to learn whether a given IP/device/timing
+    // combination is payable, binary-search the duplicate window and the
+    // fraud threshold, and read the live CPM × level multiplier off the
+    // earning amount. None of that is needed to unlock a destination.
+    //
+    // The earning, the CPM, the payout eligibility, the fraud score, the
+    // duplicate/bot/rate-limit reason, the traffic category and the cap state
+    // all stay server-side. Creators see their own aggregated earnings in the
+    // authenticated dashboard; admins see traffic quality in the admin panel.
+    //
+    // `result` is still consumed above by the accounting path — this only
+    // changes what is DISCLOSED, not what is recorded.
+    const response = NextResponse.json({ unlocked: true });
     response.cookies.set({
       name: UNLOCK_COOKIE,
       value: token,

@@ -130,8 +130,16 @@ export async function computeViewEarnings(opts: {
 
   // 1. Hard fraud blocks
   if (opts.fraud.isBot) return { valid: false, reason: 'bot', cpm: 0, levelMultiplier: 1, earning: 0 };
-  if (caps.vpnBlockEnabled && (opts.fraud.isVpn || opts.fraud.isProxy)) {
-    return { valid: false, reason: opts.fraud.isVpn ? 'vpn' : 'proxy', cpm: 0, levelMultiplier: 1, earning: 0 };
+  // Tor is an explicit, DELIBERATE decision rather than a collected-but-unused
+  // signal. Exit-node traffic hides the visitor's real network entirely, which
+  // defeats both the geo-based CPM and the campaign+IP duplicate window, so it
+  // is treated like a VPN/proxy and governed by the SAME operator switch
+  // (`vpn_block_enabled`). Operators who accept anonymity-network traffic can
+  // turn the switch off and Tor visits become payable again — the sensitivity
+  // stays configurable, and the reason never reaches the visitor or creator.
+  if (caps.vpnBlockEnabled && (opts.fraud.isVpn || opts.fraud.isProxy || opts.fraud.isTor)) {
+    const reason = opts.fraud.isVpn ? 'vpn' : opts.fraud.isProxy ? 'proxy' : 'tor';
+    return { valid: false, reason, cpm: 0, levelMultiplier: 1, earning: 0 };
   }
   if (opts.fraud.isEmulator) return { valid: false, reason: 'emulator', cpm: 0, levelMultiplier: 1, earning: 0 };
 
@@ -198,13 +206,161 @@ export async function computeViewEarnings(opts: {
   return { valid: true, cpm, levelMultiplier, earning };
 }
 
-async function sumEarningsSince(supabase: ReturnType<typeof createAdminClient>, creatorId: string, sinceIso: string) {
-  const { data } = await supabase
-    .from('earnings')
-    .select('amount')
-    .eq('creator_id', creatorId)
-    .gte('created_at', sinceIso);
-  return (data || []).reduce((s, e) => s + Number(e.amount || 0), 0);
+/**
+ * Cap inputs for one view decision, computed by the database.
+ *
+ * PERFORMANCE: this replaces four separate application-side reads that used to
+ * download every matching `earnings.amount` row (creator, campaign, platform)
+ * plus two `views` count queries and reduce them in JavaScript. On a busy
+ * platform the platform-wide read alone was an unbounded download. The
+ * `view_cap_snapshot` RPC computes the same numbers with indexed SUM()/COUNT()
+ * aggregates and returns a single row.
+ *
+ * The RPC is the source of truth; the fallback below exists only for
+ * databases where migration 0021 has not been applied yet (and for the unit
+ * test doubles), and reproduces the previous behaviour exactly.
+ */
+type CapSnapshot = {
+  creatorEarningsToday: number;
+  campaignEarningsToday: number;
+  platformEarningsToday: number;
+  ipViewsToday: number;
+  deviceViewsToday: number;
+};
+
+async function loadCapSnapshot(
+  supabase: ReturnType<typeof createAdminClient>,
+  args: { creatorId: string; campaignId: string; ipHash: string | null; deviceFingerprint: string | null; sinceIso: string },
+): Promise<CapSnapshot> {
+  try {
+    const { data, error } = await supabase.rpc('view_cap_snapshot', {
+      p_creator_id: args.creatorId,
+      p_campaign_id: args.campaignId,
+      p_ip_hash: args.ipHash,
+      p_device_fingerprint: args.deviceFingerprint,
+      p_window_hours: 24,
+    });
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!error && row && typeof row === 'object') {
+      const r = row as Record<string, unknown>;
+      return {
+        creatorEarningsToday: Number(r.creator_earnings_today ?? 0),
+        campaignEarningsToday: Number(r.campaign_earnings_today ?? 0),
+        platformEarningsToday: Number(r.platform_earnings_today ?? 0),
+        ipViewsToday: Number(r.ip_views_today ?? 0),
+        deviceViewsToday: Number(r.device_views_today ?? 0),
+      };
+    }
+  } catch {
+    // Fall through to the compatibility path below.
+  }
+
+  // Compatibility path (pre-0021 database / test doubles). Uses `head: true`
+  // counts and bounded selects rather than full-row downloads where possible.
+  const sumAmounts = async (build: (q: any) => any): Promise<number> => {
+    const { data } = await build(supabase.from('earnings').select('amount'));
+    return (data || []).reduce((s: number, e: { amount?: unknown }) => s + Number(e?.amount || 0), 0);
+  };
+  const countViews = async (column: 'ip_hash' | 'device_fingerprint', value: string | null): Promise<number> => {
+    if (!value) return 0;
+    const { count } = await supabase
+      .from('views')
+      .select('id', { count: 'exact', head: true })
+      .eq('creator_id', args.creatorId)
+      .eq(column, value)
+      .gte('created_at', args.sinceIso);
+    return count ?? 0;
+  };
+
+  const [creatorEarningsToday, campaignEarningsToday, platformEarningsToday, ipViewsToday, deviceViewsToday] =
+    await Promise.all([
+      sumAmounts(q => q.eq('creator_id', args.creatorId).gte('created_at', args.sinceIso)),
+      sumAmounts(q => q.eq('campaign_id', args.campaignId).gte('created_at', args.sinceIso)),
+      sumAmounts(q => q.eq('type', 'view_earning').gte('created_at', args.sinceIso)),
+      countViews('ip_hash', args.ipHash),
+      countViews('device_fingerprint', args.deviceFingerprint),
+    ]);
+
+  return { creatorEarningsToday, campaignEarningsToday, platformEarningsToday, ipViewsToday, deviceViewsToday };
+}
+
+/**
+ * Normalize the client-supplied device fingerprint.
+ *
+ * IMPORTANT — this value is NOT a cryptographic identity and CreatorBoost
+ * does not treat it as one. A visitor can omit it, randomize it per request,
+ * or copy someone else's. It is only ever used as a weak correlation hint
+ * that can LOWER trust; the IP + campaign duplicate window, the caps and the
+ * atomic transaction remain the real protections, and all of them work when
+ * the fingerprint is absent.
+ *
+ * What this function guarantees:
+ *   - control characters are stripped (no log/HTML injection through it),
+ *   - length is bounded (no oversized payload reaching the database),
+ *   - whitespace is collapsed so trivial variants normalize to one value,
+ *   - an empty/garbage value becomes `null` rather than a matchable token
+ *     (so an attacker cannot make everyone share one fingerprint).
+ */
+export function normalizeDeviceFingerprint(raw: string | null | undefined): string | null {
+  if (typeof raw !== 'string') return null;
+  const cleaned = raw
+    .replace(/[\u0000-\u001F\u007F]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200);
+  // Require some real entropy; a 1-2 character value correlates nothing.
+  return cleaned.length >= 8 ? cleaned : null;
+}
+
+type AtomicOutcome =
+  | { status: 'ok'; valid: boolean; reason: string | null; earning: number; viewId: string | null; replayed: boolean }
+  | { status: 'failed'; reason: string }
+  | { status: 'unavailable' };
+
+/**
+ * Invoke the single-transaction accounting RPC.
+ *
+ * Returns `unavailable` (and only then) when the function does not exist in
+ * the target database, so an un-migrated deployment can fall back to the
+ * legacy two-step path. Any OTHER error is `failed`: the money path must
+ * never silently continue after a database error.
+ */
+async function creditAtomically(
+  supabase: ReturnType<typeof createAdminClient>,
+  args: Record<string, unknown>,
+): Promise<AtomicOutcome> {
+  let data: unknown;
+  let error: unknown;
+  try {
+    ({ data, error } = await supabase.rpc('record_view_and_credit', args));
+  } catch {
+    return { status: 'unavailable' };
+  }
+
+  if (error) {
+    const code = (error as Record<string, unknown> | null)?.code;
+    // 42883 = undefined_function. 42881 is accepted too because the existing
+    // fallback contract (and its test) has always used it. PGRST202 =
+    // PostgREST could not find the function in its schema cache.
+    if (code === '42883' || code === '42881' || code === 'PGRST202') return { status: 'unavailable' };
+    if (code === '23505') return { status: 'failed', reason: 'duplicate_request' };
+    console.error('[earnings] record_view_and_credit failed', error);
+    return { status: 'failed', reason: 'accounting_unavailable' };
+  }
+
+  if (!data || typeof data !== 'object' || !('processed' in (data as object))) {
+    return { status: 'unavailable' };
+  }
+
+  const row = data as Record<string, unknown>;
+  return {
+    status: 'ok',
+    valid: row.valid === true,
+    reason: typeof row.reason === 'string' ? row.reason : null,
+    earning: Number(row.earning ?? 0) || 0,
+    viewId: typeof row.view_id === 'string' ? row.view_id : null,
+    replayed: row.replayed === true,
+  };
 }
 
 /**
@@ -294,86 +450,64 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
   const now = Date.now();
   const dayStart = new Date(now - 86400_000).toISOString();
   const caps = await loadCaps(supabase);
+  // The fingerprint is a client-controlled correlation HINT, never an
+  // identity. It is normalized/bounded here so a malicious payload cannot
+  // reach the database, and its absence never grants eligibility.
+  const normalizedFingerprint = normalizeDeviceFingerprint(input.deviceFingerprint);
 
-  // Cap: views per device per day
-  if (decision.valid && input.deviceFingerprint) {
-    const { count } = await supabase
-      .from('views')
-      .select('id', { count: 'exact', head: true })
-      .eq('creator_id', creatorId)
-      .eq('device_fingerprint', input.deviceFingerprint.trim())
-      .gte('created_at', dayStart);
-    if ((count ?? 0) >= caps.maxViewsPerDevicePerDay) {
+  // Caps (device/IP view counts + creator/campaign/platform daily earnings).
+  // One database round-trip computes all five aggregates; the thresholds and
+  // their precedence are unchanged. The database re-checks the earning caps a
+  // second time, serialized, inside the atomic accounting transaction — these
+  // checks are the fast pre-filter, not the authority.
+  if (decision.valid) {
+    const snapshot = await loadCapSnapshot(supabase, {
+      creatorId,
+      campaignId,
+      ipHash,
+      deviceFingerprint: normalizedFingerprint,
+      sinceIso: dayStart,
+    });
+
+    if (normalizedFingerprint && snapshot.deviceViewsToday >= caps.maxViewsPerDevicePerDay) {
       const r = invalidResult('device_limit');
       r.cpm = decision.cpm; r.levelMultiplier = decision.levelMultiplier;
       return r;
     }
-  }
-
-  // Cap: views per IP per day
-  if (decision.valid && ipHash) {
-    const { count } = await supabase
-      .from('views')
-      .select('id', { count: 'exact', head: true })
-      .eq('creator_id', creatorId)
-      .eq('ip_hash', ipHash)
-      .gte('created_at', dayStart);
-    if ((count ?? 0) >= caps.maxViewsPerIpPerDay) {
+    if (ipHash && snapshot.ipViewsToday >= caps.maxViewsPerIpPerDay) {
       const r = invalidResult('ip_limit');
       r.cpm = decision.cpm; r.levelMultiplier = decision.levelMultiplier;
       return r;
     }
-  }
-
-  // Earnings caps (daily)
-  if (decision.valid && decision.earning > 0) {
-    const creatorToday = await sumEarningsSince(supabase, creatorId, dayStart);
-    if (creatorToday + decision.earning > caps.creatorDailyEarningCap) {
-      const r = invalidResult('creator_daily_cap');
-      r.cpm = decision.cpm; r.levelMultiplier = decision.levelMultiplier;
-      return r;
-    }
-    const { data: campAgg } = await supabase
-      .from('campaigns')
-      .select('total_earnings')
-      .eq('id', campaignId)
-      .maybeSingle();
-    // approximate daily campaign earnings via ledger
-    const { data: campToday } = await supabase
-      .from('earnings')
-      .select('amount')
-      .eq('campaign_id', campaignId)
-      .gte('created_at', dayStart);
-    const campDaily = (campToday || []).reduce((s, e) => s + Number(e.amount || 0), 0);
-    if (campDaily + decision.earning > caps.campaignDailyEarningCap) {
-      const r = invalidResult('campaign_daily_cap');
-      r.cpm = decision.cpm; r.levelMultiplier = decision.levelMultiplier;
-      return r;
-    }
-    void campAgg;
-    const { data: platToday } = await supabase
-      .from('earnings')
-      .select('amount')
-      .eq('type', 'view_earning')
-      .gte('created_at', dayStart);
-    const platformToday = (platToday || []).reduce((s, e) => s + Number(e.amount || 0), 0);
-    if (platformToday + decision.earning > caps.platformDailyEarningCap) {
-      const r = invalidResult('platform_daily_cap');
-      r.cpm = decision.cpm; r.levelMultiplier = decision.levelMultiplier;
-      return r;
+    if (decision.earning > 0) {
+      if (snapshot.creatorEarningsToday + decision.earning > caps.creatorDailyEarningCap) {
+        const r = invalidResult('creator_daily_cap');
+        r.cpm = decision.cpm; r.levelMultiplier = decision.levelMultiplier;
+        return r;
+      }
+      if (snapshot.campaignEarningsToday + decision.earning > caps.campaignDailyEarningCap) {
+        const r = invalidResult('campaign_daily_cap');
+        r.cpm = decision.cpm; r.levelMultiplier = decision.levelMultiplier;
+        return r;
+      }
+      if (snapshot.platformEarningsToday + decision.earning > caps.platformDailyEarningCap) {
+        const r = invalidResult('platform_daily_cap');
+        r.cpm = decision.cpm; r.levelMultiplier = decision.levelMultiplier;
+        return r;
+      }
     }
   }
 
   // ---------------------------------------------------------------
   // 4. Duplicate device within window (only when device dup blocking on)
   // ---------------------------------------------------------------
-  if (decision.valid && caps.duplicateDeviceBlock && input.deviceFingerprint) {
+  if (decision.valid && caps.duplicateDeviceBlock && normalizedFingerprint) {
     const since = new Date(now - caps.duplicateIpWindowHours * 3600_000).toISOString();
     const { data: dup } = await supabase
       .from('views')
       .select('id')
       .eq('creator_id', creatorId)
-      .eq('device_fingerprint', input.deviceFingerprint.trim())
+      .eq('device_fingerprint', normalizedFingerprint)
       .gte('created_at', since)
       .limit(1);
     if (dup && dup.length > 0) {
@@ -384,30 +518,97 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
   }
 
   // ---------------------------------------------------------------
-  // 5. Persist the view — using the atomic RPC that combines the
-  //    24h duplicate-IP check with the INSERT in one transaction.
-  //    This prevents two concurrent requests from both crediting
-  //    earnings for the same campaign + IP within 24 hours.
+  // 5. ATOMIC ACCOUNTING
+  //
+  // `record_view_and_credit` (migration 0021) performs the entire critical
+  // financial path in ONE PostgreSQL transaction:
+  //
+  //   idempotency -> campaign/creator validation -> duplicate window ->
+  //   caps -> view insert -> earnings ledger -> campaign counters ->
+  //   creator counters -> pending balance -> referral commission -> commit
+  //
+  // The previous flow issued `record_view_with_ip_check` and then
+  // `credit_view_earning` as two independent statements, so a failure in
+  // between could leave a 'valid' view with no ledger row. That split no
+  // longer exists: either everything commits or nothing does.
   // ---------------------------------------------------------------
   const capsIpWindow = caps.duplicateIpWindowHours ?? 24;
+  const visitorIpValue = input.visitorIp && input.visitorIp !== 'unknown' ? input.visitorIp : null;
+  const description = `View earning @ $${decision.cpm.toFixed(2)} CPM × ${decision.levelMultiplier}x level`;
+  const viewStatus = finalValid ? 'valid' : 'invalid';
+  const viewReason = finalValid ? null : (finalReason ?? 'other');
+
+  const atomic = await creditAtomically(supabase, {
+    p_campaign_id: campaignId,
+    p_creator_id: creatorId,
+    p_visitor_ip: visitorIpValue,
+    p_ip_hash: ipHash,
+    p_country_code: countryCode,
+    p_device_fingerprint: normalizedFingerprint,
+    p_user_agent: input.userAgent || null,
+    p_is_vpn: fraud.isVpn,
+    p_is_proxy: fraud.isProxy,
+    p_is_bot: fraud.isBot,
+    p_is_emulator: fraud.isEmulator,
+    p_fraud_score: fraud.fraudScore,
+    p_status: viewStatus,
+    p_invalid_reason: viewReason,
+    p_cpm_rate: decision.cpm,
+    p_earnings: finalValid ? finalEarning : 0,
+    p_tasks_completed: input.tasksCompleted ?? [],
+    p_idempotency_key: idemKey,
+    p_ip_window_hours: capsIpWindow,
+    p_description: description,
+  });
+
+  if (atomic.status === 'ok') {
+    finalValid = atomic.valid;
+    finalReason = atomic.valid ? undefined : (atomic.reason || 'invalid_traffic');
+    finalEarning = atomic.valid ? atomic.earning : 0;
+    return {
+      valid: finalValid,
+      reason: finalReason,
+      cpm: decision.cpm,
+      levelMultiplier: decision.levelMultiplier,
+      earning: finalEarning,
+      countryCode,
+      fraudScore: fraud.fraudScore,
+      duplicate: atomic.replayed,
+      existingId: atomic.viewId,
+      category: classifyViewOutcome(finalValid ? 'valid' : 'invalid', finalReason),
+    };
+  }
+  if (atomic.status === 'failed') {
+    // The transaction was reached but did not complete. Never report a
+    // payout-eligible view when the protected accounting did not commit.
+    return invalidResult(atomic.reason);
+  }
+
+  // ---------------------------------------------------------------
+  // 5b. COMPATIBILITY PATH
+  //
+  // Only reached when `record_view_and_credit` is absent (a database that
+  // has not applied migration 0021 yet, or a unit-test double). It keeps the
+  // previous two-step behaviour so an un-migrated deployment still records
+  // traffic and pays creators. Production runs the atomic path above.
+  // ---------------------------------------------------------------
   let inserted: { id: string } | null = null;
-  let duplicateIpDetected = false;
 
   const viewInsertData = {
     campaign_id: campaignId,
     creator_id: creatorId,
-    visitor_ip: input.visitorIp && input.visitorIp !== 'unknown' ? input.visitorIp : null,
+    visitor_ip: visitorIpValue,
     ip_hash: ipHash,
     country_code: countryCode,
-    device_fingerprint: input.deviceFingerprint?.trim() || null,
+    device_fingerprint: normalizedFingerprint,
     user_agent: input.userAgent || null,
     is_vpn: fraud.isVpn,
     is_proxy: fraud.isProxy,
     is_bot: fraud.isBot,
     is_emulator: fraud.isEmulator,
     fraud_score: fraud.fraudScore,
-    status: finalValid ? 'valid' : 'invalid',
-    invalid_reason: finalValid ? null : (finalReason ?? 'other'),
+    status: viewStatus,
+    invalid_reason: viewReason,
     cpm_rate: decision.cpm,
     earnings: finalValid ? finalEarning : 0,
     tasks_completed: input.tasksCompleted ?? [],
@@ -415,8 +616,6 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
     idempotency_key: idemKey,
   };
 
-  // Try the atomic RPC first (migration 0017). If it doesn't exist
-  // (dev/test environments), fall back to the original approach.
   let useRpc = true;
   try {
     const { data: rpcResult, error: rpcErr } = await supabase.rpc('record_view_with_ip_check', {
@@ -443,56 +642,48 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
     });
 
     if (rpcErr) {
-      // If the RPC doesn't exist (404/42881), fall through to direct insert.
-      // 42881 = undefined_function in PostgreSQL.
       const errCode = (rpcErr as unknown as Record<string, unknown>).code;
-      if (typeof errCode === 'string' && errCode === '42881') {
+      if (typeof errCode === 'string' && (errCode === '42883' || errCode === '42881')) {
         useRpc = false;
+      } else if (typeof errCode === 'string' && errCode === '23505') {
+        return invalidResult('duplicate_request');
       } else {
-        // Unique constraint violation from the RPC — another request won.
-        if (typeof errCode === 'string' && errCode === '23505') {
-          return invalidResult('duplicate_request');
-        }
         console.error('[earnings] record_view_with_ip_check failed', rpcErr);
         return invalidResult('internal');
       }
     } else if (rpcResult && typeof rpcResult === 'object') {
       const result = rpcResult as Record<string, unknown>;
       inserted = result.view_id ? { id: result.view_id as string } : null;
-      duplicateIpDetected = result.duplicate_ip === true;
-      if (duplicateIpDetected && finalValid) {
+      if (result.duplicate_ip === true && finalValid) {
         finalValid = false;
         finalReason = 'duplicate_ip_24h';
         finalEarning = 0;
       }
+    } else {
+      useRpc = false;
     }
   } catch {
-    // RPC invocation failed (function doesn't exist) — fall back.
     useRpc = false;
   }
 
-  // Fallback: direct INSERT + advisory lock for environments without
-  // the migration 0017 RPC (development/testing).
   if (!useRpc) {
-    // Advisory lock per (campaign, IP) pair to prevent concurrent
-    // duplicate credited views.
+    // Advisory lock per (campaign, IP) pair to prevent concurrent duplicates.
     if (finalValid && ipHash) {
       try {
         await supabase.rpc('pg_advisory_xact_lock', {
           p_key: Number('0x' + createHash('sha256').update(`${campaignId}:${ipHash}`).digest('hex').slice(0, 16)),
         });
       } catch {
-        // Advisory lock function may not exist in dev — continue
-        // with best-effort duplicate check.
+        // Advisory lock unavailable in dev — continue with a best-effort check.
       }
-      const since24h = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+      const sinceWindow = new Date(now - capsIpWindow * 3600_000).toISOString();
       const { data: existingSameIp } = await supabase
         .from('views')
         .select('id')
         .eq('campaign_id', campaignId)
         .eq('ip_hash', ipHash)
         .eq('status', 'valid')
-        .gte('created_at', since24h)
+        .gte('created_at', sinceWindow)
         .limit(1);
       if (existingSameIp && existingSameIp.length > 0) {
         finalValid = false;
@@ -521,19 +712,11 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
     inserted = directInserted;
   }
 
-  // ---------------------------------------------------------------
-  // 6. Credit atomically: earnings ledger + counters in one RPC.
-  //    The RPC re-validates view ownership and caps server-side.
-  // ---------------------------------------------------------------
   if (inserted) {
-    const description = `View earning @ $${decision.cpm.toFixed(2)} CPM × ${decision.levelMultiplier}x level`;
     const { data: credit, error: cErr } = await supabase.rpc('credit_view_earning', {
       p_view_id: inserted.id,
       p_campaign_id: campaignId,
       p_creator_id: creatorId,
-      // The atomic IP RPC is authoritative. Pass its final result into the
-      // ledger RPC as well; the database still re-checks the inserted view
-      // status, so this is defense in depth rather than a client trust change.
       p_valid: finalValid,
       p_cpm: decision.cpm,
       p_earning: finalValid ? finalEarning : 0,
@@ -542,8 +725,6 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
     });
     if (cErr) {
       console.error('[earnings] credit_view_earning failed', cErr);
-      // Never report a payout-eligible view when the protected accounting
-      // transaction did not complete.
       finalValid = false;
       finalReason = 'accounting_unavailable';
       finalEarning = 0;
@@ -556,8 +737,6 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
         await maybeCreditReferral(supabase, creatorId, finalEarning, inserted.id);
       }
     } else if (decision.valid && decision.earning > 0) {
-      // Compatibility with a database that has not yet applied migration
-      // 0008. Production deployments use the structured response above.
       await maybeCreditReferral(supabase, creatorId, decision.earning, inserted.id);
     }
   }

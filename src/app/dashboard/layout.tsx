@@ -4,6 +4,43 @@ import DashboardSidebar from '@/components/DashboardSidebar';
 import MobileSidebar from '@/components/MobileSidebar';
 import { sendTemplateEmail, isConfigured as emailConfigured } from '@/lib/email';
 import { getDashboardProfile, getSessionUser } from '@/lib/session';
+import { headers } from 'next/headers';
+import { getClientIpFromHeaders } from '@/lib/request-ip';
+import { getCountryFromIP, sanitizeCountryCode } from '@/lib/geo';
+
+/**
+ * Trusted, fill-once provisioning of the CPM country.
+ *
+ * The signup form's country is client-controlled, so migration 0021 refuses
+ * to auto-assign a PREMIUM (tier_1/tier_2) CPM country from it — those
+ * profiles are left with a NULL `cpm_country_code`, which falls back to the
+ * Global CPM rather than to the premium rate.
+ *
+ * This closes the loop honestly: the country is resolved SERVER-SIDE from the
+ * visitor's trusted request IP (the same normalized IP the earnings engine
+ * uses) on the creator's first authenticated dashboard visit, and written
+ * through `provision_cpm_country`, which:
+ *
+ *   * is service-role only (a creator cannot call it),
+ *   * validates and normalizes the country code,
+ *   * only FILLS a NULL value and never moves an existing one, so a creator
+ *     cannot re-provision themselves into a better tier later.
+ *
+ * Both email/password signup and Google OAuth land here, so both follow the
+ * same trusted path. A failure is non-fatal: the creator keeps the Global CPM.
+ */
+async function maybeProvisionCpmCountry(userId: string, currentCpmCountry: string | null | undefined) {
+  if (sanitizeCountryCode(currentCpmCountry)) return;
+  try {
+    const ip = getClientIpFromHeaders(await headers());
+    const country = sanitizeCountryCode(await getCountryFromIP(ip));
+    if (!country) return;
+    const supabase = createAdminClient();
+    await supabase.rpc('provision_cpm_country', { p_user_id: userId, p_country: country });
+  } catch (e) {
+    console.error('[dashboard] cpm country provisioning failed', e);
+  }
+}
 
 /** One-time welcome email after the account becomes active. */
 async function maybeSendWelcomeEmail(userId: string, email: string | null | undefined) {
@@ -50,6 +87,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   // Fire-and-forget welcome email (deduped by welcome_email_sent_at).
   void maybeSendWelcomeEmail(user.id, profile.email);
+  // Fire-and-forget trusted CPM-country provisioning (fill-once, IP-derived).
+  void maybeProvisionCpmCountry(user.id, profile.cpm_country_code);
 
   const level = profile.level || 'bronze';
 
