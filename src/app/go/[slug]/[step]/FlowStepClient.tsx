@@ -101,6 +101,13 @@ export default function FlowStepClient({
         return;
       }
 
+      if (data.reload === true) {
+        // The session expired or was invalidated server-side: restart
+        // honestly at the task page instead of showing a dead end.
+        router.push(`/unlock/${campaign.slug}`);
+        return;
+      }
+
       setError(data.error || 'We could not continue right now. Please try again.');
     } catch {
       setError('Network error. Please check your connection and try again.');
