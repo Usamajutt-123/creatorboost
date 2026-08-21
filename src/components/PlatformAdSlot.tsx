@@ -21,7 +21,13 @@ function adDocument(markup: string): string {
 </html>`;
 }
 
-function AdFrame({
+/**
+ * Shared sandboxed renderer for admin-configured ad markup. Exported for the
+ * monetized flow pages (/unlock, /go) which reuse the exact same isolation
+ * model as the platform banner: opaque-origin iframe, no allow-same-origin,
+ * popups permitted where the format requires them.
+ */
+export function AdFrame({
   ad,
   title,
   allowPopups = true,
@@ -123,7 +129,13 @@ export function PlatformAdPreview({
  * visitor's task click, so the browser still attributes the popup to a user
  * gesture, and popup policy applies exactly as before.
  */
-function mountSandboxedPopunder(markup: string): () => void {
+/**
+ * Mounts admin-configured ad markup inside a SANDBOXED hidden iframe (opaque
+ * origin — no allow-same-origin) so popunder/onclick/vignette snippets can
+ * run and open their windows without any access to the page DOM, cookies or
+ * storage. Exported for the monetized flow pages.
+ */
+export function mountSandboxedPopunder(markup: string): () => void {
   const frame = document.createElement('iframe');
   frame.setAttribute(
     'sandbox',

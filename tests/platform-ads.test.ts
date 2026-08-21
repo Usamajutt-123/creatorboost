@@ -9,7 +9,7 @@ import {
 
 const root = join(__dirname, '..');
 const adminServer = readFileSync(join(root, 'src/lib/admin-server.ts'), 'utf8');
-const unlockPage = readFileSync(join(root, 'src/app/c/[slug]/page.tsx'), 'utf8');
+const unlockPage = readFileSync(join(root, 'src/app/unlock/UnlockServerBody.tsx'), 'utf8');
 const unlockClient = readFileSync(join(root, 'src/app/c/[slug]/UnlockClient.tsx'), 'utf8');
 const adSlot = readFileSync(join(root, 'src/components/PlatformAdSlot.tsx'), 'utf8');
 const campaignPayload = readFileSync(join(root, 'src/lib/campaign-payload.ts'), 'utf8');
@@ -61,7 +61,7 @@ describe('platform unlock-page ads', () => {
     expect(campaignPayload).not.toContain('popunder_code');
     expect(unlockPage).toContain('createAdminClient');
     expect(unlockPage).toContain(".from('platform_settings')");
-    expect(unlockPage).toContain('getPublicPlatformAds(adSettings)');
+    expect(unlockPage).toContain('getPublicPlatformAds(platformSettings.data)');
   });
 
   it('keeps the normal task click and constrains the ad slot on narrow screens', () => {

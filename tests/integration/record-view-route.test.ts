@@ -30,6 +30,57 @@ const state: {
   user: null,
 };
 
+// Monetized-flow configuration + session recording, kept in a separate state
+// so the existing direct-unlock assertions stay untouched.
+const monetizationState: {
+  flowEnabled: boolean;
+  steps: unknown[];
+  testMode: boolean;
+  createFlowSessionError: boolean;
+  createdSessions: any[];
+  events: any[];
+} = {
+  flowEnabled: false,
+  steps: [],
+  testMode: false,
+  createFlowSessionError: false,
+  createdSessions: [],
+  events: [],
+};
+
+vi.mock('@/lib/monetization/settings', () => ({
+  loadMonetizationSettings: vi.fn(async () => ({
+    flow_enabled: monetizationState.flowEnabled,
+    task_page_ads_enabled: false,
+    progress_bar_enabled: true,
+    educational_content_enabled: true,
+    final_redirect_enabled: true,
+    test_mode: monetizationState.testMode,
+    steps_count: 4,
+    default_countdown_seconds: 10,
+    session_ttl_minutes: 30,
+  })),
+  loadActiveSteps: vi.fn(async () => monetizationState.steps),
+  deviceCategoryFromUA: () => 'desktop',
+}));
+
+vi.mock('@/lib/monetization/flow-session', () => ({
+  FLOW_COOKIE: 'creatorboost_flow',
+  createFlowSession: vi.fn(async (input: any) => {
+    if (monetizationState.createFlowSessionError) throw new Error('session boom');
+    monetizationState.createdSessions.push(input);
+    return 'session-1234';
+  }),
+  recordFlowEvent: vi.fn(async (input: any) => {
+    monetizationState.events.push(input);
+  }),
+}));
+
+vi.mock('@/lib/geo', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/geo')>()),
+  getCountryFromIP: vi.fn(async () => 'US'),
+}));
+
 vi.mock('@/lib/rate-limit', () => ({
   rateLimit: vi.fn(async (key: string, limit: number, windowMs: number) => {
     state.rateLimitCalls.push({ key, limit, windowMs });
@@ -140,6 +191,12 @@ beforeEach(() => {
   state.recordViewCalls = [];
   state.recordViewResult = paidResult();
   state.user = null;
+  monetizationState.flowEnabled = false;
+  monetizationState.steps = [];
+  monetizationState.testMode = false;
+  monetizationState.createFlowSessionError = false;
+  monetizationState.createdSessions = [];
+  monetizationState.events = [];
 });
 
 // =====================================================================
@@ -161,6 +218,74 @@ describe('happy path', () => {
     expect(cookie?.value).toBeTruthy();
     expect(cookie?.httpOnly).toBe(true);
     expect(cookie?.sameSite).toBe('lax');
+  });
+});
+
+// =====================================================================
+describe('monetized flow branch', () => {
+  const oneStep = [{ id: 1, position: 1, title: 'What is CreatorBoost?', status: 'enabled', countdown_seconds: 10 }];
+
+  it('starts a flow session and discloses no eligibility information', async () => {
+    monetizationState.flowEnabled = true;
+    monetizationState.steps = oneStep;
+
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+
+    // The visitor is told where the flow continues — and nothing about
+    // eligibility, CPM, fraud or the earning.
+    expect(json).toEqual({ unlocked: true, mode: 'flow', next: '/go/demo/1' });
+
+    // No earning is recorded at task completion: the qualified view happens
+    // when the FINAL step completes.
+    expect(state.recordViewCalls).toHaveLength(0);
+
+    // The session is server-created and bound to this campaign/creator.
+    expect(monetizationState.createdSessions).toHaveLength(1);
+    const session = monetizationState.createdSessions[0];
+    expect(session.campaignId).toBe(CAMPAIGN_ID);
+    expect(session.creatorId).toBe(CREATOR_ID);
+    expect(session.totalSteps).toBe(1);
+    expect(session.tasksCompleted).toEqual(['website_visit']);
+    expect(session.previewMode).toBeFalsy();
+
+    // Funnel bookkeeping: task completion, unlock and flow start.
+    const eventTypes = monetizationState.events.map((e: any) => e.eventType).sort();
+    expect(eventTypes).toEqual(['flow_start', 'task_complete', 'unlock']);
+
+    // The visitor's flow cookie replaces the destination cookie for this
+    // mode.
+    const flowCookie = res.cookies.get('creatorboost_flow');
+    expect(flowCookie?.value).toBe('session-1234');
+    expect(flowCookie?.httpOnly).toBe(true);
+    expect(res.cookies.get('creatorboost_unlock')?.value).toBeUndefined();
+  });
+
+  it('does not start the flow when no step is configured', async () => {
+    monetizationState.flowEnabled = true;
+    monetizationState.steps = [];
+
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ unlocked: true });
+    // Falls back to the direct path: the earning is recorded at task
+    // completion exactly as before.
+    expect(state.recordViewCalls).toHaveLength(1);
+    expect(monetizationState.createdSessions).toHaveLength(0);
+  });
+
+  it('falls back to the direct unlock when session creation fails', async () => {
+    monetizationState.flowEnabled = true;
+    monetizationState.steps = oneStep;
+    monetizationState.createFlowSessionError = true;
+
+    const res = await POST(makeRequest(validBody));
+    // A flow infrastructure failure must never block the visitor.
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ unlocked: true });
+    expect(state.recordViewCalls).toHaveLength(1);
+    expect(res.cookies.get('creatorboost_unlock')?.value).toBeTruthy();
   });
 });
 

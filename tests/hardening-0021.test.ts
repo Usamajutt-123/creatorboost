@@ -324,8 +324,10 @@ describe('7. task session verification', () => {
     expect(route).toContain('if (!session.ok)');
   });
 
-  it('the campaign page issues one', () => {
-    expect(read('src/app/c/[slug]/page.tsx')).toContain('createTaskSession');
+  it('the unlock page issues one', () => {
+    // The shared server renderer (used by BOTH /c/[slug] and /unlock/[slug])
+    // issues the task session.
+    expect(read('src/app/unlock/UnlockServerBody.tsx')).toContain('createTaskSession');
   });
 
   it('does not claim third-party social verification', () => {

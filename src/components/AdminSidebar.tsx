@@ -3,13 +3,14 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from "next/image";
 import { usePathname } from 'next/navigation';
-import { BarChart3, Users, Megaphone, Wallet, DollarSign, Network, Award, Settings, LogOut, ArrowLeft, LifeBuoy, BellRing, BookOpen } from 'lucide-react';
+import { BarChart3, Users, Megaphone, Wallet, DollarSign, Network, Award, Settings, LogOut, ArrowLeft, LifeBuoy, BellRing, BookOpen, Coins } from 'lucide-react';
 import { signOutClient } from '@/lib/supabase/sign-out';
 import { useRouter } from 'next/navigation';
 import { serverAdminMe } from '@/lib/admin-server';
 
 const links = [
   { href: '/admin', label: 'Statistics', icon: BarChart3, exact: true },
+  { href: '/admin/monetization', label: 'Monetization', icon: Coins },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/campaigns', label: 'Campaigns', icon: Megaphone },
   { href: '/admin/announcements', label: 'Announcements', icon: BellRing },

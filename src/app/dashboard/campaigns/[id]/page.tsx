@@ -115,7 +115,7 @@ export default async function CampaignStatsPage({ params }: { params: Promise<{ 
             <Edit className="w-3.5 h-3.5" /> Edit
           </Link>
           <CopyLinkButton slug={campaign.slug} />
-          <a href={`/c/${campaign.slug}`} target="_blank" rel="noopener noreferrer" className="btn-ghost px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
+          <a href={`/unlock/${campaign.slug}`} target="_blank" rel="noopener noreferrer" className="btn-ghost px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
             <ExternalLink className="w-3.5 h-3.5" /> Open Public Page
           </a>
         </div>

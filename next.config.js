@@ -44,6 +44,21 @@ const nextConfig = {
         ],
       },
       {
+        // The unlock link (/unlock/*) and the monetized shortener flow
+        // (/go/*) are the same public, ad-bearing surface as /c/* and share
+        // the same scoped CSP exception. Everything else stays restrictive.
+        source: '/unlock/:path*',
+        headers: [
+          { key: 'Content-Security-Policy', value: unlockPageAdContentSecurityPolicy },
+        ],
+      },
+      {
+        source: '/go/:path*',
+        headers: [
+          { key: 'Content-Security-Policy', value: unlockPageAdContentSecurityPolicy },
+        ],
+      },
+      {
         source: '/sw.js',
         headers: [
           { key: 'Content-Type', value: 'application/javascript; charset=utf-8' },

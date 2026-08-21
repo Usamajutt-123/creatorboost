@@ -55,6 +55,22 @@ export type RecordViewInput = {
   sessionSeconds?: number | null;
   /** Number of tasks the campaign requires (read server-side from the campaign). */
   requiredTasks?: number;
+  /**
+   * Monetized-flow earning adjustments, computed server-side from the
+   * admin-configured payout settings (creator share, fraud adjustment).
+   * Defaults to 1 — the direct unlock path is completely unchanged.
+   */
+  earningScale?: number | null;
+  /** Optional per-view payout bounds (min/max), applied after the scale. */
+  earningClamp?: { min: number; max: number } | null;
+  /**
+   * Reduces earnings by `percent` when the server-derived fraud score is at
+   * least `threshold` but the view is still valid. Applied only when the
+   * admin has configured a non-zero adjustment.
+   */
+  fraudAdjustment?: { percent: number; threshold: number } | null;
+  /** Monetized-flow session id for qualified-view attribution. */
+  flowSessionId?: string | null;
 };
 
 export type RecordViewResult = {
@@ -441,6 +457,37 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
   // 3. Earnings decision
   // ---------------------------------------------------------------
   const decision = await computeViewEarnings({ creatorId, countryCode, fraud });
+
+  // Monetized-flow adjustments. The scale (creator share) and the per-view
+  // payout bounds are computed by the CALLER from the admin-configured
+  // payout settings — never from client input. The fraud adjustment uses
+  // THIS request's server-derived fraud score. Defaults keep the direct
+  // unlock path byte-for-byte unchanged.
+  if (decision.valid && decision.earning > 0) {
+    let scale = Number(input.earningScale);
+    if (!Number.isFinite(scale) || scale < 0) scale = 1;
+    scale = Math.min(scale, 2);
+
+    const adjustment = input.fraudAdjustment;
+    if (adjustment) {
+      const percent = Number(adjustment.percent);
+      const threshold = Number(adjustment.threshold);
+      if (Number.isFinite(percent) && percent > 0 && Number.isFinite(threshold)
+        && fraud.fraudScore >= threshold) {
+        scale *= Math.max(0, 1 - Math.min(percent, 100) / 100);
+      }
+    }
+
+    if (scale !== 1) decision.earning *= scale;
+    if (input.earningClamp) {
+      const min = Number(input.earningClamp.min);
+      const max = Number(input.earningClamp.max);
+      if (Number.isFinite(min) && Number.isFinite(max) && min <= max) {
+        decision.earning = Math.min(Math.max(decision.earning, min), max);
+      }
+    }
+  }
+
   // The database performs a final serialized cap/status check while it
   // accounts the view. These values are updated from that authoritative RPC
   // response before we return anything to the route handler.
@@ -559,6 +606,7 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
     p_idempotency_key: idemKey,
     p_ip_window_hours: capsIpWindow,
     p_description: description,
+    p_flow_session_id: input.flowSessionId || null,
   });
 
   if (atomic.status === 'ok') {
@@ -614,6 +662,7 @@ export async function recordView(input: RecordViewInput): Promise<RecordViewResu
     tasks_completed: input.tasksCompleted ?? [],
     validated_at: finalValid ? new Date().toISOString() : null,
     idempotency_key: idemKey,
+    flow_session_id: input.flowSessionId || null,
   };
 
   let useRpc = true;

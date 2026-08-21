@@ -1,12 +1,14 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Check, ExternalLink, Loader2, Lock, Shield, Unlock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { configuredTaskUrl, isTaskType, TASK_DETAILS, taskDisplayName, type TaskMetadata } from '@/lib/tasks';
 import { PlatformBannerAd, usePlatformPopunder } from '@/components/PlatformAdSlot';
+import { MonetizationAds, useGestureAdTrigger } from '@/components/monetization/MonetizationAds';
 import type { PublicPlatformAds } from '@/lib/platform-ads';
+import type { PublicAdSlot } from '@/lib/monetization/ad-constants';
 
 type Step = 'tasks' | 'verifying' | 'complete' | 'error';
 
@@ -21,7 +23,7 @@ type PublicCampaign = {
   task_metadata?: TaskMetadata | null;
 };
 
-export default function UnlockClient({ campaign, platformAds, taskSession }: {
+export default function UnlockClient({ campaign, platformAds, taskSession, monetizationAds }: {
   campaign: PublicCampaign;
   platformAds: PublicPlatformAds;
   /**
@@ -30,6 +32,8 @@ export default function UnlockClient({ campaign, platformAds, taskSession }: {
    * or alter one.
    */
   taskSession: string | null;
+  /** Admin-configured monetization ad slots for the task page. */
+  monetizationAds?: PublicAdSlot[];
 }) {
   const router = useRouter();
   const tasks = useMemo(() => (campaign.tasks || []).filter(isTaskType), [campaign.tasks]);
@@ -39,10 +43,28 @@ export default function UnlockClient({ campaign, platformAds, taskSession }: {
   const [progress, setProgress] = useState(0);
   const [idempotencyKey, setIdempotencyKey] = useState('');
   const triggerPopunder = usePlatformPopunder(platformAds.popunder);
+  const triggerGestureAds = useGestureAdTrigger(monetizationAds || []);
+  const ads = monetizationAds || [];
   // When this visitor started the flow. Sent as a timing hint the server may
   // use to LOWER trust (impossible completion speed); the server clock is
   // authoritative and an implausible value is simply discarded.
   const startedAtRef = useRef<number>(Date.now());
+
+  // Funnel bookkeeping: this page load is a task-page visit ("link click").
+  // Fire-and-forget, once per browser session, never blocks rendering.
+  useEffect(() => {
+    try {
+      if (window.sessionStorage.getItem('creatorboost_task_start_sent') === '1') return;
+      window.sessionStorage.setItem('creatorboost_task_start_sent', '1');
+      void fetch('/api/flow/task-start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignId: campaign.id }),
+      }).catch(() => {});
+    } catch {
+      // Storage unavailable — the counter simply isn't recorded this session.
+    }
+  }, [campaign.id]);
 
   const totalSteps = tasks.length;
   const completedCount = completed.size;
@@ -60,6 +82,9 @@ export default function UnlockClient({ campaign, platformAds, taskSession }: {
     // A platform-owned popunder may run once from this visitor gesture. It is
     // independent of creator campaign data and cannot change task completion.
     triggerPopunder();
+    // Monetized task-page gesture ads (popunder/onclick/vignette) run from
+    // this same visitor gesture — optional, once per session, never required.
+    triggerGestureAds();
     // This is intentionally the exact persisted creator URL. No platform
     // default, YouTube fallback, or search redirect is ever substituted.
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -97,8 +122,15 @@ export default function UnlockClient({ campaign, platformAds, taskSession }: {
         return;
       }
 
+      // The server decides where the visitor goes next: the monetized flow
+      // (/go/...) when enabled, the destination page otherwise. The path is
+      // a server-issued relative route — the browser never composes it.
+      const nextPath = typeof data.next === 'string' && /^\/(go|destination)\//.test(data.next)
+        ? data.next
+        : `/destination/${campaign.slug}`;
+
       setStep('complete');
-      window.setTimeout(() => router.push(`/destination/${campaign.slug}`), 1_500);
+      window.setTimeout(() => router.push(nextPath), 1_500);
     } catch {
       window.clearInterval(interval);
       setError('Network error. Please check your connection and try again.');
@@ -132,7 +164,8 @@ export default function UnlockClient({ campaign, platformAds, taskSession }: {
             {step === 'tasks' && <>
               <div className="mb-4 p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-start gap-2 text-xs sm:text-sm text-purple-200"><Lock className="w-4 h-4 flex-shrink-0 mt-0.5" /><span>Open every task in a new tab, then return here to unlock the destination.</span></div>
               {!configurationValid && <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-200">This campaign is missing a task URL and cannot be unlocked until its creator fixes the configuration.</div>}
-              <div className="space-y-2.5 mb-5">
+              <MonetizationAds slots={ads} position="top" />
+              <div className="space-y-2.5 mb-5 mt-3">
                 {tasks.map((task, index) => {
                   const done = completed.has(task);
                   const url = configuredTaskUrl(campaign.task_metadata, task);
@@ -144,7 +177,9 @@ export default function UnlockClient({ campaign, platformAds, taskSession }: {
                   </button>;
                 })}
               </div>
+              <MonetizationAds slots={ads} position="middle" />
               <button onClick={requestUnlock} disabled={!allComplete || !configurationValid} className="btn-primary w-full py-3.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"><Unlock className="w-4 h-4" />{allComplete ? 'Unlock now' : `Complete ${totalSteps - completedCount} more step${totalSteps - completedCount === 1 ? '' : 's'}`}</button>
+              <MonetizationAds slots={ads} position="bottom" />
               <p className="mt-4 flex items-start justify-center gap-2 text-xs text-gray-500 text-center"><Shield className="w-3 h-3 flex-shrink-0 mt-0.5" />Third-party actions cannot be confirmed by CreatorBoost. Opening each configured URL is confirmed in this browser; traffic eligibility is checked separately for creator earnings.</p>
             </>}
 

@@ -308,6 +308,58 @@ Vercel will auto-detect Next.js, optimize images, and configure CDN.
 | **Ad Networks** | Activate/deactivate Monetag, Adsterra, AdSense, etc. |
 | **Creator Levels** | Edit min views, multiplier, perks, badge color |
 | **Settings** | Min withdrawal, referral %, fraud sensitivity, methods |
+| **Monetization** | Flow settings, step content + order, per-page ads, analytics, payouts |
+
+---
+
+## 🔗 The Monetized Unlock + Shortener Flow
+
+Every unlock link is now a complete monetized funnel. The creator workflow stays
+exactly the same — destination URL + tasks + publish — and the system handles the rest:
+
+```
+/unlock/[slug]           task page (creator branding, tasks, progress, ads)
+     ↓  tasks complete + Unlock
+/go/[slug]/1 .. /go/[slug]/4   admin-configured educational shortener pages
+                                (rich content, countdown, ads — default 4 steps)
+     ↓  final Continue
+original destination     retrieved + validated server-side, then redirected
+```
+
+- **One dynamic page** powers every step: `/go/[slug]/[step]` renders the
+  admin-configured step at that position — no duplicated hardcoded pages.
+- **Server-validated progression**: a `flow_sessions` row (HttpOnly cookie)
+  is the authority. Skipping to `/go/[slug]/4` redirects back to the next
+  allowed step; the countdown is re-validated server-side on every Continue.
+- **Qualified views pay**: the existing earnings engine records the view +
+  earning only when the final step completes, with the creator share,
+  per-view payout bounds and fraud adjustment from the admin payout settings.
+  A completed flow can never be replayed for earnings (idempotency key +
+  unique `(creator_id, flow_session_id)` index).
+- **Admin controls everything** (no deployments needed):
+  - `/admin/monetization/settings` — flow ON/OFF, step count, default
+    countdown, progress bar, educational content, final redirect, test mode
+  - `/admin/monetization/content` — step titles/rich content/button text/
+    countdown/status + drag-and-drop ordering + safe flow preview
+  - `/admin/monetization/ads` — per-page ad slots (task page + each step,
+    3 slots each): Adsterra (native/standard/social bar/popunder) and
+    Monetag (MultiTag/OnClick/in-page push/vignette), device targeting,
+    placement, priority, frequency
+  - `/admin/monetization/analytics` — funnel with step-by-step drop-off,
+    countries, devices, revenue breakdown
+  - `/admin/monetization/payouts` — country tiers, level multipliers,
+    creator share, payout bounds, fraud adjustment, manual revenue ledger
+- **Ads are optional and never a requirement**: visitors only wait for the
+  countdown and click Continue. Ads never block navigation and a failed ad
+  never blocks the page.
+- **Safe by default**: test mode renders labeled ad placeholders and
+  generates no earnings; admin preview sessions record no analytics and no
+  qualified views; `/unlock/*` and `/go/*` are the only routes whose CSP
+  permits admin-configured ad snippets (everything else stays strict).
+
+**Fallback behavior**: when the monetized flow is disabled, or the settings
+can't be read, task completion falls back to the direct unlock → destination
+path exactly as before.
 
 ---
 
