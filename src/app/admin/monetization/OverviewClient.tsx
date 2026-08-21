@@ -36,13 +36,25 @@ const FUNNEL_LABELS: Record<string, string> = {
 };
 
 function section(sectionKey: string, overview: OverviewData): Record<string, number> {
+  // Every key the UI reads is defaulted to 0, so a missing/partial overview
+  // (fresh database, failed RPC, un-migrated schema) can never crash the
+  // page through an undefined number.
+  const out: Record<string, number> = {
+    flowStarts: 0,
+    destinations: 0,
+    qualified: 0,
+    creatorPayout: 0,
+    grossRevenue: 0,
+    stepsCompleted: 0,
+  };
   const value = overview?.[sectionKey];
   if (value && typeof value === 'object') {
-    const out: Record<string, number> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = Number(v) || 0;
-    return out;
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      const n = Number(v);
+      if (Number.isFinite(n)) out[k] = n;
+    }
   }
-  return {};
+  return out;
 }
 
 export default function OverviewClient({
@@ -52,6 +64,7 @@ export default function OverviewClient({
   countries,
   topCreators,
   topCampaigns,
+  schemaMissing,
 }: {
   overview: OverviewData;
   funnel: FunnelRow[];
@@ -59,6 +72,8 @@ export default function OverviewClient({
   countries: CountryRow[];
   topCreators: CreatorRow[];
   topCampaigns: CampaignRow[];
+  /** True when the analytics RPCs are unavailable (schema not migrated). */
+  schemaMissing?: boolean;
 }) {
   const today = section('today', overview);
   const d7 = section('d7', overview);
@@ -112,6 +127,15 @@ export default function OverviewClient({
 
   return (
     <div>
+      {schemaMissing && (
+        <div className="mb-5 p-4 rounded-xl bg-amber-500/10 border border-amber-500/40 text-xs text-amber-200 leading-relaxed">
+          <strong className="font-semibold">Monetization analytics unavailable.</strong> The database schema for this section
+          is missing — apply <code className="text-amber-300">supabase/migrations/0022_monetization_flow.sql</code> (and the
+          following migrations) to your Supabase project, then reload. Until then this page shows zeros and never affects
+          the live unlock flow.
+        </div>
+      )}
+
       {/* Today's numbers */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
         <StatCard label="Today's Views" value={formatNumber(today.flowStarts)} change={`${formatNumber(today.destinations)} reached destination`} icon={Eye} color="purple" />

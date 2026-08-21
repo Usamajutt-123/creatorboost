@@ -38,6 +38,7 @@ export default async function MonetizationOverviewPage() {
         countries={countries}
         topCreators={topCreators}
         topCampaigns={topCampaigns}
+        schemaMissing={overview === null}
       />
     </div>
   );

@@ -6,13 +6,17 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number, currency = 'USD') {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+  const value = Number(amount);
+  const safe = Number.isFinite(value) ? value : 0;
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(safe);
 }
 
 export function formatNumber(n: number) {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
-  return n.toString();
+  const value = Number(n);
+  const safe = Number.isFinite(value) ? value : 0;
+  if (safe >= 1_000_000) return (safe / 1_000_000).toFixed(1) + 'M';
+  if (safe >= 1_000) return (safe / 1_000).toFixed(1) + 'K';
+  return safe.toString();
 }
 
 export function slugify(str: string) {
