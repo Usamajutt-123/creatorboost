@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import Image from "next/image";
 import { usePathname } from 'next/navigation';
-import { Home, Megaphone, PlusCircle, BarChart3, Wallet, Users, Wrench, User, Bell, HelpCircle, LogOut, Zap, Shield, Settings } from 'lucide-react';
+import { Home, Megaphone, PlusCircle, BarChart3, Wallet, Users, Wrench, User, Bell, HelpCircle, LogOut, Zap, Shield, Settings, Coins } from 'lucide-react';
 import { signOutClient } from '@/lib/supabase/sign-out';
 import { useRouter } from 'next/navigation';
 
@@ -11,6 +11,7 @@ const links = [
   { href: '/dashboard/campaigns', label: 'Campaigns', icon: Megaphone },
   { href: '/dashboard/create-campaign', label: 'Create Campaign', icon: PlusCircle },
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
+  { href: '/dashboard/monetization', label: 'Monetization', icon: Coins },
   { href: '/dashboard/withdraw', label: 'Withdraw', icon: Wallet },
   { href: '/dashboard/referrals', label: 'Referrals', icon: Users },
   { href: '/dashboard/tools', label: 'Tools', icon: Wrench },

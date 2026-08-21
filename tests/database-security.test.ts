@@ -20,9 +20,9 @@ describe('database security invariants', () => {
   it('migrations exist and are ordered', () => {
     expect(migrations.length).toBeGreaterThanOrEqual(7);
     expect(migrations[0]).toMatch(/^0001_/);
-    // The additive privacy/atomicity/authorization migration is the latest
-    // one, following the already-applied 0020 baseline.
-    expect(migrations[migrations.length - 1]).toMatch(/^0021_/);
+    // The monetized flow migration (0022) is the latest one, following the
+    // already-applied 0021 privacy/atomicity/authorization baseline.
+    expect(migrations[migrations.length - 1]).toMatch(/^0022_/);
   });
 
   it('enables RLS on every sensitive table', () => {

@@ -8,31 +8,25 @@ export const dynamic = 'force-dynamic';
 
 type PageProps = { params: Promise<{ slug: string }> };
 
-/**
- * Next.js calls `generateMetadata` and the page component for the same request,
- * and both need the campaign. Without memoization every visit to a public
- * unlock link ran the campaign lookup twice, doubling the Supabase latency on
- * the most traffic-heavy route in the app. `cache()` is request-scoped, so
- * campaign changes are still picked up on the very next request.
- */
+/** Request-scoped campaign lookup shared by metadata and the page render. */
 const getCampaign = cache(loadPublicCampaign);
 
 export async function generateMetadata({ params }: PageProps) {
   const { slug } = await resolveParams(params);
   try {
     const campaign = await getCampaign(slug);
-    if (!campaign) return { title: 'Campaign not found', robots: { index: false, follow: false } };
+    if (!campaign) return { title: 'Link not found', robots: { index: false, follow: false } };
     const description = campaign.description || `Complete the tasks to unlock ${campaign.name}.`;
     return {
       title: campaign.name,
       description,
-      alternates: { canonical: `/c/${campaign.slug}` },
+      alternates: { canonical: `/unlock/${campaign.slug}` },
       openGraph: { title: campaign.name, description, type: 'website', images: campaign.banner_url ? [{ url: campaign.banner_url }] : undefined },
       twitter: { card: 'summary_large_image', title: campaign.name, description, images: campaign.banner_url ? [campaign.banner_url] : undefined },
     };
   } catch (error) {
     if (error instanceof PublicCampaignLookupError) {
-      return { title: 'Campaign unavailable', robots: { index: false, follow: false } };
+      return { title: 'Link unavailable', robots: { index: false, follow: false } };
     }
     throw error;
   }
@@ -44,9 +38,7 @@ export default async function UnlockPage({ params }: PageProps) {
   try {
     campaign = await getCampaign(slug);
   } catch (error) {
-    if (error instanceof PublicCampaignLookupError) {
-      throw error;
-    }
+    if (error instanceof PublicCampaignLookupError) throw error;
     throw error;
   }
   if (!campaign) notFound();

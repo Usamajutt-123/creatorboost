@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 export default function CopyLinkButton({ slug }: { slug: string }) {
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}/c/${slug}`);
+      await navigator.clipboard.writeText(`${window.location.origin}/unlock/${slug}`);
       toast.success('Link copied!');
     } catch {
       toast.error('Could not copy — copy the link from the address bar.');

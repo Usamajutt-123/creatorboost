@@ -18,7 +18,10 @@ describe('Fix 2: User-Agent security — route handler', () => {
 
   it('uses request.headers.get("user-agent") as the authoritative source', () => {
     // The UA handed to the earnings engine must come from the server header.
-    expect(route).toMatch(/userAgent:\s*request\.headers\.get\(['"]user-agent['"]\)/);
+    // It may be bound to a local constant first (requestUA) as long as that
+    // constant is itself derived only from the real header.
+    expect(route).toMatch(/userAgent:\s*(requestUA|request\.headers\.get\(['"]user-agent['"]\))/);
+    expect(route).toMatch(/requestUA\s*=\s*request\.headers\.get\(['"]user-agent['"]\)/);
   });
 
   it('does NOT fall back to body.userAgent at all', () => {

@@ -14,6 +14,17 @@ import {
   validateJsonRequestEnvelope,
 } from '@/lib/bot-detection';
 import { hashIp } from '@/lib/fraud';
+import { getCountryFromIP, sanitizeCountryCode } from '@/lib/geo';
+import {
+  createFlowSession,
+  recordFlowEvent,
+  FLOW_COOKIE,
+} from '@/lib/monetization/flow-session';
+import {
+  deviceCategoryFromUA,
+  loadActiveSteps,
+  loadMonetizationSettings,
+} from '@/lib/monetization/settings';
 
 /**
  * POST /api/views/record
@@ -167,9 +178,80 @@ export async function POST(request: NextRequest) {
     // ---------------------------------------------------------------
     const headerSignals = deriveRequestSignals(request.headers);
     const sessionSeconds = deriveSessionSeconds(startedAt);
+    const requestUA = request.headers.get('user-agent') || '';
+    const trustedIp = ip === 'unknown' ? null : ip;
 
     const sessionClient = await createClient();
     const { data: { user } } = await sessionClient.auth.getUser();
+
+    // ---------------------------------------------------------------
+    // 4b. MONETIZED FLOW BRANCH.
+    //
+    // When the admin has enabled the monetized flow, completing the tasks
+    // starts the shortener flow instead of recording an earning: the
+    // qualified view is recorded ONCE the visitor finishes the final step
+    // (/api/flow/advance). This is the single unlock transition either way,
+    // and the response never reveals eligibility information.
+    // ---------------------------------------------------------------
+    const [monetization, activeSteps] = await Promise.all([
+      loadMonetizationSettings(),
+      loadActiveSteps(),
+    ]);
+    const flowStepCount = Math.min(monetization.steps_count, activeSteps.length);
+    const flowEnabled = monetization.flow_enabled && flowStepCount > 0;
+
+    if (flowEnabled) {
+      try {
+        const flowSessionId = await createFlowSession({
+          campaignId: campaign.id,
+          creatorId: campaign.creator_id,
+          totalSteps: flowStepCount,
+          ttlMinutes: monetization.session_ttl_minutes,
+          tasksCompleted: configuredTasks,
+          ip: trustedIp,
+          userAgent: requestUA,
+          testMode: monetization.test_mode,
+        });
+        const eventCountry = sanitizeCountryCode(await getCountryFromIP(trustedIp));
+        const deviceCategory = deviceCategoryFromUA(requestUA);
+        // Funnel bookkeeping. test_mode events are flagged so admin
+        // analytics can exclude them by default.
+        for (const eventType of ['task_complete', 'unlock', 'flow_start'] as const) {
+          await recordFlowEvent({
+            flowSessionId,
+            campaignId: campaign.id,
+            creatorId: campaign.creator_id,
+            eventType,
+            step: 0,
+            testMode: monetization.test_mode,
+            countryCode: eventCountry,
+            deviceCategory,
+          });
+        }
+
+        const response = NextResponse.json({
+          unlocked: true,
+          mode: 'flow',
+          next: `/go/${campaign.slug}/1`,
+        });
+        response.cookies.set({
+          name: FLOW_COOKIE,
+          value: flowSessionId,
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+          path: '/',
+          maxAge: monetization.session_ttl_minutes * 60,
+        });
+        return response;
+      } catch (error) {
+        // A flow infrastructure failure must never block a visitor who
+        // completed the tasks: fall through to the direct path below. The
+        // failure is logged for the operator.
+        console.error('[views/record] flow session creation failed', error);
+      }
+    }
+
     const result = await recordView({
       campaign: campaign as ValidatedCampaign,
       visitorIp: ip,
@@ -177,7 +259,7 @@ export async function POST(request: NextRequest) {
       // client-supplied body field. `body.userAgent` is accepted by the
       // schema for backwards compatibility but is deliberately NOT read
       // here — no fraud or earnings decision may depend on it.
-      userAgent: request.headers.get('user-agent') || '',
+      userAgent: requestUA,
       deviceFingerprint: deviceFingerprint || undefined,
       tasksCompleted: tasksCompleted || [],
       idempotencyKey: idempotencyKey || null,
@@ -192,7 +274,7 @@ export async function POST(request: NextRequest) {
     const token = createUnlockToken(
       campaign.id,
       Date.now(),
-      unlockSubject(ip === 'unknown' ? null : ip, request.headers.get('user-agent')),
+      unlockSubject(trustedIp, requestUA),
     );
     if (!token) {
       console.error('[views/record] unlock token secret is not configured');
@@ -218,7 +300,9 @@ export async function POST(request: NextRequest) {
     // authenticated dashboard; admins see traffic quality in the admin panel.
     //
     // `result` is still consumed above by the accounting path — this only
-    // changes what is DISCLOSED, not what is recorded.
+    // changes what is DISCLOSED, not what is recorded. The direct-mode body
+    // stays exactly `{ unlocked: true }`: the client navigates to the
+    // destination page unless the server returned a flow `next` path.
     const response = NextResponse.json({ unlocked: true });
     response.cookies.set({
       name: UNLOCK_COOKIE,

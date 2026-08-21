@@ -342,3 +342,164 @@ body {
 .animate-float {
   animation: float 8s ease-in-out infinite;
 }
+/* ============================================================
+   Monetized flow — rich step content (allowlisted classes only;
+   see src/lib/monetization/sanitize.ts for the full tag/class policy)
+   ============================================================ */
+.rich-content {
+  line-height: 1.65;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+.rich-content h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin: 1.4rem 0 0.6rem;
+  letter-spacing: -0.01em;
+}
+.rich-content h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin: 1.2rem 0 0.5rem;
+}
+.rich-content p {
+  margin: 0.6rem 0;
+}
+.rich-content ul,
+.rich-content ol {
+  margin: 0.75rem 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.45rem;
+}
+.rich-content ul {
+  list-style: disc;
+}
+.rich-content ol {
+  list-style: decimal;
+}
+.rich-content li::marker {
+  color: #a78bfa;
+}
+.rich-content a {
+  color: #a78bfa;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.rich-content a:hover {
+  color: #c4b5fd;
+}
+.rich-content strong,
+.rich-content b {
+  color: #e2e8f0;
+  font-weight: 600;
+}
+.rich-content img {
+  border-radius: 0.75rem;
+  max-width: 100%;
+  height: auto;
+}
+.rich-content blockquote {
+  border-left: 3px solid rgba(139, 92, 246, 0.5);
+  padding-left: 1rem;
+  margin: 0.9rem 0;
+  color: #94a3b8;
+}
+.rich-content hr {
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 1.2rem 0;
+}
+.rich-content .grid-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+  margin: 0.9rem 0;
+}
+@media (min-width: 640px) {
+  .rich-content .grid-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.rich-content .card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 1rem;
+  padding: 0.9rem 1rem;
+}
+.rich-content .card-icon {
+  font-size: 1.35rem;
+  margin-bottom: 0.4rem;
+}
+.rich-content .card-title {
+  font-weight: 600;
+  color: #e2e8f0;
+  margin-bottom: 0.25rem;
+}
+.rich-content .card-body {
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+.rich-content .timeline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  margin: 1rem 0;
+}
+.rich-content .timeline-step {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 24rem;
+}
+.rich-content .timeline-dot {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #fff;
+  background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+}
+.rich-content .timeline-step .card {
+  flex: 1;
+  padding: 0.6rem 0.9rem;
+}
+.rich-content .timeline-arrow {
+  color: #a78bfa;
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+.rich-content .checklist li {
+  padding-left: 0.25rem;
+}
+.rich-content .note {
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 0.75rem;
+  padding: 0.8rem 1rem;
+  margin: 1rem 0;
+  color: #c4b5fd;
+}
+.rich-content .badge {
+  display: inline-block;
+  background: rgba(34, 211, 238, 0.12);
+  color: #67e8f9;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  border-radius: 9999px;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.rich-content .muted {
+  color: #64748b;
+}

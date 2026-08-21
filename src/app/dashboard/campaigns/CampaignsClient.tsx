@@ -69,7 +69,7 @@ export default function CampaignsClient({ initial, userId, unreadCount }: { init
   };
 
   const copyLink = (slug: string) => {
-    const url = `${window.location.origin}/c/${slug}`;
+    const url = `${window.location.origin}/unlock/${slug}`;
     navigator.clipboard.writeText(url);
     toast.success('Link copied!');
   };
